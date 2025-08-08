@@ -1201,6 +1201,9 @@ function myStatsWidget() {
 
     const config = window.bannerConfig || {};
     const dashboardHref = config.dashboardHref;
+    const debugON = config.debug;
+
+    if (!dashboardHref) return;
     
     const iframe = document.createElement('iframe');
     iframe.src = dashboardHref;
