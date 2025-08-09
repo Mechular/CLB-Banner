@@ -1170,7 +1170,7 @@ function myStatsWidget() {
     const checkInterval = 1000; // Check every 1 second
     let elapsedTime = 0;
 
-    const config = window.bannerConfig || {};
+    const config = window.scriptConfig || {};
     const dashboardHref = config.dashboardHref;
     const debugON = config.debug;
 
@@ -4779,7 +4779,7 @@ async function updateContactsToCustomURLs() {
 
     const sidebar = document.getElementById('sidebar-v2');
     if (sidebar) {
-        const config = window.bannerConfig || {};
+        const config = window.scriptConfig || {};
         const contactsHref = config.contactsHref;
         const dashboardHref = config.dashboardHref;
 
@@ -5329,25 +5329,28 @@ function spaCleanup(opts = {}) {
 (function() {
     'use strict';
 
-    const config = window.bannerConfig || {};
-    const message = config.message || 'Default message';
-    const color = config.color || '#333';
-
-    const banner = document.createElement('div');
-    banner.textContent = message;
-    banner.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: ${color};
-        color: white;
-        padding: 8px;
-        font-size: 14px;
-        z-index: 99999;
-        text-align: center;
-    `;
-    document.body.appendChild(banner);
+    const config = window.scriptConfig || {};
+    const showBanner = config.bannerBGColor || false;    
+    if (showBanner) {
+        const bannerMsg = config.bannerMsg || 'Default message';
+        const bannerBGColor = config.bannerBGColor || '#333';
+    
+        const banner = document.createElement('div');
+        banner.textContent = bannerMsg;
+        banner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: ${bannerBGColor};
+            color: white;
+            padding: 8px;
+            font-size: 14px;
+            z-index: 99999;
+            text-align: center;
+        `;
+        document.body.appendChild(banner);
+    }
     
     // Main interval loop every 1 second
     setInterval(() => {
