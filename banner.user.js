@@ -4950,15 +4950,22 @@ function monMonIputUpdate() {
 }
 
 function moveCallBtn() {
-    if (!isOnContactPage(location.href)) return;
-
     const callSellerBtn = document.querySelector('.message-header-actions.contact-detail-actions');
     const nextSeller = document.querySelector('.d-inline-block.text-xs.text-gray-900');
     const powerDialer = document.querySelector('#template-power-dialer');
     const powerDialerModal = document.querySelector('.power-dialer-modal');
     const activeCall = document.querySelector('.contact-details.flex.items-center.justify-center.gap-2');
+    
+    if (!isOnContactPage(location.href)) {
+        if (callSellerBtn) callSellerBtn.remove();
+        if (nextSeller) nextSeller.remove();
+        if (powerDialer) powerDialer.remove();
+        if (powerDialerModal) powerDialerModal.remove();
+        if (activeCall) activeCall.remove();
+        
+        return;
+    }
 
-    // Reposition buttons if needed
     if (callSellerBtn && nextSeller && powerDialer && powerDialer.parentNode) {
         if (!activeCall && !powerDialer.parentNode.contains(nextSeller)) {
             powerDialer.parentNode.insertBefore(nextSeller, powerDialer);
@@ -4969,7 +4976,6 @@ function moveCallBtn() {
         }
     }
 
-    // Show or hide buttons based on activeCall or modal visibility
     if (callSellerBtn && nextSeller) {
         const modalVisible = powerDialerModal && powerDialerModal.style.display !== 'none';
         const callOngoing = !!activeCall;
