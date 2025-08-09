@@ -4950,7 +4950,7 @@ function monMonIputUpdate() {
 }
 
 function moveCallBtn() {
-    const inContactDetail = location.href.includes("/contacts/detail/");
+    const inContactDetail = location.href.includes("contacts/detail/");
     const callSellerBtn   = document.querySelector('.message-header-actions.contact-detail-actions');
     const nextSeller      = document.querySelector('.d-inline-block.text-xs.text-gray-900');
     const powerDialer     = document.querySelector('#template-power-dialer');
@@ -4959,6 +4959,7 @@ function moveCallBtn() {
 
     if (!inContactDetail) {
         callSellerBtn?.remove();
+        nextSeller?.remove();
         return;
     }
 
