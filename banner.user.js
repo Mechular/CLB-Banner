@@ -4962,7 +4962,6 @@ function moveCallBtn() {
         if (powerDialer) powerDialer.remove();
         if (powerDialerModal) powerDialerModal.remove();
         if (activeCall) activeCall.remove();
-        
         return;
     }
 
