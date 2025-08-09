@@ -5412,7 +5412,6 @@ function spaCleanup(opts = {}) {
                 monMonFreeFloat();
                 hideCallSummaryNotes();
                 extractNoteData();
-                moveCallBtn();
 
                 moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
                 moveFieldByLabel('Asking Price');
@@ -5443,7 +5442,8 @@ function spaCleanup(opts = {}) {
 
             } else {
             }
-
+            
+            moveCallBtn();
             showDateInTimestamps();
             cleanupSidebarAndWidgets();
             updateContactsToCustomURLs();
