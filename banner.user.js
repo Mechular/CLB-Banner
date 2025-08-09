@@ -4950,45 +4950,37 @@ function monMonIputUpdate() {
 }
 
 function moveCallBtn() {
-    const callSellerBtn = document.querySelector('.message-header-actions.contact-detail-actions');
-    const nextSeller = document.querySelector('.d-inline-block.text-xs.text-gray-900');
-    const powerDialer = document.querySelector('#template-power-dialer');
-    const powerDialerModal = document.querySelector('.power-dialer-modal');
-    const activeCall = document.querySelector('.contact-details.flex.items-center.justify-center.gap-2');
-    
-    if (!location.href.includes("contacts/detail/")) {
-        if (callSellerBtn) callSellerBtn.remove();
-        if (nextSeller) nextSeller.remove();
-        if (powerDialer) powerDialer.remove();
-        if (powerDialerModal) powerDialerModal.remove();
-        if (activeCall) activeCall.remove();
+    const inContactDetail = location.href.includes("/contacts/detail/");
+    const callSellerBtn   = document.querySelector('.message-header-actions.contact-detail-actions');
+    const nextSeller      = document.querySelector('.d-inline-block.text-xs.text-gray-900');
+    const powerDialer     = document.querySelector('#template-power-dialer');
+    const powerDialerModal= document.querySelector('.power-dialer-modal');
+    const activeCall      = document.querySelector('.contact-details.flex.items-center.justify-center.gap-2');
+
+    if (!inContactDetail) {
+        callSellerBtn?.remove();
         return;
     }
 
-    if (callSellerBtn && nextSeller && powerDialer && powerDialer.parentNode) {
-        if (!activeCall && !powerDialer.parentNode.contains(nextSeller)) {
-            powerDialer.parentNode.insertBefore(nextSeller, powerDialer);
-        }
-
-        if (!powerDialer.parentNode.contains(callSellerBtn)) {
-            powerDialer.parentNode.insertBefore(callSellerBtn, powerDialer);
-        }
+    if (powerDialer && nextSeller && !powerDialer.parentNode.contains(nextSeller)) {
+        powerDialer.parentNode.insertBefore(nextSeller, powerDialer);
     }
 
-    if (callSellerBtn && nextSeller) {
-        const modalVisible = powerDialerModal && powerDialerModal.style.display !== 'none';
-        const callOngoing = !!activeCall;
+    if (powerDialer && callSellerBtn && !powerDialer.parentNode.contains(callSellerBtn)) {
+        powerDialer.parentNode.insertBefore(callSellerBtn, powerDialer);
+    }
 
-        if (callOngoing || modalVisible) {
-            // nextSeller.style.setProperty('display', 'none', 'important');
-            callSellerBtn.style.setProperty('display', 'none', 'important');
-        } else {
-            // nextSeller.style.setProperty('display', '', 'important');
-            callSellerBtn.style.setProperty('display', '', 'important');
-        }
+    const modalVisible = powerDialerModal && window.getComputedStyle(powerDialerModal).display !== 'none';
+    const callOngoing  = !!activeCall;
+
+    if (callSellerBtn) {
+        callSellerBtn.style.setProperty(
+            'display',
+            (callOngoing || modalVisible) ? 'none' : '',
+            'important'
+        );
     }
 }
-
 
 function monMonFreeFloat() {
     return;
