@@ -698,37 +698,8 @@ async function expandAllNotesAndContactData() {
     }
 }
 
-//Helper function to check proper case
-function isProperCase(value) {
-    return /^[A-Z][a-z]+$/.test(value); // Checks if the first letter is uppercase and the rest are lowercase
-}
-
 function toProperCase(str) {
-    return str.replace(/\w\S*/g, word =>
-                       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                      );
-}
-
-function fixCase(str) {
-    // Check if the name is in all upper or lower case
-    if (str === str.toUpperCase() || str === str.toLowerCase()) {
-        // Check for initials like "J.D." to prevent incorrect formatting
-        const initialsPattern = /\b([A-Z])\.([A-Z])\b/g;
-        str = str.replace(initialsPattern, (match, p1, p2) => `${p1.toUpperCase()}.${p2.toUpperCase()}`);
-
-        // Standard case for other names
-        str = str
-            .split(' ')
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-            .join(' ');
-    }
-    return str;
-}
-
-function properCase(str) {
-    return str
-        .toLowerCase()
-        .replace(/(?:^|\s|_)\w/g, (match) => match.toUpperCase());
+    return str.replace(/\w\S*/g, word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 function closeOtherMenus(currentId) {
