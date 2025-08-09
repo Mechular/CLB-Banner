@@ -5329,6 +5329,25 @@ function spaCleanup(opts = {}) {
 (function() {
     'use strict';
 
+    const config = window.bannerConfig || {};
+    const message = config.message || 'Default message';
+    const color = config.color || '#333';
+
+    const banner = document.createElement('div');
+    banner.textContent = message;
+    banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: ${color};
+        color: white;
+        padding: 8px;
+        font-size: 14px;
+        z-index: 99999;
+        text-align: center;
+    `;
+    document.body.appendChild(banner);
     
     // Main interval loop every 1 second
     setInterval(() => {
