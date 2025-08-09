@@ -4956,7 +4956,7 @@ function moveCallBtn() {
     const powerDialerModal = document.querySelector('.power-dialer-modal');
     const activeCall = document.querySelector('.contact-details.flex.items-center.justify-center.gap-2');
     
-    if (!location.href.include("contacts/detail/")) {
+    if (!location.href.includes("contacts/detail/")) {
         if (callSellerBtn) callSellerBtn.remove();
         if (nextSeller) nextSeller.remove();
         if (powerDialer) powerDialer.remove();
