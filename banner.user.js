@@ -5330,7 +5330,7 @@ function spaCleanup(opts = {}) {
     'use strict';
 
     const config = window.scriptConfig || {};
-    const showBanner = config.bannerBGColor || false;    
+    const showBanner = config.showBanner || false;    
     if (showBanner) {
         const bannerMsg = config.bannerMsg || 'Default message';
         const bannerBGColor = config.bannerBGColor || '#333';
