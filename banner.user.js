@@ -5349,7 +5349,7 @@ function spaCleanup(opts = {}) {
             z-index: 99999;
             text-align: center;
         `;
-        // document.body.appendChild(banner);
+        document.body.appendChild(banner);
     }
     
     // Main interval loop every 1 second
