@@ -5238,11 +5238,9 @@ function populateCallQueue() {
     </div>
   `;
 
-  // Safe append via template
-  const tpl = document.createElement("template");
-  tpl.innerHTML = html.trim();
-  container.innerHTML = "";
-  container.appendChild(tpl.content.cloneNode(true));
+  // Render without appendChild to avoid monkey-patched DOM methods
+  container.innerHTML = "";               // clear
+  container.insertAdjacentHTML("afterbegin", html);  // write markup
 
   container.dataset.queueSig = signature;
 
