@@ -4986,87 +4986,85 @@ function moveCallBtn() {
 }
 
 function populateCallQueue() {
-  const inContactSmartList = location.href.includes("/contacts/smart_list/");
-  if (!inContactSmartList) return;
+    const inContactSmartList = location.href.includes("/contacts/smart_list/");
+    if (!inContactSmartList) return;
 
-  const config = window.scriptConfig || {};
-  const createClientList = config.createClientList;
-  const myID = config.myID;
-
-  // Make data accessible to render step
-  let data = [];
-
-  if (createClientList && myID) {
-    const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
-
-    // Page Size: (from #hl_smartlists-main)
-    const pageSize = parseInt(
-      document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
-        ?.textContent.replace(/\D+/g, '') || '0',
-      10
-    );
-
-    // Build the data array
-    const rows = document.querySelectorAll('tr[id]');
-    data = Array.from(rows).map(row => {
-      const tds = row.querySelectorAll('td');
-      return {
-        id: row.id,
-        name: tds[2]?.querySelector('a')?.textContent.trim() || '',
-        href: `${BASE_URL}${row.id}?view=note`,
-        phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
-        email: tds[4]?.textContent.trim() || '',
-        created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
-        lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
-        tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
-          .map(el => el.textContent.trim())
-      };
-    });
-
-    if (data.length !== pageSize) {
-      console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
-    } else {
-      // console.log(`Data length matches page size (${pageSize}).`);
-    }
-    // console.table(data);
-  }
-
-  // ---- Queue render (only once via dataset flag) ----
-  (function renderQueueIfActive() {
     const activeNavIcon = document.querySelector('.active-navigation-icon');
     const navText = activeNavIcon?.parentNode?.innerText?.trim() || '';
     if (navText !== 'Queue') return;
 
+    const config = window.scriptConfig || {};
+    const createClientList = config.createClientList;
+    const myID = config.myID;
+
+    // Make data accessible to render step
+    let data = [];
+
+    if (createClientList && myID) {
+        const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
+
+        // Page Size: (from #hl_smartlists-main)
+        const pageSize = parseInt(
+            document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
+            ?.textContent.replace(/\D+/g, '') || '0',
+            10
+        );
+
+        // Build the data array
+        const rows = document.querySelectorAll('tr[id]');
+        data = Array.from(rows).map(row => {
+            const tds = row.querySelectorAll('td');
+            return {
+                id: row.id,
+                name: tds[2]?.querySelector('a')?.textContent.trim() || '',
+                href: `${BASE_URL}${row.id}?view=note`,
+                phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
+                email: tds[4]?.textContent.trim() || '',
+                created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
+                lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
+                tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
+                .map(el => el.textContent.trim())
+            };
+        });
+
+        if (data.length !== pageSize) {
+            console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
+        } else {
+            // console.log(`Data length matches page size (${pageSize}).`);
+        }
+        // console.table(data);
+    }
+
     const containers = document.querySelectorAll('.voicemail-container');
     const container = containers[1]; // second one
     if (!container) {
-      console.warn('Second .voicemail-container not found.');
-      return;
+        console.warn('Second .voicemail-container not found.');
+        return;
     }
 
     // If already populated once, skip
     if (container.dataset.queuePopulated === '1') {
-      // console.log('Queue already populated once. Skipping reinjection.');
-      return;
+        // console.log('Queue already populated once. Skipping reinjection.');
+        return;
     }
 
     const initialsOf = name => {
-      if (!name) return 'UC';
-      const parts = name.trim().split(/\s+/).filter(Boolean);
-      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        if (!name) return 'UC';
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     };
     const bgFromId = id => {
-      let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-      return `hsl(${h} 45% 65%)`;
+        let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+        return `hsl(${h} 45% 65%)`;
     };
 
     const items = data.map(d => ({
-      initials: initialsOf(d.name || d.phone || 'Unknown Contact'),
-      bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
-      name: d.name || (d.phone ?? 'Unknown Contact'),
-      phone: d.phone || '',
-      time: '' // placeholder until we hook in timestamps
+        initials: initialsOf(d.name || d.phone || 'Unknown Contact'),
+        bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
+        name: d.name || (d.phone ?? 'Unknown Contact'),
+        phone: d.phone || '',
+        time: '' // placeholder until we hook in timestamps
     }));
 
     const html = `
@@ -5121,10 +5119,9 @@ function populateCallQueue() {
 
     const modal = document.querySelector('.power-dialer-modal.flex');
     if (modal && modal.style.display === 'none') {
-      modal.style.display = '';
-      console.log('Power dialer modal was hidden. Now shown.');
+        modal.style.display = '';
+        console.log('Power dialer modal was hidden. Now shown.');
     }
-  })();
 }
 
 function monMonFreeFloat() {
