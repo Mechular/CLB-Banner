@@ -5168,7 +5168,7 @@ function populateCallQueue() {
     const dialEl = e.target.closest(".contact-dial");
     if (!dialEl) return;
     e.preventDefault();
-    const phone = (dialEl.getAttribute("data-phone") || "").trim();
+    const phone = (dialEl.getAttribute("data-phone").replace("+1", "") || "").trim();
     if (!phone) return;
 
     const dialerInput = document.querySelector("input#dialer-input");
