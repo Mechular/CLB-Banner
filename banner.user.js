@@ -5080,7 +5080,7 @@ function populateCallQueue() {
               <div class="flex w-[282px] items-center justify-start gap-3">
                 <div class="flex w-10 items-center">
                   <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
-                    <span class="text-xl" style="color: white;">${item.initials}</span>
+                    <span class="text-xl" style="color: white !important;">${item.initials}</span>
                   </div>
                 </div>
                 <div class="flex flex-col items-start justify-center">
