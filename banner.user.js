@@ -5000,24 +5000,20 @@ function populateCallQueue() {
         return;
     }
 
-    // If already populated once, skip
-    if (container.dataset.queuePopulated === '1' && data.length === pageSize) {
-        console.log('Queue already populated once. Skipping reinjection.');
-        return;
-    }
-
     const config = window.scriptConfig || {};
     const createClientList = config.createClientList;
     const myID = config.myID;
 
     // Make data accessible to render step
     let data = [];
+    let pageSize = 0;
 
-    if (createClientList && myID) {
+    if (!createClientList || !myID) return;
+
         const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
         // Page Size: (from #hl_smartlists-main)
-        const pageSize = parseInt(
+        pageSize = parseInt(
             document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
             ?.textContent.replace(/\D+/g, '') || '0',
             10
@@ -5046,6 +5042,12 @@ function populateCallQueue() {
             console.log(`Data length matches page size (${pageSize}).`);
         }
         console.table(data);
+
+
+    // If already populated once, skip
+    if (container.dataset.queuePopulated === '1' && data.length === pageSize) {
+        console.log('Queue already populated once. Skipping reinjection.');
+        return;
     }
 
     const initialsOf = name => {
