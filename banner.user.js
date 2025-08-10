@@ -5095,28 +5095,44 @@ function populateCallQueue() {
     return digits.slice(0, 3);
   };
 
-  const items = data.map((d) => {
-    const phoneDisplay = d.phone || "";
-    const phoneToType = cleanForTyping(phoneDisplay);
-    const area = extractAreaCode(phoneDisplay);
-    const [loc, tz, time] = area ? getAreaCodeInfo(area) : ["Unknown", "Unknown", "Unknown time"];
-    return {
-      id: d.id,
-      bg: rgbFromId(d.id || d.phone || d.name),
-      initials: initialsOf(d.name || d.phone || "Unknown"),
-      name: d.name || d.phone || "Unknown Contact",
-      phoneDisplay,
-      phoneToType,
-      href: d.href,
-      areaLoc: loc,
-      areaTz: tz,
-      areaTime: time,
-    };
-  });
+const items = data.map((d) => {
+  const phoneDisplay = d.phone || "";
+  const phoneToType = cleanForTyping(phoneDisplay);
+  const area = extractAreaCode(phoneDisplay);
+  const [loc, tz, time] = area ? getAreaCodeInfo(area) : ["Unknown", "Unknown", "Unknown time"];
+
+  // address info if provided (tds[??] must be added above in data mapping)
+  const addr = d.address || "";
+  let addrInfo = null;
+  if (addr) {
+    // try to get area code from address if it contains digits
+    const addrArea = extractAreaCode(addr);
+    if (addrArea) {
+      const [aloc, atz, atime] = getAreaCodeInfo(addrArea);
+      addrInfo = `${aloc} (${atz}) · ${atime}`;
+    }
+  }
+
+  return {
+    id: d.id,
+    bg: rgbFromId(d.id || d.phone || d.name),
+    initials: initialsOf(d.name || d.phone || "Unknown"),
+    name: d.name || d.phone || "Unknown Contact",
+    phoneDisplay,
+    phoneToType,
+    href: d.href,
+    areaLoc: loc,
+    areaTz: tz,
+    areaTime: time,
+    address: addr,
+    addressInfo: addrInfo
+  };
+});
+
   if (items.length === 0) return;
 
   const html = `
-    <div class="relative h-[406px] overflow-y-auto">
+    <div class="relative overflow-y-auto pt-2">
       <div class="flex h-full flex-col gap-3 px-4">
         ${items.map(item => `
           <div class="flex flex-col gap-2">
@@ -5138,6 +5154,13 @@ function populateCallQueue() {
                     (item.areaLoc !== "Unknown" || item.areaTz !== "Unknown")
                       ? `<div class="text-[11px] leading-4 text-gray-500">
                            ${item.areaLoc} (${item.areaTz}) · ${item.areaTime}
+                         </div>`
+                      : ""
+                  }
+                  ${
+                    item.addressInfo
+                      ? `<div class="text-[11px] leading-4 text-gray-500">
+                           ${item.addressInfo}
                          </div>`
                       : ""
                   }
