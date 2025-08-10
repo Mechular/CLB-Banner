@@ -5019,50 +5019,73 @@ function moveCallBtn() {
     }
 }
 
-// ⇩ keep your setInputValueSecurely / delay / simulateSecureTyping above this
-// ⇩ paste your getAreaCodeInfo() function above populateCallQueue()
-
 function populateCallQueue() {
   if (!location.href.includes("/contacts/smart_list/")) return;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
 
+  // Target the 2nd voicemail container
   const containers = document.querySelectorAll(".voicemail-container");
   const container = containers[1];
   if (!container) return;
 
+  // Legacy gate
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
   }
 
+  // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
-  const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
+  // Use location.origin as requested
+  const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
+
+  // Current page size text
   let pageSize = parseInt(
-    document.querySelector("#hl_smartlists-main a#dropdownMenuButton")?.textContent.replace(/\D+/g, "") || "0",
+    document.querySelector("#hl_smartlists-main a#dropdownMenuButton")
+      ?.textContent.replace(/\D+/g, "") || "0",
     10
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
+  // Collect current rows
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
+  // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
+
+    // Try to find an address if your table has one (robust fallbacks)
+    const addrEl =
+      row.querySelector('[data-column="Address"], .address, .contact-address') ||
+      tds[8] || tds[9] || null;
+    const address = (addrEl?.innerText || addrEl?.textContent || "").replace(/\s+/g, " ").trim();
+
+    // Phone raw from table
+    const phoneRaw = tds[3]?.querySelector("span")?.textContent.trim() || "";
+
+    // Replace leading "+1" (with optional space) in the ARRAY (display)
+    const phoneNoPlus1 = phoneRaw.replace(/^\+1\s*/i, "");
+
     return {
       id: row.id,
       name: tds[2]?.querySelector("a")?.textContent.trim() || "",
       href: `${BASE_URL}${row.id}?view=note`,
-      phone: tds[3]?.querySelector("span")?.textContent.trim() || "",
+      phoneDisplay: phoneNoPlus1,
+      phoneRaw, // keep original just in case
+      address
     };
   });
 
+  // Signature
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
   if (container.dataset.queueSig === signature) return;
 
+  // Helpers
   const initialsOf = (nameOrPhone) => {
     const name = nameOrPhone || "";
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -5071,66 +5094,71 @@ function populateCallQueue() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
+  // Stable RGB for avatar
   const rgbFromId = (id) => {
     let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    const s = String(id || "");
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     const r = 117 + (h % 73);
     const g = 117 + ((h >> 3) % 73);
     const b = 117 + ((h >> 6) % 73);
     return `rgb(${r}, ${g}, ${b})`;
   };
 
-  const cleanForTyping = (s) => {
-    s = String(s || "");
-    const plus = s.trim().startsWith("+");
-    const digits = s.replace(/\D+/g, "");
-    return plus ? `+${digits}` : digits;
+  // For typing: digits only, drop leading 1 if it's 11 digits
+  const phoneForTyping = (s) => {
+    const digits = String(s || "").replace(/\D+/g, "");
+    return digits.replace(/^1(?=\d{10}$)/, "");
   };
 
-  // Extract NANP area code (handles optional +1)
+  // Extract NANP area code from arbitrary string (phone/address)
   const extractAreaCode = (raw) => {
-    const digits = String(raw || "").replace(/\D+/g, "");
+    if (!raw) return "";
+    const digits = String(raw).replace(/\D+/g, "");
     if (!digits) return "";
+    // if it looks like 11 digits with leading 1
     if (digits.length >= 11 && digits.startsWith("1")) return digits.slice(1, 4);
     return digits.slice(0, 3);
   };
 
-const items = data.map((d) => {
-  const phoneDisplay = d.phone || "";
-  const phoneToType = cleanForTyping(phoneDisplay);
-  const area = extractAreaCode(phoneDisplay);
-  const [loc, tz, time] = area ? getAreaCodeInfo(area) : ["Unknown", "Unknown", "Unknown time"];
+  // Build items with zone/time info for phone and address
+  const items = data.map((d) => {
+    const initials = initialsOf(d.name || d.phoneDisplay || "Unknown");
+    const bg = rgbFromId(d.id || d.phoneDisplay || d.name);
 
-  // address info if provided (tds[??] must be added above in data mapping)
-  const addr = d.address || "";
-  let addrInfo = null;
-  if (addr) {
-    // try to get area code from address if it contains digits
-    const addrArea = extractAreaCode(addr);
-    if (addrArea) {
-      const [aloc, atz, atime] = getAreaCodeInfo(addrArea);
-      addrInfo = `${aloc} (${atz}) · ${atime}`;
+    // Phone zone
+    const phoneArea = extractAreaCode(d.phoneDisplay || d.phoneRaw);
+    const [phLoc, phTz, phTime] = phoneArea ? getAreaCodeInfo(phoneArea) : ["Unknown", "Unknown", "Unknown time"];
+
+    // Address zone (only if address present and we can find 3 digits to treat as area code)
+    let addrInfo = null;
+    if (d.address) {
+      const addrArea = extractAreaCode(d.address);
+      if (addrArea) {
+        const [aloc, atz, atime] = getAreaCodeInfo(addrArea);
+        addrInfo = `${aloc} (${atz}) · ${atime}`;
+      }
     }
-  }
 
-  return {
-    id: d.id,
-    bg: rgbFromId(d.id || d.phone || d.name),
-    initials: initialsOf(d.name || d.phone || "Unknown"),
-    name: d.name || d.phone || "Unknown Contact",
-    phoneDisplay,
-    phoneToType,
-    href: d.href,
-    areaLoc: loc,
-    areaTz: tz,
-    areaTime: time,
-    address: addr,
-    addressInfo: addrInfo
-  };
-});
+    return {
+      id: d.id,
+      name: d.name || d.phoneDisplay || "Unknown Contact",
+      href: d.href,
+      initials,
+      bg,
+      phoneDisplay: d.phoneDisplay || "",
+      phoneToType: phoneForTyping(d.phoneDisplay || d.phoneRaw),
+      phoneLoc: phLoc,
+      phoneTz: phTz,
+      phoneTime: phTime,
+      address: d.address,
+      addressInfo: addrInfo
+    };
+  });
 
   if (items.length === 0) return;
 
+  // === Container markup (no fixed height; add a bit of top padding) ===
   const html = `
     <div class="relative overflow-y-auto pt-2">
       <div class="flex h-full flex-col gap-3 px-4">
@@ -5147,23 +5175,29 @@ const items = data.map((d) => {
                   <div class="cursor-pointer contact-name" data-href="${item.href}">
                     <p class="text-left text-sm font-semibold leading-5 text-gray-600">${item.name}</p>
                   </div>
-                  <div>
-                    <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
-                  </div>
-                  ${
-                    (item.areaLoc !== "Unknown" || item.areaTz !== "Unknown")
-                      ? `<div class="text-[11px] leading-4 text-gray-500">
-                           ${item.areaLoc} (${item.areaTz}) · ${item.areaTime}
-                         </div>`
-                      : ""
-                  }
-                  ${
-                    item.addressInfo
-                      ? `<div class="text-[11px] leading-4 text-gray-500">
-                           ${item.addressInfo}
-                         </div>`
-                      : ""
-                  }
+                  ${item.phoneDisplay ? `
+                    <div>
+                      <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
+                    </div>
+                  ` : ""}
+
+                  ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
+                    <div class="text-[11px] leading-4 text-gray-500">
+                      ${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}
+                    </div>
+                  ` : ""}
+
+                  ${item.address ? `
+                    <div class="text-[12px] leading-4 text-gray-600">
+                      ${item.address}
+                    </div>
+                  ` : ""}
+
+                  ${item.addressInfo ? `
+                    <div class="text-[11px] leading-4 text-gray-500">
+                      ${item.addressInfo}
+                    </div>
+                  ` : ""}
                 </div>
               </div>
               <div class="h-6 w-6 gap-3 p-2">
@@ -5185,13 +5219,15 @@ const items = data.map((d) => {
     </div>
   `;
 
+  // Inject into the voicemail container
   container.innerHTML = html;
   container.dataset.queueSig = signature;
 
+  // Make modal visible if it was hidden
   const modal = document.querySelector(".power-dialer-modal.flex");
   if (modal && modal.style.display === "none") modal.style.display = "";
 
-  // name -> open in new tab
+  // Name -> open in new tab
   container.addEventListener("click", (e) => {
     const nameEl = e.target.closest(".contact-name");
     if (!nameEl) return;
@@ -5200,30 +5236,29 @@ const items = data.map((d) => {
     if (href) window.open(href, "_blank");
   });
 
-// phone icon -> type into #dialer-input (no call)
-container.addEventListener("click", async (e) => {
-  const dialEl = e.target.closest(".contact-dial");
-  if (!dialEl) return;
-  e.preventDefault();
+  // Phone icon -> hide list, show keypad, type number (no call)
+  container.addEventListener("click", async (e) => {
+    const dialEl = e.target.closest(".contact-dial");
+    if (!dialEl) return;
+    e.preventDefault();
 
-  const phone = (dialEl.getAttribute("data-phone") || "").trim();
-  if (!phone) return;
+    // hide this voicemail container
+    container.style.display = "none";
 
-  // hide this voicemail container
-  container.style.display = "none";
+    // unhide keypad
+    const keypad = document.querySelector(".keypad");
+    if (keypad) keypad.style.display = "";
 
-  // unhide keypad
-  const keypad = document.querySelector(".keypad");
-  if (keypad) keypad.style.display = "";
+    const phone = (dialEl.getAttribute("data-phone") || "").trim();
+    if (!phone) return;
 
-  const dialerInput = document.querySelector("input#dialer-input");
-  if (!(dialerInput instanceof HTMLInputElement)) return;
+    const dialerInput = document.querySelector("input#dialer-input"); // update if your selector differs
+    if (!(dialerInput instanceof HTMLInputElement)) return;
 
-  setInputValueSecurely(dialerInput, "");
-  await simulateSecureTyping(dialerInput, phone);
-});
+    setInputValueSecurely(dialerInput, "");
+    await simulateSecureTyping(dialerInput, phone);
+  });
 }
-
 
 function monMonFreeFloat() {
     return;
