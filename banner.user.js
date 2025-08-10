@@ -5026,9 +5026,9 @@ function populateCallQueue() {
     if (data.length !== pageSize) {
       console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
     } else {
-      console.log(`Data length matches page size (${pageSize}).`);
+      // console.log(`Data length matches page size (${pageSize}).`);
     }
-    console.table(data);
+    // console.table(data);
   }
 
   // ---- Queue render (only once via dataset flag) ----
@@ -5046,7 +5046,7 @@ function populateCallQueue() {
 
     // If already populated once, skip
     if (container.dataset.queuePopulated === '1') {
-      console.log('Queue already populated once. Skipping reinjection.');
+      // console.log('Queue already populated once. Skipping reinjection.');
       return;
     }
 
