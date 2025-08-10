@@ -5050,18 +5050,87 @@ function moveCallBtn() {
     }
 }
 
-function populateCallQueue() {
-  if (!location.href.includes("/contacts/smart_list/")) return;
+// ---------------- Quiet-hours config + helpers ----------------
+window.dialerQuietConfig = window.dialerQuietConfig || {
+  quietBeforeHour: 12, // before 12 PM is quiet
+  quietAfterHour: 20,  // after 8 PM is quiet (strictly > 20:00)
+  checkEveryMs: 59000  // refresh every 59s
+};
+
+function isQueueActive() {
+  if (!location.href.includes("/contacts/smart_list/")) return false;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
-  if (navText !== "Queue") return;
+  return navText === "Queue";
+}
+
+// "11:40 AM" -> minutes since midnight
+function minutesFrom12h(str) {
+  const m = String(str).match(/^\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*$/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ap = m[3].toUpperCase();
+  if (ap === "AM" && h === 12) h = 0;
+  if (ap === "PM" && h !== 12) h += 12;
+  return h * 60 + min;
+}
+
+// Recompute local time + quiet status for each row and update UI
+function refreshQuietStates(container) {
+  const cfg = window.dialerQuietConfig || {};
+  const rows = container.querySelectorAll(".contact-row[data-ac]");
+  rows.forEach((row) => {
+    const ac = row.dataset.ac || "";
+    const [loc, tz, localTime] = getAreaCodeInfo(ac);
+    const mins = minutesFrom12h(localTime);
+    const quiet = mins !== null && (mins < (cfg.quietBeforeHour * 60) || mins > (cfg.quietAfterHour * 60));
+
+    // Update the meta line
+    const meta = row.querySelector(".phone-meta");
+    if (meta) {
+      meta.innerHTML = `${loc} (${tz}) · <span class="phone-time">${localTime}</span>`;
+    }
+
+    // Toggle row highlight
+    row.classList.toggle("bg-red-50", quiet);
+    row.style.backgroundColor = quiet ? "#FEF2F2" : "";
+
+    // Toggle icon state
+    const icon = row.querySelector(".contact-dial");
+    if (icon) {
+      icon.setAttribute("aria-disabled", quiet ? "true" : "false");
+      icon.classList.toggle("text-red-400", quiet);
+      icon.classList.toggle("opacity-40", quiet);
+      icon.classList.toggle("cursor-not-allowed", quiet);
+      icon.classList.toggle("text-gray-600", !quiet);
+      icon.classList.toggle("cursor-pointer", !quiet);
+    }
+  });
+}
+
+function populateCallQueue() {
+  // Only run on Contacts > Smart List > Queue
+  if (!isQueueActive()) {
+    // If we're not on Queue, clear any timers and make sure it re-renders next time
+    if (window._dialerQuietTimer) {
+      clearInterval(window._dialerQuietTimer);
+      window._dialerQuietTimer = null;
+    }
+    const vcs = document.querySelectorAll(".voicemail-container");
+    vcs.forEach((vc) => {
+      delete vc.dataset.queueSig;
+      delete vc.dataset.queuePopulated;
+    });
+    return;
+  }
 
   // Target the 2nd voicemail container
   const containers = document.querySelectorAll(".voicemail-container");
   const container = containers[1];
   if (!container) return;
 
-  // Legacy gate
+  // Ignore/clear legacy gate that blocks re-render
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
   }
@@ -5069,230 +5138,193 @@ function populateCallQueue() {
   // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
-
-  // Use location.origin as requested
   const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
 
   // Current page size text
   let pageSize = parseInt(
-    document.querySelector("#hl_smartlists-main a#dropdownMenuButton")
+    document
+      .querySelector("#hl_smartlists-main a#dropdownMenuButton")
       ?.textContent.replace(/\D+/g, "") || "0",
     10
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Collect current rows
+  // Collect current rows; if table is refreshing, don't wipe UI
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
+
+  // --- helpers for this function ---
+  const initialsOf = (name) => {
+    if (!name) return "UC";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+  const bgFromId = (id) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+    return `hsl(${h} 45% 65%)`;
+  };
+  const cleanPhone = (p) =>
+    (p || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^\+1\s*/, ""); // strip leading +1 as requested
+
+  const cfg = window.dialerQuietConfig || {};
 
   // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
-
-    // Try to find an address if your table has one (robust fallbacks)
-    const addrEl =
-      row.querySelector('[data-column="Address"], .address, .contact-address') ||
-      tds[8] || tds[9] || null;
-    const address = (addrEl?.innerText || addrEl?.textContent || "").replace(/\s+/g, " ").trim();
-
-    // Phone raw from table
+    const id = row.id;
+    const name = tds[2]?.querySelector("a")?.textContent.trim() || "";
     const phoneRaw = tds[3]?.querySelector("span")?.textContent.trim() || "";
+    const phone = cleanPhone(phoneRaw);
+    const href = `${BASE_URL}${id}?view=note`;
 
-    // Replace leading "+1" (with optional space) in the ARRAY (display)
-    const phoneNoPlus1 = phoneRaw.replace(/^\+1\s*/i, "");
+    // timezone + location + local time (using your getAreaCodeInfo)
+    const ac = phone.replace(/\D/g, "").slice(0, 3);
+    const [phoneLoc, phoneTz, phoneTime] = getAreaCodeInfo(ac);
+
+    // Quiet hours: before quietBeforeHour or after quietAfterHour (strictly >)
+    const mins = minutesFrom12h(phoneTime);
+    const quiet = mins !== null && (mins < (cfg.quietBeforeHour * 60) || mins > (cfg.quietAfterHour * 60));
 
     return {
-      id: row.id,
-      name: tds[2]?.querySelector("a")?.textContent.trim() || "",
-      href: `${BASE_URL}${row.id}?view=note`,
-      phoneDisplay: phoneNoPlus1,
-      phoneRaw, // keep original just in case
-      address
+      id,
+      href,
+      name: name || phone || "Unknown Contact",
+      phone,
+      phoneDisplay: phone,
+      phoneLoc,
+      phoneTz,
+      phoneTime,
+      quiet,
+      ac,
+      initials: initialsOf(name || phone || "Unknown"),
+      bg: bgFromId(id || phone || name || String(Math.random())),
     };
   });
 
-  // Signature
+  // Signature based on page content; include pageSize so pagination changes trigger re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
   if (container.dataset.queueSig === signature) return;
 
-  // Helpers
-  const initialsOf = (nameOrPhone) => {
-    const name = nameOrPhone || "";
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "UC";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
+  if (data.length === 0) return;
 
-  // Stable RGB for avatar
-  const rgbFromId = (id) => {
-    let h = 0;
-    const s = String(id || "");
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    const r = 117 + (h % 73);
-    const g = 117 + ((h >> 3) % 73);
-    const b = 117 + ((h >> 6) % 73);
-    return `rgb(${r}, ${g}, ${b})`;
-  };
-
-  // For typing: digits only, drop leading 1 if it's 11 digits
-  const phoneForTyping = (s) => {
-    const digits = String(s || "").replace(/\D+/g, "");
-    return digits.replace(/^1(?=\d{10}$)/, "");
-  };
-
-  // Extract NANP area code from arbitrary string (phone/address)
-  const extractAreaCode = (raw) => {
-    if (!raw) return "";
-    const digits = String(raw).replace(/\D+/g, "");
-    if (!digits) return "";
-    // if it looks like 11 digits with leading 1
-    if (digits.length >= 11 && digits.startsWith("1")) return digits.slice(1, 4);
-    return digits.slice(0, 3);
-  };
-
-  // Build items with zone/time info for phone and address
-  const items = data.map((d) => {
-    const initials = initialsOf(d.name || d.phoneDisplay || "Unknown");
-    const bg = rgbFromId(d.id || d.phoneDisplay || d.name);
-
-    // Phone zone
-    const phoneArea = extractAreaCode(d.phoneDisplay || d.phoneRaw);
-    const [phLoc, phTz, phTime] = phoneArea ? getAreaCodeInfo(phoneArea) : ["Unknown", "Unknown", "Unknown time"];
-
-    // Address zone (only if address present and we can find 3 digits to treat as area code)
-    let addrInfo = null;
-    if (d.address) {
-      const addrArea = extractAreaCode(d.address);
-      if (addrArea) {
-        const [aloc, atz, atime] = getAreaCodeInfo(addrArea);
-        addrInfo = `${aloc} (${atz}) · ${atime}`;
-      }
-    }
-
-    return {
-      id: d.id,
-      name: d.name || d.phoneDisplay || "Unknown Contact",
-      href: d.href,
-      initials,
-      bg,
-      phoneDisplay: d.phoneDisplay || "",
-      phoneToType: phoneForTyping(d.phoneDisplay || d.phoneRaw),
-      phoneLoc: phLoc,
-      phoneTz: phTz,
-      phoneTime: phTime,
-      address: d.address,
-      addressInfo: addrInfo
-    };
-  });
-
-  if (items.length === 0) return;
-
+  // --- UI ---
   const html = `
-    <div class="relative overflow-y-auto pt-2">
-      <div class="flex flex-col px-4">
-        ${items.map(item => `
-          <div class="flex flex-col">
-            <!-- ROW -->
-            <div class="contact-row flex items-start gap-3 py-2"
-                 style="height:auto;min-height:unset;">
-              <!-- avatar -->
-              <div class="h-10 w-10 flex items-center justify-center rounded-full shrink-0"
-                   style="background-color:${item.bg};">
-                <span class="text-base leading-none text-white">${item.initials}</span>
+    <div class="relative h-[406px] overflow-y-auto pt-2">
+      <div class="flex h-full flex-col gap-3 px-4">
+        ${data.map(item => `
+          <div class="flex flex-col gap-2">
+            <div class="flex h-10 gap-[10px] contact-row ${item.quiet ? "bg-red-50" : ""}"
+                 data-ac="${item.ac}" style="${item.quiet ? "background-color:#FEF2F2;" : ""}">
+              <div class="flex w-[282px] items-center justify-start gap-3">
+                <div class="flex w-10 items-center">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color:${item.bg};">
+                    <span class="text-xl" style="color:white;">${item.initials}</span>
+                  </div>
+                </div>
+                <div class="flex flex-col items-start justify-center">
+                  <div class="cursor-pointer">
+                    <p class="text-left text-sm font-semibold leading-5 text-gray-600 contact-name"
+                       data-href="${item.href}">${item.name}</p>
+                  </div>
+                  ${item.phoneDisplay ? `
+                    <div><p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p></div>
+                  ` : ""}
+                  ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
+                    <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500 phone-meta">
+                      ${item.phoneLoc} (${item.phoneTz}) · <span class="phone-time">${item.phoneTime}</span>
+                    </p>
+                  ` : ""}
+                </div>
               </div>
-  
-              <!-- content -->
-              <div class="flex-1 min-w-0">
-                <p class="m-0 text-left text-sm font-semibold leading-5 text-gray-600 cursor-pointer contact-name"
-                   data-href="${item.href}">
-                  ${item.name}
-                </p>
-  
-                ${item.phoneDisplay ? `
-                  <p class="m-0 mt-0.5 text-left text-sm leading-5">${item.phoneDisplay}</p>
-                ` : ""}
-  
-                ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
-                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500">
-                    ${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}
-                  </p>
-                ` : ""}
-  
-                ${item.address ? `
-                  <p class="m-0 mt-0.5 text-[12px] leading-5 text-gray-600">
-                    ${item.address}
-                  </p>
-                ` : ""}
-  
-                ${item.addressInfo ? `
-                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500">
-                    ${item.addressInfo}
-                  </p>
-                ` : ""}
-              </div>
-  
-              <!-- dial icon -->
-              <div class="shrink-0 p-2">
+              <div class="h-6 w-6 gap-3 p-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                      stroke-width="2" stroke="currentColor"
-                     class="contact-dial h-5 w-5 cursor-pointer text-gray-600"
-                     data-phone="${item.phoneToType}">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
+                     class="contact-dial h-5 w-5 ${item.quiet ? "text-red-400 opacity-40 cursor-not-allowed" : "cursor-pointer text-gray-600"}"
+                     data-phone="${item.phone}" aria-disabled="${item.quiet ? "true" : "false"}">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
                 </svg>
               </div>
             </div>
-  
-            <!-- divider -->
-            <div class="h-px bg-gray-200"></div>
+            <div class="DividerLine h-px bg-gray-200"></div>
           </div>
         `).join("")}
       </div>
     </div>
   `;
 
-  // Inject into the voicemail container
   container.innerHTML = html;
   container.dataset.queueSig = signature;
 
-  // Make modal visible if it was hidden
-  const modal = document.querySelector(".power-dialer-modal.flex");
-  if (modal && modal.style.display === "none") modal.style.display = "";
-
-  // Name -> open in new tab
+  // Open name in new tab
   container.addEventListener("click", (e) => {
     const nameEl = e.target.closest(".contact-name");
-    if (!nameEl) return;
-    e.preventDefault();
-    const href = nameEl.getAttribute("data-href");
-    if (href) window.open(href, "_blank");
+    if (nameEl) {
+      const url = nameEl.dataset.href;
+      if (url) window.open(url, "_blank", "noopener");
+    }
   });
 
-  // Phone icon -> hide list, show keypad, type number (no call)
+  // Dial icon: simulate typing unless disabled
   container.addEventListener("click", async (e) => {
-    const dialEl = e.target.closest(".contact-dial");
-    if (!dialEl) return;
-    e.preventDefault();
-
-    // hide this voicemail container
-    container.style.display = "none";
-
-    // unhide keypad
-    const keypad = document.querySelector(".keypad");
-    if (keypad) keypad.style.display = "";
-
-    const phone = (dialEl.getAttribute("data-phone") || "").trim();
-    if (!phone) return;
-
-    const dialerInput = document.querySelector("input#dialer-input"); // update if your selector differs
-    if (!(dialerInput instanceof HTMLInputElement)) return;
-
-    setInputValueSecurely(dialerInput, "");
+    const icon = e.target.closest(".contact-dial");
+    if (!icon) return;
+    if (icon.getAttribute("aria-disabled") === "true") return; // disabled during quiet hours
+    const phone = icon.dataset.phone || "";
+    const dialerInput = document.querySelector("input#dialer-input");
+    if (!dialerInput) return;
     await simulateSecureTyping(dialerInput, phone);
   });
+
+  // Live refresh of local time + quiet state (Queue only)
+  if (window._dialerQuietTimer) clearInterval(window._dialerQuietTimer);
+
+  const safeRefresh = () => {
+    if (!isQueueActive()) {
+      if (window._dialerQuietTimer) {
+        clearInterval(window._dialerQuietTimer);
+        window._dialerQuietTimer = null;
+      }
+      // ensure full re-render next time Queue is visited
+      const vcs = document.querySelectorAll(".voicemail-container");
+      vcs.forEach((vc) => {
+        delete vc.dataset.queueSig;
+        delete vc.dataset.queuePopulated;
+      });
+      return;
+    }
+    const currentContainer = document.querySelectorAll(".voicemail-container")[1];
+    if (!currentContainer || !document.body.contains(currentContainer)) {
+      if (window._dialerQuietTimer) {
+        clearInterval(window._dialerQuietTimer);
+        window._dialerQuietTimer = null;
+      }
+      return;
+    }
+    refreshQuietStates(currentContainer);
+  };
+
+  // initial sync (only if active)
+  if (isQueueActive()) safeRefresh();
+
+  // keep refreshing while Queue stays active
+  window._dialerQuietTimer = setInterval(
+    safeRefresh,
+    (window.dialerQuietConfig && window.dialerQuietConfig.checkEveryMs) || 59000
+  );
+
+  // Ensure modal shows if previously hidden (optional)
+  const modal = document.querySelector(".power-dialer-modal.flex");
+  if (modal && modal.style.display === "none") {
+    modal.style.display = "";
+  }
 }
+
 
 function monMonFreeFloat() {
     return;
