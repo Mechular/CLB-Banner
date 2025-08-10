@@ -5030,9 +5030,9 @@ function populateCallQueue() {
         if (data.length !== pageSize) {
             console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
         } else {
-            // console.log(`Data length matches page size (${pageSize}).`);
+            console.log(`Data length matches page size (${pageSize}).`);
         }
-        // console.table(data);
+        console.table(data);
     }
 
     const containers = document.querySelectorAll('.voicemail-container');
