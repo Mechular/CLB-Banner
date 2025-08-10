@@ -5258,7 +5258,10 @@ function populateCallQueue() {
     </div>
   `;
 
-  container.innerHTML = html;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html.trim();
+  container.innerHTML = "";
+  container.appendChild(tpl.content.cloneNode(true));
   container.dataset.queueSig = signature;
 
   // Open name in new tab
