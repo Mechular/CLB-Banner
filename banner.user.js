@@ -52,7 +52,41 @@ let hasRunExtractNoteData = false;
 
 let jsonData = [];
 
+// Helper: securely set value on an input so events fire properly
+function setInputValueSecurely(input, value) {
+  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    'value'
+  ).set;
+  nativeInputValueSetter.call(input, value);
 
+  // Dispatch proper events so the page reacts
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Your secure typing function
+const simulateSecureTyping = async (input, targetValue) => {
+  if (!(input instanceof HTMLInputElement)) return;
+
+  let typed = '';
+  for (const char of targetValue) {
+    typed += char;
+    setInputValueSecurely(input, typed);
+    input.focus();
+
+    if (typed.length >= targetValue.length - 3) {
+      await delay(25);
+    }
+  }
+  return typed;
+};
+
+// Usage: find your dialer input and type
+const dialerInput = document.querySelector('input#dialer-input'); // adjust selector if needed
+simulateSecureTyping(dialerInput, '987654321').then(finalValue => {
+  console.log('Finished typing:', finalValue);
+});
 
 const stateAbbreviations = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
