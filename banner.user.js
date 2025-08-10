@@ -4984,7 +4984,7 @@ function monMonIputUpdate() {
 }
 
 function moveCallBtn() {
-    console.log("[moveCallBtn] init");
+    // console.log("[moveCallBtn] init");
     
     const inContactDetail = location.href.includes("contacts/detail/");
     const callSellerBtn   = document.querySelector('.message-header-actions.contact-detail-actions');
