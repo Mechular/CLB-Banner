@@ -5020,7 +5020,7 @@ function populateCallQueue() {
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
-  // Build data
+  // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
     return {
@@ -5028,141 +5028,119 @@ function populateCallQueue() {
       name: tds[2]?.querySelector("a")?.textContent.trim() || "",
       href: `${BASE_URL}${row.id}?view=note`,
       phone: tds[3]?.querySelector("span")?.textContent.trim() || "",
-      email: tds[4]?.textContent.trim() || "",
-      created: (tds[5]?.innerText || "").replace(/\s+/g, " ").trim(),
-      lastActivity: (tds[6]?.innerText || "").replace(/\s+/g, " ").trim(),
-      tags: Array.from(tds[7]?.querySelectorAll(".table_tag") || []).map((el) =>
-        el.textContent.trim()
-      ),
     };
   });
 
-  // Signature based on page content; include pageSize so pagination changes trigger re-render
+  // Signature to avoid unnecessary re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
-
-  // Skip if nothing changed
   if (container.dataset.queueSig === signature) return;
 
-  // Helpers for UI
-  const initialsOf = (name) => {
-    if (!name) return "UC";
+  // Helpers
+  const initialsOf = (nameOrPhone) => {
+    const name = nameOrPhone || "";
     const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "UC";
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
-  const bgFromId = (id) => {
+  // Stable RGB from id (keeps your rgb(...) style)
+  const rgbFromId = (id) => {
     let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-    return `hsl(${h} 45% 65%)`;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    const r = 117 + (h % 73);        // 117..189
+    const g = 117 + ((h >> 3) % 73); // 117..189
+    const b = 117 + ((h >> 6) % 73); // 117..189
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+  const cleanForTyping = (s) => {
+    s = String(s || "");
+    const plus = s.trim().startsWith("+");
+    const digits = s.replace(/\D+/g, "");
+    return plus ? `+${digits}` : digits;
   };
 
-  // Map to items we render
   const items = data.map((d) => ({
     id: d.id,
-    initials: initialsOf(d.name || d.phone || "Unknown Contact"),
-    bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
-    name: d.name || (d.phone ?? "Unknown Contact"),
-    phone: d.phone || "",
+    bg: rgbFromId(d.id || d.phone || d.name),
+    initials: initialsOf(d.name || d.phone || "Unknown"),
+    name: d.name || d.phone || "Unknown Contact",
+    phoneDisplay: d.phone || "",
+    phoneToType: cleanForTyping(d.phone),
     href: d.href,
-    time: "",
   }));
-
   if (items.length === 0) return;
 
-  // NEW HTML structure + required classes/data-* for interactions
   const html = `
-    <div class="relative h-[406px] gap-3 overflow-y-auto">
+    <div class="relative h-[406px] overflow-y-auto">
       <div class="flex h-full flex-col gap-3 px-4">
-        ${items
-          .map(
-            (item) => `
+        ${items.map(item => `
           <div class="flex flex-col gap-2">
-            <div class="flex max-h-10 flex-col rounded-lg my-1">
-              <div class="flex h-10 items-center gap-3 rounded-t-lg">
+            <div class="flex h-10 gap-[10px]">
+              <div class="flex w-[282px] items-center justify-start gap-3">
                 <div class="flex w-10 items-center">
                   <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
                     <span class="text-xl">${item.initials}</span>
                   </div>
                 </div>
-
-                <div class="w-[166px] text-gray-600">
-                  <div class="flex items-center gap-1">
-                    <div class="max-w-[128px] whitespace-nowrap">
-                      <p class="text-left text-sm font-semibold leading-5">
-                        <a href="${item.href}" class="contact-name cursor-pointer" data-href="${item.href}" target="_blank">${item.name}</a>
-                      </p>
-                    </div>
+                <div class="flex flex-col items-start justify-center">
+                  <div class="cursor-pointer contact-name" data-href="${item.href}">
+                    <p class="text-left text-sm font-semibold leading-5 text-gray-600">${item.name}</p>
                   </div>
-                  <div class="flex items-center gap-1">
-                    <div class="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7m0 0H7m10 0v10"></path>
-                      </svg>
-                    </div>
-                    <div><p class="text-left text-sm font-normal leading-5">${item.phone}</p></div>
+                  <div>
+                    <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
                   </div>
-                </div>
-
-                <div class="w-22">
-                  <span class="whitespace-nowrap text-left text-xs font-normal leading-4">${item.time}</span>
-                </div>
-
-                <!-- Phone icon that types into the dialer (no call) -->
-                <div class="flex h-5 w-5 items-center gap-1">
-                  <button type="button" class="contact-dial flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-gray-100"
-                          data-phone="${item.phone}">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-3 w-3">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"/>
-                    </svg>
-                  </button>
                 </div>
               </div>
+              <div class="h-6 w-6 gap-3 p-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                  stroke-width="2" stroke="currentColor"
+                  aria-hidden="true"
+                  class="contact-dial h-5 w-5 cursor-pointer text-gray-600"
+                  data-phone="${item.phoneToType}">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
+                </svg>
+              </div>
             </div>
-            <div class="DividerLine h-px bg-gray-200"></div>
-          </div>`
-          )
-          .join("")}
+            <div class="DividerLine h-px bg-gray-200 mt-undefined mb-undefined"></div>
+          </div>
+        `).join("")}
       </div>
     </div>
   `;
 
+  // Inject into the voicemail container
   container.innerHTML = html;
   container.dataset.queueSig = signature;
 
-  // Make modal visible if it was hidden
+  // Ensure the modal is visible (as before)
   const modal = document.querySelector(".power-dialer-modal.flex");
-  if (modal && modal.style.display === "none") {
-    modal.style.display = "";
-  }
+  if (modal && modal.style.display === "none") modal.style.display = "";
 
-  // INTERACTIONS
-  // 1) Clicking the name opens its href (same tab)
+  // === INTERACTIONS ===
+  // Name -> open its href (same tab)
   container.addEventListener("click", (e) => {
-    const a = e.target.closest(".contact-name");
-    if (!a) return;
+    const nameEl = e.target.closest(".contact-name");
+    if (!nameEl) return;
     e.preventDefault();
-    const href = a.getAttribute("data-href") || a.getAttribute("href");
+    const href = nameEl.getAttribute("data-href");
     if (href) location.href = href;
   });
 
-  // 2) Clicking the phone icon simulates typing into the dialer input (no call)
+  // Phone icon -> type number into #dialer-input (no call)
   container.addEventListener("click", async (e) => {
-    const btn = e.target.closest(".contact-dial");
-    if (!btn) return;
+    const dialEl = e.target.closest(".contact-dial");
+    if (!dialEl) return;
     e.preventDefault();
-
-    const phone = (btn.getAttribute("data-phone") || "").trim();
+    const phone = (dialEl.getAttribute("data-phone") || "").trim();
     if (!phone) return;
 
-    // Find your dialer input; adjust selector if your app differs
     const dialerInput = document.querySelector("input#dialer-input");
     if (!(dialerInput instanceof HTMLInputElement)) return;
 
-    // Clear first (optional)
     setInputValueSecurely(dialerInput, "");
-
-    // Type the number securely (no click-to-call here)
     await simulateSecureTyping(dialerInput, phone);
   });
 }
