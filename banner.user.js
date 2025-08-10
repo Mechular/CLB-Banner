@@ -5019,58 +5019,50 @@ function moveCallBtn() {
     }
 }
 
+// ⇩ keep your setInputValueSecurely / delay / simulateSecureTyping above this
+// ⇩ paste your getAreaCodeInfo() function above populateCallQueue()
+
 function populateCallQueue() {
-  // Only run on Contacts > Smart List > Queue
   if (!location.href.includes("/contacts/smart_list/")) return;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
 
-  // Target the 2nd voicemail container
   const containers = document.querySelectorAll(".voicemail-container");
   const container = containers[1];
   if (!container) return;
 
-  // Ignore/clear legacy gate that blocks re-render
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
   }
 
-  // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
-  const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
+  const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
-  // Current page size text
   let pageSize = parseInt(
-    document
-      .querySelector("#hl_smartlists-main a#dropdownMenuButton")
-      ?.textContent.replace(/\D+/g, "") || "0",
+    document.querySelector("#hl_smartlists-main a#dropdownMenuButton")?.textContent.replace(/\D+/g, "") || "0",
     10
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Collect current rows; if table is refreshing, don't wipe UI
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
-  // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
     return {
       id: row.id,
       name: tds[2]?.querySelector("a")?.textContent.trim() || "",
       href: `${BASE_URL}${row.id}?view=note`,
-      phone: tds[3]?.querySelector("span")?.textContent.replace("+1", "").trim() || "",
+      phone: tds[3]?.querySelector("span")?.textContent.trim() || "",
     };
   });
 
-  // Signature to avoid unnecessary re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
   if (container.dataset.queueSig === signature) return;
 
-  // Helpers
   const initialsOf = (nameOrPhone) => {
     const name = nameOrPhone || "";
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -5078,15 +5070,16 @@ function populateCallQueue() {
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
-  // Stable RGB from id (keeps your rgb(...) style)
+
   const rgbFromId = (id) => {
     let h = 0;
     for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-    const r = 117 + (h % 73);        // 117..189
-    const g = 117 + ((h >> 3) % 73); // 117..189
-    const b = 117 + ((h >> 6) % 73); // 117..189
+    const r = 117 + (h % 73);
+    const g = 117 + ((h >> 3) % 73);
+    const b = 117 + ((h >> 6) % 73);
     return `rgb(${r}, ${g}, ${b})`;
   };
+
   const cleanForTyping = (s) => {
     s = String(s || "");
     const plus = s.trim().startsWith("+");
@@ -5094,15 +5087,32 @@ function populateCallQueue() {
     return plus ? `+${digits}` : digits;
   };
 
-  const items = data.map((d) => ({
-    id: d.id,
-    bg: rgbFromId(d.id || d.phone || d.name),
-    initials: initialsOf(d.name || d.phone || "Unknown"),
-    name: d.name || d.phone || "Unknown Contact",
-    phoneDisplay: d.phone || "",
-    phoneToType: cleanForTyping(d.phone),
-    href: d.href,
-  }));
+  // Extract NANP area code (handles optional +1)
+  const extractAreaCode = (raw) => {
+    const digits = String(raw || "").replace(/\D+/g, "");
+    if (!digits) return "";
+    if (digits.length >= 11 && digits.startsWith("1")) return digits.slice(1, 4);
+    return digits.slice(0, 3);
+  };
+
+  const items = data.map((d) => {
+    const phoneDisplay = d.phone || "";
+    const phoneToType = cleanForTyping(phoneDisplay);
+    const area = extractAreaCode(phoneDisplay);
+    const [loc, tz, time] = area ? getAreaCodeInfo(area) : ["Unknown", "Unknown", "Unknown time"];
+    return {
+      id: d.id,
+      bg: rgbFromId(d.id || d.phone || d.name),
+      initials: initialsOf(d.name || d.phone || "Unknown"),
+      name: d.name || d.phone || "Unknown Contact",
+      phoneDisplay,
+      phoneToType,
+      href: d.href,
+      areaLoc: loc,
+      areaTz: tz,
+      areaTime: time,
+    };
+  });
   if (items.length === 0) return;
 
   const html = `
@@ -5114,7 +5124,7 @@ function populateCallQueue() {
               <div class="flex w-[282px] items-center justify-start gap-3">
                 <div class="flex w-10 items-center">
                   <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
-                    <span class="text-xl" style="color: white !important;">${item.initials}</span>
+                    <span class="text-xl" style="color: white;">${item.initials}</span>
                   </div>
                 </div>
                 <div class="flex flex-col items-start justify-center">
@@ -5124,6 +5134,13 @@ function populateCallQueue() {
                   <div>
                     <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
                   </div>
+                  ${
+                    (item.areaLoc !== "Unknown" || item.areaTz !== "Unknown")
+                      ? `<div class="text-[11px] leading-4 text-gray-500">
+                           ${item.areaLoc} (${item.areaTz}) · ${item.areaTime}
+                         </div>`
+                      : ""
+                  }
                 </div>
               </div>
               <div class="h-6 w-6 gap-3 p-2">
@@ -5145,16 +5162,13 @@ function populateCallQueue() {
     </div>
   `;
 
-  // Inject into the voicemail container
   container.innerHTML = html;
   container.dataset.queueSig = signature;
 
-  // Ensure the modal is visible (as before)
   const modal = document.querySelector(".power-dialer-modal.flex");
   if (modal && modal.style.display === "none") modal.style.display = "";
 
-  // === INTERACTIONS ===
-  // Name -> open its href (same tab)
+  // name -> open in new tab
   container.addEventListener("click", (e) => {
     const nameEl = e.target.closest(".contact-name");
     if (!nameEl) return;
@@ -5163,21 +5177,30 @@ function populateCallQueue() {
     if (href) window.open(href, "_blank");
   });
 
-  // Phone icon -> type number into #dialer-input (no call)
-  container.addEventListener("click", async (e) => {
-    const dialEl = e.target.closest(".contact-dial");
-    if (!dialEl) return;
-    e.preventDefault();
-    const phone = (dialEl.getAttribute("data-phone").replace("+1", "") || "").trim();
-    if (!phone) return;
+// phone icon -> type into #dialer-input (no call)
+container.addEventListener("click", async (e) => {
+  const dialEl = e.target.closest(".contact-dial");
+  if (!dialEl) return;
+  e.preventDefault();
 
-    const dialerInput = document.querySelector("input#dialer-input");
-    if (!(dialerInput instanceof HTMLInputElement)) return;
+  const phone = (dialEl.getAttribute("data-phone") || "").trim();
+  if (!phone) return;
 
-    setInputValueSecurely(dialerInput, "");
-    await simulateSecureTyping(dialerInput, phone);
-  });
+  // hide this voicemail container
+  container.style.display = "none";
+
+  // unhide keypad
+  const keypad = document.querySelector(".keypad");
+  if (keypad) keypad.style.display = "";
+
+  const dialerInput = document.querySelector("input#dialer-input");
+  if (!(dialerInput instanceof HTMLInputElement)) return;
+
+  setInputValueSecurely(dialerInput, "");
+  await simulateSecureTyping(dialerInput, phone);
+});
 }
+
 
 function monMonFreeFloat() {
     return;
