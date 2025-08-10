@@ -294,12 +294,9 @@ function getAreaCodeInfo(areaCode) {
         "217": { timezone: "CST", location: "Central Illinois" },
         "218": { timezone: "CST", location: "Northern Minnesota" },
         "219": { timezone: "CST", location: "Northwestern Indiana" },
-        "220": { timezone: "EST", location: "Southeastern & Central Ohio" },
-  "223": { timezone: "EST", location: "South Central Pennsylvania" },
         "224": { timezone: "CST", location: "Northern Illinois (suburbs of Chicago)" },
         "225": { timezone: "CST", location: "Baton Rouge, LA" },
         "226": { timezone: "EST", location: "Southwestern Ontario, Canada" },
-  "227": { timezone: "EST", location: "Western Maryland" },
         "228": { timezone: "CST", location: "Coastal Mississippi" },
         "229": { timezone: "EST", location: "Southwestern Georgia" },
         "231": { timezone: "EST", location: "Northwestern Michigan" },
@@ -327,7 +324,6 @@ function getAreaCodeInfo(areaCode) {
         "274": { timezone: "CST", location: "Northern Wisconsin" },
         "276": { timezone: "EST", location: "Southwestern Virginia" },
         "278": { timezone: "EST", location: "Western Pennsylvania" },
-  "279": { timezone: "PST", location: "Sacramento, California" },
         "281": { timezone: "CST", location: "Houston suburbs, Texas" },
         "283": { timezone: "CST", location: "Eastern Pennsylvania" },
         "289": { timezone: "EST", location: "Southern Ontario, Canada" },
@@ -356,13 +352,11 @@ function getAreaCodeInfo(areaCode) {
         "327": { timezone: "EST", location: "Eastern Pennsylvania" },
         "330": { timezone: "EST", location: "Northeastern Ohio" },
         "331": { timezone: "CST", location: "Western Illinois" },
-        "332": { timezone: "EST", location: "New York City, NY" },
         "334": { timezone: "CST", location: "Southeastern Alabama" },
         "336": { timezone: "EST", location: "Piedmont Triad, North Carolina" },
         "337": { timezone: "CST", location: "Southwestern Louisiana" },
         "339": { timezone: "EST", location: "Northeastern Massachusetts" },
         "340": { timezone: "AST", location: "U.S. Virgin Islands" },
-        "341": { timezone: "PST", location: "East Bay, California" }, 
         "343": { timezone: "EST", location: "Eastern Ontario, Canada" },
         "345": { timezone: "EST", location: "Cayman Islands" },
         "346": { timezone: "CST", location: "Houston, Texas" },
@@ -373,7 +367,6 @@ function getAreaCodeInfo(areaCode) {
         "361": { timezone: "CST", location: "South Texas coast" },
         "364": { timezone: "CST", location: "Western Kentucky" },
         "365": { timezone: "EST", location: "Southern Ontario, Canada" },
-        "368": { timezone: "MST", location: "Alberta, Canada" }, 
         "380": { timezone: "EST", location: "Northeastern Ohio" },
         "385": { timezone: "MST", location: "Northern Utah" },
         "386": { timezone: "EST", location: "Northeastern Florida" },
@@ -409,17 +402,13 @@ function getAreaCodeInfo(areaCode) {
         "441": { timezone: "AST", location: "Bermuda" },
         "442": { timezone: "PST", location: "Southern California" },
         "443": { timezone: "EST", location: "Baltimore, Maryland suburbs" },
-        "447": { timezone: "CST", location: "Central Illinois" }, 
-        "448": { timezone: "CST", location: "Florida Panhandle" },
         "450": { timezone: "EST", location: "Southern Quebec, Canada" },
         "458": { timezone: "PST", location: "Oregon" },
         "463": { timezone: "EST", location: "Indianapolis suburbs, Indiana" },
         "464": { timezone: "EST", location: "Chicago suburbs, Illinois" },
         "469": { timezone: "CST", location: "Dallas suburbs, Texas" },
         "470": { timezone: "EST", location: "Atlanta suburbs, Georgia" },
-        "472": { timezone: "EST", location: "Central & East Central Florida" },
         "473": { timezone: "AST", location: "Grenada" },
-        "474": { timezone: "CST", location: "Saskatchewan, Canada" },
         "475": { timezone: "EST", location: "Connecticut" },
         "478": { timezone: "EST", location: "Central Georgia" },
         "479": { timezone: "CST", location: "Northwestern Arkansas" },
@@ -460,12 +449,10 @@ function getAreaCodeInfo(areaCode) {
         "567": { timezone: "EST", location: "Northwestern Ohio" },
         "570": { timezone: "EST", location: "Northeastern Pennsylvania" },
         "571": { timezone: "EST", location: "Northern Virginia" },
-        "572": { timezone: "CST", location: "Oklahoma City, Oklahoma" }, 
         "573": { timezone: "CST", location: "Eastern Missouri" },
         "574": { timezone: "EST", location: "Northern Indiana" },
         "575": { timezone: "MST", location: "Southern New Mexico" },
         "580": { timezone: "CST", location: "Southern and Western Oklahoma" },
-        "582": { timezone: "EST", location: "Northwestern Pennsylvania" }, 
         "585": { timezone: "EST", location: "Western New York" },
         "586": { timezone: "EST", location: "Macomb County, Michigan" },
         "587": { timezone: "MST", location: "Alberta, Canada" },
@@ -496,15 +483,12 @@ function getAreaCodeInfo(areaCode) {
         "631": { timezone: "EST", location: "Eastern Suffolk County, Long Island, NY" },
         "636": { timezone: "CST", location: "Western St. Louis suburbs, Missouri" },
         "639": { timezone: "EST", location: "Saskatchewan, Canada" },
-        "640": { timezone: "EST", location: "Southern New Jersey" }, 
         "641": { timezone: "CST", location: "Central Iowa" },
         "646": { timezone: "EST", location: "New York City, NY" },
         "647": { timezone: "EST", location: "Toronto, Ontario, Canada" },
         "650": { timezone: "PST", location: "San Mateo County, California" },
         "651": { timezone: "CST", location: "St. Paul, Minnesota" },
-        "656": { timezone: "EST", location: "Tampa, Florida" },  
         "657": { timezone: "CST", location: "Orange County, California" },
-        "659": { timezone: "CST", location: "Western & Central Alabama" }, 
         "660": { timezone: "CST", location: "Northwestern Missouri" },
         "661": { timezone: "PST", location: "Bakersfield, California" },
         "662": { timezone: "CST", location: "Northern Mississippi" },
@@ -512,11 +496,8 @@ function getAreaCodeInfo(areaCode) {
         "669": { timezone: "PST", location: "San Jose, California" },
         "670": { timezone: "ChST", location: "Guam" },
         "671": { timezone: "ChST", location: "Northern Mariana Islands" },
-        "672": { timezone: "PST", location: "British Columbia, Canada" }, 
         "678": { timezone: "EST", location: "Atlanta suburbs, Georgia" },
-        "681": { timezone: "EST", location: "West Virginia" },   
         "682": { timezone: "CST", location: "Fort Worth, Texas" },
-        "689": { timezone: "EST", location: "Orlando, Florida" },  
         "701": { timezone: "CST", location: "North Dakota" },
         "702": { timezone: "PST", location: "Las Vegas, Nevada" },
         "703": { timezone: "EST", location: "Northern Virginia" },
@@ -537,7 +518,6 @@ function getAreaCodeInfo(areaCode) {
         "720": { timezone: "MST", location: "Denver suburbs, Colorado" },
         "724": { timezone: "EST", location: "Western Pennsylvania" },
         "725": { timezone: "PST", location: "Las Vegas suburbs, Nevada" },
-        "726": { timezone: "CST", location: "San Antonio, Texas" },  
         "727": { timezone: "EST", location: "St. Petersburg, Florida" },
         "730": { timezone: "CST", location: "Central Illinois" },
         "731": { timezone: "CST", location: "Western Tennessee" },
@@ -545,15 +525,12 @@ function getAreaCodeInfo(areaCode) {
         "734": { timezone: "EST", location: "Washtenaw County, Michigan" },
         "737": { timezone: "CST", location: "Austin, Texas" },
         "740": { timezone: "EST", location: "Southeastern Ohio" },
-        "743": { timezone: "EST", location: "Piedmont Triad, North Carolina" },
         "747": { timezone: "PST", location: "Los Angeles suburbs, California" },
-        "753": { timezone: "EST", location: "Eastern Ontario, Canada" },
         "754": { timezone: "EST", location: "Broward County, Florida" },
         "757": { timezone: "EST", location: "Virginia Peninsula" },
         "760": { timezone: "PST", location: "Eastern Riverside County, California" },
         "762": { timezone: "EST", location: "Western Georgia" },
         "763": { timezone: "CST", location: "Northwestern suburbs of Minneapolis" },
-        "764": { timezone: "PST", location: "San Mateo County, California" },
         "765": { timezone: "EST", location: "Central Indiana" },
         "769": { timezone: "CST", location: "Central Mississippi" },
         "770": { timezone: "EST", location: "Atlanta suburbs, Georgia" },
@@ -587,22 +564,18 @@ function getAreaCodeInfo(areaCode) {
         "817": { timezone: "CST", location: "Fort Worth, Texas" },
         "818": { timezone: "PST", location: "San Fernando Valley, California" },
         "819": { timezone: "EST", location: "Western Quebec, Canada" },
-        "820": { timezone: "PST", location: "Central Coast of California" }, 
         "825": { timezone: "MST", location: "Southern Alberta, Canada" },
         "828": { timezone: "EST", location: "Western North Carolina" },
         "829": { timezone: "AST", location: "Dominican Republic" },
         "830": { timezone: "CST", location: "South Central Texas" },
         "831": { timezone: "PST", location: "Central Coast, California" },
         "832": { timezone: "CST", location: "Houston, Texas" },
-        "835": { timezone: "EST", location: "Eastern Pennsylvania suburbs" }, 
-        "839": { timezone: "EST", location: "Central South Carolina" },
         "843": { timezone: "EST", location: "Coastal South Carolina" },
         "845": { timezone: "EST", location: "Hudson Valley, New York" },
         "847": { timezone: "CST", location: "Northern Illinois suburbs" },
         "848": { timezone: "EST", location: "Central New Jersey" },
         "849": { timezone: "AST", location: "Dominican Republic" },
         "850": { timezone: "CST", location: "Florida Panhandle" },
-        "854": { timezone: "EST", location: "Coastal South Carolina" },
         "856": { timezone: "EST", location: "Southwestern New Jersey" },
         "857": { timezone: "EST", location: "Boston, Massachusetts" },
         "858": { timezone: "PST", location: "Northern San Diego, California" },
@@ -619,7 +592,6 @@ function getAreaCodeInfo(areaCode) {
         "872": { timezone: "CST", location: "Chicago, Illinois" },
         "873": { timezone: "EST", location: "Southern Quebec, Canada" },
         "878": { timezone: "EST", location: "Western Pennsylvania" },
-        "889": { timezone: "EST", location: "Toronto, Ontario, Canada" },
         "901": { timezone: "CST", location: "Memphis, Tennessee" },
         "902": { timezone: "AST", location: "Nova Scotia and Prince Edward Island, Canada" },
         "903": { timezone: "CST", location: "Northeastern Texas" },
@@ -651,9 +623,7 @@ function getAreaCodeInfo(areaCode) {
         "939": { timezone: "AST", location: "Puerto Rico" },
         "940": { timezone: "CST", location: "Northern Texas" },
         "941": { timezone: "EST", location: "Southwest Florida" },
-        "945": { timezone: "CST", location: "Dallas, Texas" },   
         "947": { timezone: "EST", location: "Detroit, Michigan" },
-        "948": { timezone: "EST", location: "Virginia Peninsula (Hampton Roads)" },
         "949": { timezone: "PST", location: "Southern Orange County, California" },
         "951": { timezone: "PST", location: "Inland Empire, California" },
         "952": { timezone: "CST", location: "Suburban Minneapolis, Minnesota" },
@@ -667,10 +637,9 @@ function getAreaCodeInfo(areaCode) {
         "978": { timezone: "EST", location: "Northeastern Massachusetts" },
         "979": { timezone: "CST", location: "Southeastern Texas" },
         "980": { timezone: "EST", location: "Charlotte suburbs, North Carolina" },
-        "983": { timezone: "MST", location: "Denver, Colorado" }, 
         "984": { timezone: "EST", location: "Raleigh suburbs, North Carolina" },
         "985": { timezone: "CST", location: "Southeastern Louisiana" },
-        "986": { timezone: "MST", location: "Idaho" }
+        "986": { timezone: "EST", location: "Eastern Washington" },
         "989": { timezone: "EST", location: "Northeastern Michigan" }
     };
 
@@ -5051,249 +5020,163 @@ function moveCallBtn() {
 }
 
 function populateCallQueue() {
-  // ---------------- local helpers used only here ----------------
-  const cfg = window.dialerQuietConfig || {
-    quietBeforeHour: 12,  // before 12 PM is quiet
-    quietAfterHour: 20,   // after 8 PM is quiet
-    checkEveryMs: 59000   // refresh every 59s
-  };
-
-  const isQueueActive = () => {
-    if (!location.href.includes("/contacts/smart_list/")) return false;
-    const activeNavIcon = document.querySelector(".active-navigation-icon");
-    const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
-    return navText === "Queue";
-  };
-
-  // "11:40 AM" -> minutes since midnight
-  const minutesFrom12h = (str) => {
-    const m = String(str).match(/^\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*$/i);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ap = m[3].toUpperCase();
-    if (ap === "AM" && h === 12) h = 0;
-    if (ap === "PM" && h !== 12) h += 12;
-    return h * 60 + min;
-  };
-
-  // Update times and quiet state for rows already rendered
-  const refreshQuietStates = (containerEl) => {
-    const rows = containerEl.querySelectorAll(".contact-row[data-ac]");
-    rows.forEach((row) => {
-      const ac = row.dataset.ac || "";
-      const [loc, tz, localTime] = getAreaCodeInfo(ac);
-      const mins = minutesFrom12h(localTime);
-      const quiet = mins !== null &&
-        (mins < cfg.quietBeforeHour * 60 || mins > cfg.quietAfterHour * 60);
-
-      const meta = row.querySelector(".phone-meta");
-      if (meta) meta.innerHTML = `${loc} (${tz}) · <span class="phone-time">${localTime}</span>`;
-
-      row.classList.toggle("bg-red-50", quiet);
-      row.style.backgroundColor = quiet ? "#FEF2F2" : "";
-
-      const icon = row.querySelector(".contact-dial");
-      if (icon) {
-        icon.setAttribute("aria-disabled", quiet ? "true" : "false");
-        icon.classList.toggle("text-red-400", quiet);
-        icon.classList.toggle("opacity-40", quiet);
-        icon.classList.toggle("cursor-not-allowed", quiet);
-        icon.classList.toggle("text-gray-600", !quiet);
-        icon.classList.toggle("cursor-pointer", !quiet);
-      }
-    });
-  };
-  // ---------------- end local helpers ----------------
-
   // Only run on Contacts > Smart List > Queue
-  if (!isQueueActive()) {
-    if (window._dialerQuietTimer) {
-      clearInterval(window._dialerQuietTimer);
-      window._dialerQuietTimer = null;
-    }
-    // Clear datasets so it fully re-renders when you come back
-    document.querySelectorAll(".voicemail-container").forEach((vc) => {
-      delete vc.dataset.queueSig;
-      delete vc.dataset.queuePopulated;
-    });
-    return;
-  }
+  if (!location.href.includes("/contacts/smart_list/")) return;
+  const activeNavIcon = document.querySelector(".active-navigation-icon");
+  const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
+  if (navText !== "Queue") return;
 
   // Target the 2nd voicemail container
   const containers = document.querySelectorAll(".voicemail-container");
   const container = containers[1];
   if (!container) return;
 
+  // Ignore/clear legacy gate that blocks re-render
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
   }
 
-  // Config from page
+  // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
   const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
 
   // Current page size text
   let pageSize = parseInt(
-    document.querySelector("#hl_smartlists-main a#dropdownMenuButton")
+    document
+      .querySelector("#hl_smartlists-main a#dropdownMenuButton")
       ?.textContent.replace(/\D+/g, "") || "0",
     10
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Collect current rows
+  // Collect current rows; if table is refreshing, don't wipe UI
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
-  // helpers for mapping
-  const initialsOf = (name) => {
-    if (!name) return "UC";
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
-  const bgFromId = (id) => {
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-    return `hsl(${h} 45% 65%)`;
-  };
-  const cleanPhone = (p) =>
-    (p || "").replace(/\s+/g, " ").trim().replace(/^\+1\s*/, "");
-
-  // Build data
+  // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
-    const id = row.id;
-    const name = tds[2]?.querySelector("a")?.textContent.trim() || "";
-    const phoneRaw = tds[3]?.querySelector("span")?.textContent.trim() || "";
-    const phone = cleanPhone(phoneRaw);
-    const href = `${BASE_URL}${id}?view=note`;
-
-    const ac = phone.replace(/\D/g, "").slice(0, 3);
-    const [phoneLoc, phoneTz, phoneTime] = getAreaCodeInfo(ac);
-    const mins = minutesFrom12h(phoneTime);
-    const quiet = mins !== null &&
-      (mins < cfg.quietBeforeHour * 60 || mins > cfg.quietAfterHour * 60);
-
     return {
-      id,
-      href,
-      name: name || phone || "Unknown Contact",
-      phone,
-      phoneDisplay: phone,
-      phoneLoc,
-      phoneTz,
-      phoneTime,
-      quiet,
-      ac,
-      initials: initialsOf(name || phone || "Unknown"),
-      bg: bgFromId(id || phone || name || String(Math.random())),
+      id: row.id,
+      name: tds[2]?.querySelector("a")?.textContent.trim() || "",
+      href: `${BASE_URL}${row.id}?view=note`,
+      phone: tds[3]?.querySelector("span")?.textContent.replace("+1", "").trim() || "",
     };
   });
 
-  // Signature to avoid useless re-render
+  // Signature to avoid unnecessary re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
   if (container.dataset.queueSig === signature) return;
-  if (data.length === 0) return;
 
-  // UI
+  // Helpers
+  const initialsOf = (nameOrPhone) => {
+    const name = nameOrPhone || "";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "UC";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+  // Stable RGB from id (keeps your rgb(...) style)
+  const rgbFromId = (id) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    const r = 117 + (h % 73);        // 117..189
+    const g = 117 + ((h >> 3) % 73); // 117..189
+    const b = 117 + ((h >> 6) % 73); // 117..189
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+  const cleanForTyping = (s) => {
+    s = String(s || "");
+    const plus = s.trim().startsWith("+");
+    const digits = s.replace(/\D+/g, "");
+    return plus ? `+${digits}` : digits;
+  };
+
+  const items = data.map((d) => ({
+    id: d.id,
+    bg: rgbFromId(d.id || d.phone || d.name),
+    initials: initialsOf(d.name || d.phone || "Unknown"),
+    name: d.name || d.phone || "Unknown Contact",
+    phoneDisplay: d.phone || "",
+    phoneToType: cleanForTyping(d.phone),
+    href: d.href,
+  }));
+  if (items.length === 0) return;
+
   const html = `
-    <div class="relative h-[406px] overflow-y-auto pt-2">
+    <div class="relative h-[406px] overflow-y-auto">
       <div class="flex h-full flex-col gap-3 px-4">
-        ${data.map(item => `
+        ${items.map(item => `
           <div class="flex flex-col gap-2">
-            <div class="flex h-10 gap-[10px] contact-row ${item.quiet ? "bg-red-50" : ""}"
-                 data-ac="${item.ac}" style="${item.quiet ? "background-color:#FEF2F2;" : ""}">
+            <div class="flex h-10 gap-[10px]">
               <div class="flex w-[282px] items-center justify-start gap-3">
                 <div class="flex w-10 items-center">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color:${item.bg};">
-                    <span class="text-xl" style="color:white;">${item.initials}</span>
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
+                    <span class="text-xl" style="color: white !important;">${item.initials}</span>
                   </div>
                 </div>
                 <div class="flex flex-col items-start justify-center">
-                  <div class="cursor-pointer">
-                    <p class="text-left text-sm font-semibold leading-5 text-gray-600 contact-name"
-                       data-href="${item.href}">${item.name}</p>
+                  <div class="cursor-pointer contact-name" data-href="${item.href}">
+                    <p class="text-left text-sm font-semibold leading-5 text-gray-600">${item.name}</p>
                   </div>
-                  ${item.phoneDisplay ? `<div><p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p></div>` : ""}
-                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500 phone-meta">
-                    ${item.phoneLoc} (${item.phoneTz}) · <span class="phone-time">${item.phoneTime}</span>
-                  </p>
+                  <div>
+                    <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
+                  </div>
                 </div>
               </div>
               <div class="h-6 w-6 gap-3 p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                     class="contact-dial h-5 w-5 ${item.quiet ? "text-red-400 opacity-40 cursor-not-allowed" : "cursor-pointer text-gray-600"}"
-                     data-phone="${item.phone}" aria-disabled="${item.quiet ? "true" : "false"}">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                  stroke-width="2" stroke="currentColor"
+                  aria-hidden="true"
+                  class="contact-dial h-5 w-5 cursor-pointer text-gray-600"
+                  data-phone="${item.phoneToType}">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
                 </svg>
               </div>
             </div>
-            <div class="DividerLine h-px bg-gray-200"></div>
+            <div class="DividerLine h-px bg-gray-200 mt-undefined mb-undefined"></div>
           </div>
         `).join("")}
       </div>
     </div>
   `;
 
-  // Render without appendChild to avoid monkey-patched DOM methods
-  container.innerHTML = "";               // clear
-  container.insertAdjacentHTML("afterbegin", html);  // write markup
-
+  // Inject into the voicemail container
+  container.innerHTML = html;
   container.dataset.queueSig = signature;
 
-  // Bind events once per container element
-  if (!container._queueBound) {
-    container.addEventListener("click", (e) => {
-      const nameEl = e.target.closest(".contact-name");
-      if (nameEl) window.open(nameEl.dataset.href, "_blank", "noopener");
-    });
-
-    container.addEventListener("click", async (e) => {
-      const icon = e.target.closest(".contact-dial");
-      if (!icon) return;
-      if (icon.getAttribute("aria-disabled") === "true") return;
-      const dialerInput = document.querySelector("input#dialer-input");
-      if (!dialerInput) return;
-      await simulateSecureTyping(dialerInput, icon.dataset.phone || "");
-    });
-
-    container._queueBound = true;
-  }
-
-  // Live refresh while Queue stays active
-  if (window._dialerQuietTimer) clearInterval(window._dialerQuietTimer);
-
-  const safeRefresh = () => {
-    if (!isQueueActive()) {
-      if (window._dialerQuietTimer) {
-        clearInterval(window._dialerQuietTimer);
-        window._dialerQuietTimer = null;
-      }
-      document.querySelectorAll(".voicemail-container").forEach((vc) => {
-        delete vc.dataset.queueSig;
-        delete vc.dataset.queuePopulated;
-      });
-      return;
-    }
-    const currentContainer = document.querySelectorAll(".voicemail-container")[1];
-    if (!currentContainer || !document.body.contains(currentContainer)) {
-      if (window._dialerQuietTimer) {
-        clearInterval(window._dialerQuietTimer);
-        window._dialerQuietTimer = null;
-      }
-      return;
-    }
-    refreshQuietStates(currentContainer);
-  };
-
-  safeRefresh(); // initial
-  window._dialerQuietTimer = setInterval(safeRefresh, cfg.checkEveryMs);
-
+  // Ensure the modal is visible (as before)
   const modal = document.querySelector(".power-dialer-modal.flex");
   if (modal && modal.style.display === "none") modal.style.display = "";
+
+  // === INTERACTIONS ===
+  // Name -> open its href (same tab)
+  container.addEventListener("click", (e) => {
+    const nameEl = e.target.closest(".contact-name");
+    if (!nameEl) return;
+    e.preventDefault();
+    const href = nameEl.getAttribute("data-href");
+    if (href) window.open(href, "_blank");
+  });
+
+  // Phone icon -> type number into #dialer-input (no call)
+  container.addEventListener("click", async (e) => {
+    const dialEl = e.target.closest(".contact-dial");
+    if (!dialEl) return;
+    e.preventDefault();
+    const phone = (dialEl.getAttribute("data-phone").replace("+1", "") || "").trim();
+    if (!phone) return;
+
+    const dialerInput = document.querySelector("input#dialer-input");
+    if (!(dialerInput instanceof HTMLInputElement)) return;
+
+    setInputValueSecurely(dialerInput, "");
+    await simulateSecureTyping(dialerInput, phone);
+  });
 }
 
 function monMonFreeFloat() {
