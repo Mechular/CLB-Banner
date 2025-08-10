@@ -5246,7 +5246,7 @@ function populateCallQueue() {
     e.preventDefault();
 
     // hide this voicemail container
-    container.style.display = "none";
+    // container.style.display = "none";
 
     // unhide keypad
     const keypad = document.querySelector(".keypad");
