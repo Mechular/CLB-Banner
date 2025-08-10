@@ -5266,7 +5266,13 @@ function populateCallQueue() {
       // await dialBtn.click();
         
       keypad.style.display = "none";
-      container.style.display = "";
+      
+      // Finds the first element with class "navigation-container" containing "Queue" and clicks it
+      document.querySelectorAll('.navigation-container').forEach(el => {
+        if (el.innerText.includes('Queue')) {
+          el.click();
+        }
+      });
     }
   });
 }
