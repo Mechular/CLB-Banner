@@ -5039,8 +5039,8 @@ function populateCallQueue() {
     if (data.length !== pageSize) {
         console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
     } else {
-        console.log(`Data length matches page size (${pageSize}).`);
-        console.table(data);
+        // console.log(`Data length matches page size (${pageSize}).`);
+        // console.table(data);
     }
 
     // If already populated once, skip
