@@ -5126,7 +5126,7 @@ function populateCallQueue() {
     if (!nameEl) return;
     e.preventDefault();
     const href = nameEl.getAttribute("data-href");
-    if (href) location.href = href;
+    if (href) window.open(href, "_blank");
   });
 
   // Phone icon -> type number into #dialer-input (no call)
