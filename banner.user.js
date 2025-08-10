@@ -4986,136 +4986,145 @@ function moveCallBtn() {
 }
 
 function populateCallQueue() {
-    const inContactSmartList = location.href.includes("/contacts/smart_list/");
-    if (!inContactSmartList) return;
+  const inContactSmartList = location.href.includes("/contacts/smart_list/");
+  if (!inContactSmartList) return;
 
-    const config = window.scriptConfig || {};
-    const createClientList = config.createClientList;
-    const myID = config.myID;
-    
-    // Make data accessible to other functions
-    let data = [];
-    
-    if (createClientList && myID) {
-      const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
-    
-      const pageSize = parseInt(
-        document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
-          ?.textContent.replace(/\D+/g, '') || '0',
-        10
-      );
-    
-      const rows = document.querySelectorAll('tr[id]');
-      data = Array.from(rows).map(row => {
-        const tds = row.querySelectorAll('td');
-        return {
-          id: row.id,
-          name: tds[2]?.querySelector('a')?.textContent.trim() || '',
-          href: `${BASE_URL}${row.id}?view=note`,
-          phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
-          email: tds[4]?.textContent.trim() || '',
-          created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
-          lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
-          tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
-            .map(el => el.textContent.trim())
-        };
-      });
-    
-      if (data.length !== pageSize) {
-        console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
-      } else {
-        console.log(`Data length matches page size (${pageSize}).`);
-      }
-      console.table(data);
+  const config = window.scriptConfig || {};
+  const createClientList = config.createClientList;
+  const myID = config.myID;
+
+  // Make data accessible to render step
+  let data = [];
+
+  if (createClientList && myID) {
+    const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
+
+    // Page Size: (from #hl_smartlists-main)
+    const pageSize = parseInt(
+      document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
+        ?.textContent.replace(/\D+/g, '') || '0',
+      10
+    );
+
+    // Build the data array
+    const rows = document.querySelectorAll('tr[id]');
+    data = Array.from(rows).map(row => {
+      const tds = row.querySelectorAll('td');
+      return {
+        id: row.id,
+        name: tds[2]?.querySelector('a')?.textContent.trim() || '',
+        href: `${BASE_URL}${row.id}?view=note`,
+        phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
+        email: tds[4]?.textContent.trim() || '',
+        created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
+        lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
+        tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
+          .map(el => el.textContent.trim())
+      };
+    });
+
+    if (data.length !== pageSize) {
+      console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
+    } else {
+      console.log(`Data length matches page size (${pageSize}).`);
     }
-    
-    // ---- Queue render ----
-    (function renderQueueIfActive() {
-      const activeNavIcon = document.querySelector('.active-navigation-icon');
-      const navText = activeNavIcon?.parentNode?.innerText?.trim() || '';
-      if (navText !== 'Queue') return;
-    
-      const containers = document.querySelectorAll('.voicemail-container');
-      const container = containers[1]; // second one
-      if (!container) {
-        console.warn('Second .voicemail-container not found.');
-        return;
-      }
-    
-      const initialsOf = name => {
-        if (!name) return 'UC';
-        const parts = name.trim().split(/\s+/).filter(Boolean);
-        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-      };
-      const bgFromId = id => {
-        let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-        return `hsl(${h} 45% 65%)`;
-      };
-    
-      const items = data.map(d => ({
-        initials: initialsOf(d.name || d.phone || 'Unknown Contact'),
-        bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
-        name: d.name || (d.phone ?? 'Unknown Contact'),
-        phone: d.phone || '',
-        time: '' // placeholder until we hook in timestamps
-      }));
-    
-      const html = `
-        <div class="relative h-[406px] gap-3 overflow-y-auto">
-          <div class="flex h-full flex-col gap-3 px-4">
-            ${items.map(item => `
-              <div class="flex flex-col gap-2">
-                <div class="flex max-h-10 flex-col rounded-lg my-1">
-                  <div class="flex h-10 items-center gap-3 rounded-t-lg">
-                    <div class="flex w-10 items-center">
-                      <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
-                        <span class="text-xl">${item.initials}</span>
+    console.table(data);
+  }
+
+  // ---- Queue render (only once via dataset flag) ----
+  (function renderQueueIfActive() {
+    const activeNavIcon = document.querySelector('.active-navigation-icon');
+    const navText = activeNavIcon?.parentNode?.innerText?.trim() || '';
+    if (navText !== 'Queue') return;
+
+    const containers = document.querySelectorAll('.voicemail-container');
+    const container = containers[1]; // second one
+    if (!container) {
+      console.warn('Second .voicemail-container not found.');
+      return;
+    }
+
+    // If already populated once, skip
+    if (container.dataset.queuePopulated === '1') {
+      console.log('Queue already populated once. Skipping reinjection.');
+      return;
+    }
+
+    const initialsOf = name => {
+      if (!name) return 'UC';
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
+    const bgFromId = id => {
+      let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+      return `hsl(${h} 45% 65%)`;
+    };
+
+    const items = data.map(d => ({
+      initials: initialsOf(d.name || d.phone || 'Unknown Contact'),
+      bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
+      name: d.name || (d.phone ?? 'Unknown Contact'),
+      phone: d.phone || '',
+      time: '' // placeholder until we hook in timestamps
+    }));
+
+    const html = `
+      <div class="relative h-[406px] gap-3 overflow-y-auto">
+        <div class="flex h-full flex-col gap-3 px-4">
+          ${items.map(item => `
+            <div class="flex flex-col gap-2">
+              <div class="flex max-h-10 flex-col rounded-lg my-1">
+                <div class="flex h-10 items-center gap-3 rounded-t-lg">
+                  <div class="flex w-10 items-center">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
+                      <span class="text-xl">${item.initials}</span>
+                    </div>
+                  </div>
+                  <div class="w-[166px] text-gray-600">
+                    <div class="flex items-center gap-1">
+                      <div class="max-w-[128px] cursor-pointer whitespace-nowrap">
+                        <p class="text-left text-sm font-semibold leading-5">${item.name}</p>
                       </div>
                     </div>
-                    <div class="w-[166px] text-gray-600">
-                      <div class="flex items-center gap-1">
-                        <div class="max-w-[128px] cursor-pointer whitespace-nowrap">
-                          <p class="text-left text-sm font-semibold leading-5">${item.name}</p>
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <div class="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7m0 0H7m10 0v10"></path>
-                          </svg>
-                        </div>
-                        <div><p class="text-left text-sm font-normal leading-5">${item.phone}</p></div>
-                      </div>
-                    </div>
-                    <div class="w-22">
-                      <span class="whitespace-nowrap text-left text-xs font-normal leading-4">${item.time}</span>
-                    </div>
-                    <div class="flex h-5 w-5 items-center gap-1">
-                      <div class="flex h-5 w-5 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                    <div class="flex items-center gap-1">
+                      <div class="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-gray-100">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"></path>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7m0 0H7m10 0v10"></path>
                         </svg>
                       </div>
+                      <div><p class="text-left text-sm font-normal leading-5">${item.phone}</p></div>
+                    </div>
+                  </div>
+                  <div class="w-22">
+                    <span class="whitespace-nowrap text-left text-xs font-normal leading-4">${item.time}</span>
+                  </div>
+                  <div class="flex h-5 w-5 items-center gap-1">
+                    <div class="flex h-5 w-5 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"></path>
+                      </svg>
                     </div>
                   </div>
                 </div>
-                <div class="DividerLine h-px bg-gray-200"></div>
               </div>
-            `).join('')}
-          </div>
+              <div class="DividerLine h-px bg-gray-200"></div>
+            </div>
+          `).join('')}
         </div>
-      `;
-    
-      container.innerHTML = html;
-      console.log(`Populated second .voicemail-container with ${items.length} items.`);
-    
-      const modal = document.querySelector('.power-dialer-modal.flex');
-      if (modal && modal.style.display === 'none') {
-        modal.style.display = '';
-        console.log('Power dialer modal was hidden. Now shown.');
-      }
-    })();
+      </div>
+    `;
+
+    container.innerHTML = html;
+    container.dataset.queuePopulated = '1'; // <-- mark as done (only run once)
+    console.log(`Populated second .voicemail-container with ${items.length} items.`);
+
+    const modal = document.querySelector('.power-dialer-modal.flex');
+    if (modal && modal.style.display === 'none') {
+      modal.style.display = '';
+      console.log('Power dialer modal was hidden. Now shown.');
+    }
+  })();
 }
 
 function monMonFreeFloat() {
