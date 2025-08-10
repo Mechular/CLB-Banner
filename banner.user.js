@@ -5158,66 +5158,66 @@ function populateCallQueue() {
 
   if (items.length === 0) return;
 
-  // === Container markup (no fixed height; add a bit of top padding) ===
-  const html = `
-    <div class="relative overflow-y-auto pt-2">
-      <div class="flex h-full flex-col gap-3 px-4">
-        ${items.map(item => `
-          <div class="flex flex-col gap-2">
-            <div class="flex h-10 gap-[10px]">
-              <div class="flex w-[282px] items-center justify-start gap-3">
-                <div class="flex w-10 items-center">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
-                    <span class="text-xl" style="color: white;">${item.initials}</span>
-                  </div>
-                </div>
-                <div class="flex flex-col items-start justify-center">
-                  <div class="cursor-pointer contact-name" data-href="${item.href}">
-                    <p class="text-left text-sm font-semibold leading-5 text-gray-600">${item.name}</p>
-                  </div>
-                  ${item.phoneDisplay ? `
-                    <div>
-                      <p class="text-left text-sm font-normal leading-5">${item.phoneDisplay}</p>
-                    </div>
-                  ` : ""}
-
-                  ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
-                    <div class="text-[11px] leading-4 text-gray-500">
-                      ${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}
-                    </div>
-                  ` : ""}
-
-                  ${item.address ? `
-                    <div class="text-[12px] leading-4 text-gray-600">
-                      ${item.address}
-                    </div>
-                  ` : ""}
-
-                  ${item.addressInfo ? `
-                    <div class="text-[11px] leading-4 text-gray-500">
-                      ${item.addressInfo}
-                    </div>
-                  ` : ""}
-                </div>
-              </div>
-              <div class="h-6 w-6 gap-3 p-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                  stroke-width="2" stroke="currentColor"
-                  aria-hidden="true"
-                  class="contact-dial h-5 w-5 cursor-pointer text-gray-600"
-                  data-phone="${item.phoneToType}">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
-                </svg>
-              </div>
+const html = `
+  <div class="relative overflow-y-auto pt-2">
+    <div class="flex flex-col gap-0 px-4">
+      ${items.map(item => `
+        <div class="flex flex-col">
+          <div class="flex items-start gap-3 py-2">
+            <!-- avatar -->
+            <div class="h-10 w-10 flex items-center justify-center rounded-full shrink-0" style="background-color:${item.bg};">
+              <span class="text-base leading-none text-white">${item.initials}</span>
             </div>
-            <div class="DividerLine h-px bg-gray-200 mt-undefined mb-undefined"></div>
+
+            <!-- content -->
+            <div class="flex-1 min-w-0 space-y-0.5">
+              <p class="text-left text-sm font-semibold leading-5 text-gray-600 cursor-pointer contact-name"
+                 data-href="${item.href}">
+                ${item.name}
+              </p>
+
+              ${item.phoneDisplay ? `
+                <p class="text-left text-sm leading-5">${item.phoneDisplay}</p>
+              ` : ""}
+
+              ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
+                <p class="text-[11px] leading-4 text-gray-500">
+                  ${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}
+                </p>
+              ` : ""}
+
+              ${item.address ? `
+                <p class="text-[12px] leading-4 text-gray-600">
+                  ${item.address}
+                </p>
+              ` : ""}
+
+              ${item.addressInfo ? `
+                <p class="text-[11px] leading-4 text-gray-500">
+                  ${item.addressInfo}
+                </p>
+              ` : ""}
+            </div>
+
+            <!-- dial icon -->
+            <div class="shrink-0 p-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                stroke-width="2" stroke="currentColor"
+                class="contact-dial h-5 w-5 cursor-pointer text-gray-600"
+                data-phone="${item.phoneToType}">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
+              </svg>
+            </div>
           </div>
-        `).join("")}
-      </div>
+
+          <div class="h-px bg-gray-200"></div>
+        </div>
+      `).join("")}
     </div>
-  `;
+  </div>
+`;
 
   // Inject into the voicemail container
   container.innerHTML = html;
