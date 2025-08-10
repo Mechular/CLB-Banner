@@ -5176,6 +5176,11 @@ function populateCallQueue() {
 
     setInputValueSecurely(dialerInput, "");
     await simulateSecureTyping(dialerInput, phone);
+
+    const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
+    if (dialBtn) {
+      // await dialBtn.click();
+    }
   });
 }
 
