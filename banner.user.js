@@ -5039,7 +5039,7 @@ function populateCallQueue() {
   // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
-  const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
+  const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
 
   // Current page size text
   let pageSize = parseInt(
