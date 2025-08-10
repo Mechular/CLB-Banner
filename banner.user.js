@@ -5046,6 +5046,8 @@ function populateCallQueue() {
     // If already populated once, skip
     if (container.dataset.queuePopulated === '1' && data.length === pageSize) {
         console.log('Queue already populated once. Skipping reinjection.');
+console.log('data.length', data.length);
+console.log('pageSize', pageSize);
         return;
     }
 
