@@ -5090,7 +5090,7 @@ function populateCallQueue() {
                   <div class="flex items-center gap-1">
                     <div class="max-w-[128px] whitespace-nowrap">
                       <p class="text-left text-sm font-semibold leading-5">
-                        <a href="${item.href}" class="contact-name cursor-pointer" data-href="${item.href}">${item.name}</a>
+                        <a href="${item.href}" class="contact-name cursor-pointer" data-href="${item.href}" target="_blank">${item.name}</a>
                       </p>
                     </div>
                   </div>
