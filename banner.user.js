@@ -4986,10 +4986,8 @@ function moveCallBtn() {
 }
 
 function populateCallQueue() {
-  // Guard: only run on Contacts > Smart List > Queue
-  const inContactSmartList = location.href.includes("/contacts/smart_list/");
-  if (!inContactSmartList) return;
-
+  // Only run on Contacts > Smart List > Queue
+  if (!location.href.includes("/contacts/smart_list/")) return;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
@@ -4999,15 +4997,17 @@ function populateCallQueue() {
   const container = containers[1];
   if (!container) return;
 
-  // Config guards
-  const config = window.scriptConfig || {};
-  const createClientList = config.createClientList;
-  const myID = config.myID;
-  if (!createClientList || !myID) return;
+  // Ignore/clear legacy gate that blocks re-render
+  if (container.dataset.queuePopulated === "1") {
+    delete container.dataset.queuePopulated;
+  }
 
+  // Config
+  const { createClientList, myID } = window.scriptConfig || {};
+  if (!createClientList || !myID) return;
   const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
-  // Current page size (fallback to 0 if not detectable)
+  // Current page size text
   let pageSize = parseInt(
     document
       .querySelector("#hl_smartlists-main a#dropdownMenuButton")
@@ -5016,11 +5016,11 @@ function populateCallQueue() {
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Collect visible table rows; if table is refreshing, this may be 0 — don't wipe UI then
+  // Collect current rows; if table is refreshing, don't wipe UI
   const rows = document.querySelectorAll("tr[id]");
-  if (!rows.length) return; // <-- critical: avoid clearing while pagination reloads
+  if (!rows.length) return;
 
-  // Build data from rows
+  // Build data
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
     return {
@@ -5037,11 +5037,11 @@ function populateCallQueue() {
     };
   });
 
-  // Signature of what’s currently on the page. Using count + IDs avoids false clears.
+  // Signature based on page content; include pageSize so pagination changes trigger re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
-  const signature = `${rows.length}|${rowIds}`;
+  const signature = `${pageSize}:${rows.length}:${rowIds}`;
 
-  // Skip render if nothing changed
+  // Skip if nothing changed
   if (container.dataset.queueSig === signature) return;
 
   // Helpers
@@ -5065,7 +5065,7 @@ function populateCallQueue() {
     time: "",
   }));
 
-  // If for any reason items is empty, keep existing HTML (don’t clear)
+  // If we somehow have zero items, don't clear existing UI
   if (items.length === 0) return;
 
   const html = `
@@ -5117,10 +5117,8 @@ function populateCallQueue() {
     </div>
   `;
 
-  // Render only when we have real items
   container.innerHTML = html;
   container.dataset.queueSig = signature;
-  container.dataset.queuePopulated = "1";
 
   const modal = document.querySelector(".power-dialer-modal.flex");
   if (modal && modal.style.display === "none") {
