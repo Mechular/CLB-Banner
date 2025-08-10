@@ -4994,11 +4994,8 @@ function populateCallQueue() {
     if (navText !== 'Queue') return;
 
     const containers = document.querySelectorAll('.voicemail-container');
-    const container = containers[1]; // second one
-    if (!container) {
-        console.warn('Second .voicemail-container not found.');
-        return;
-    }
+    const container = containers[1];
+    if (!container) return;
 
     const config = window.scriptConfig || {};
     const createClientList = config.createClientList;
@@ -5006,20 +5003,17 @@ function populateCallQueue() {
 
     if (!createClientList || !myID) return;
 
-    // Make data accessible to render step
     let data = [];
     let pageSize = 0;
 
     const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
-    // Page Size: (from #hl_smartlists-main)
     pageSize = parseInt(
         document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
         ?.textContent.replace(/\D+/g, '') || '0',
         10
     );
 
-    // Build the data array
     const rows = document.querySelectorAll('tr[id]');
     data = Array.from(rows).map(row => {
         const tds = row.querySelectorAll('td');
@@ -5031,23 +5025,14 @@ function populateCallQueue() {
             email: tds[4]?.textContent.trim() || '',
             created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
             lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
-            tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
-            .map(el => el.textContent.trim())
+            tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || []).map(el => el.textContent.trim())
         };
     });
 
-    if (data.length !== pageSize) {
-        console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
-    } else {
-        // console.log(`Data length matches page size (${pageSize}).`);
-        // console.table(data);
-    }
+    const rowIds = Array.from(rows, r => r.id).join('|');
+    const signature = `${pageSize}|${rowIds}`;
 
-    // If already populated once, skip
-    if (container.dataset.queuePopulated === '1' && data.length === pageSize) {
-        console.log('Queue already populated once. Skipping reinjection.');
-console.log('data.length', data.length);
-console.log('pageSize', pageSize);
+    if (container.dataset.queueSig === signature) {
         return;
     }
 
@@ -5067,7 +5052,7 @@ console.log('pageSize', pageSize);
         bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
         name: d.name || (d.phone ?? 'Unknown Contact'),
         phone: d.phone || '',
-        time: '' // placeholder until we hook in timestamps
+        time: ''
     }));
 
     const html = `
@@ -5117,7 +5102,8 @@ console.log('pageSize', pageSize);
     `;
 
     container.innerHTML = html;
-    container.dataset.queuePopulated = '1'; // <-- mark as done (only run once)
+    container.dataset.queueSig = signature;
+    container.dataset.queuePopulated = '1';
     console.log(`Populated second .voicemail-container with ${items.length} items.`);
 
     const modal = document.querySelector('.power-dialer-modal.flex');
@@ -5126,6 +5112,7 @@ console.log('pageSize', pageSize);
         console.log('Power dialer modal was hidden. Now shown.');
     }
 }
+
 
 function monMonFreeFloat() {
     return;
