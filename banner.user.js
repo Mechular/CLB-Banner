@@ -5061,7 +5061,7 @@ function populateCallQueue() {
       id: row.id,
       name: tds[2]?.querySelector("a")?.textContent.trim() || "",
       href: `${BASE_URL}${row.id}?view=note`,
-      phone: tds[3]?.querySelector("span")?.textContent.trim() || "",
+      phone: tds[3]?.querySelector("span")?.textContent.replace("+1", "").trim() || "",
     };
   });
 
