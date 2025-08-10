@@ -5004,45 +5004,44 @@ function populateCallQueue() {
     const createClientList = config.createClientList;
     const myID = config.myID;
 
+    if (!createClientList || !myID) return;
+
     // Make data accessible to render step
     let data = [];
     let pageSize = 0;
 
-    if (!createClientList || !myID) return;
+    const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
-        const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
+    // Page Size: (from #hl_smartlists-main)
+    pageSize = parseInt(
+        document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
+        ?.textContent.replace(/\D+/g, '') || '0',
+        10
+    );
 
-        // Page Size: (from #hl_smartlists-main)
-        pageSize = parseInt(
-            document.querySelector('#hl_smartlists-main a#dropdownMenuButton')
-            ?.textContent.replace(/\D+/g, '') || '0',
-            10
-        );
+    // Build the data array
+    const rows = document.querySelectorAll('tr[id]');
+    data = Array.from(rows).map(row => {
+        const tds = row.querySelectorAll('td');
+        return {
+            id: row.id,
+            name: tds[2]?.querySelector('a')?.textContent.trim() || '',
+            href: `${BASE_URL}${row.id}?view=note`,
+            phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
+            email: tds[4]?.textContent.trim() || '',
+            created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
+            lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
+            tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
+            .map(el => el.textContent.trim())
+        };
+    });
 
-        // Build the data array
-        const rows = document.querySelectorAll('tr[id]');
-        data = Array.from(rows).map(row => {
-            const tds = row.querySelectorAll('td');
-            return {
-                id: row.id,
-                name: tds[2]?.querySelector('a')?.textContent.trim() || '',
-                href: `${BASE_URL}${row.id}?view=note`,
-                phone: tds[3]?.querySelector('span')?.textContent.trim() || '',
-                email: tds[4]?.textContent.trim() || '',
-                created: (tds[5]?.innerText || '').replace(/\s+/g, ' ').trim(),
-                lastActivity: (tds[6]?.innerText || '').replace(/\s+/g, ' ').trim(),
-                tags: Array.from(tds[7]?.querySelectorAll('.table_tag') || [])
-                .map(el => el.textContent.trim())
-            };
-        });
-
-        if (data.length !== pageSize) {
-            console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
-        } else {
-            console.log(`Data length matches page size (${pageSize}).`);
-        }
+    if (data.length !== pageSize) {
+        console.log(`Data length (${data.length}) does NOT match page size (${pageSize}).`);
+    } else {
+        console.log(`Data length matches page size (${pageSize}).`);
         console.table(data);
-
+    }
 
     // If already populated once, skip
     if (container.dataset.queuePopulated === '1' && data.length === pageSize) {
