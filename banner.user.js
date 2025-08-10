@@ -4986,28 +4986,22 @@ function moveCallBtn() {
 }
 
 function populateCallQueue() {
-  // Only run on Contacts > Smart List > Queue
   if (!location.href.includes("/contacts/smart_list/")) return;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
 
-  // Target the 2nd voicemail container
   const containers = document.querySelectorAll(".voicemail-container");
   const container = containers[1];
   if (!container) return;
-
-  // Ignore/clear legacy gate that blocks re-render
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
   }
 
-  // Config
   const { createClientList, myID } = window.scriptConfig || {};
   if (!createClientList || !myID) return;
   const BASE_URL = `https://app.rocketly.ai/v2/location/${myID}/contacts/detail/`;
 
-  // Current page size text
   let pageSize = parseInt(
     document
       .querySelector("#hl_smartlists-main a#dropdownMenuButton")
@@ -5016,11 +5010,9 @@ function populateCallQueue() {
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Collect current rows; if table is refreshing, don't wipe UI
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
-  // Build data
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
     return {
@@ -5037,14 +5029,10 @@ function populateCallQueue() {
     };
   });
 
-  // Signature based on page content; include pageSize so pagination changes trigger re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
-
-  // Skip if nothing changed
   if (container.dataset.queueSig === signature) return;
 
-  // Helpers
   const initialsOf = (name) => {
     if (!name) return "UC";
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -5062,60 +5050,68 @@ function populateCallQueue() {
     bg: bgFromId(d.id || d.phone || d.name || String(Math.random())),
     name: d.name || (d.phone ?? "Unknown Contact"),
     phone: d.phone || "",
-    time: "",
+    time: d.lastActivity || "",
+    href: d.href,
   }));
 
-  // If we somehow have zero items, don't clear existing UI
   if (items.length === 0) return;
 
-  const html = `
-    <div class="relative h-[406px] gap-3 overflow-y-auto">
-      <div class="flex h-full flex-col gap-3 px-4">
-        ${items
-          .map(
-            (item) => `
-          <div class="flex flex-col gap-2">
-            <div class="flex max-h-10 flex-col rounded-lg my-1">
-              <div class="flex h-10 items-center gap-3 rounded-t-lg">
-                <div class="flex w-10 items-center">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
-                    <span class="text-xl">${item.initials}</span>
-                  </div>
+  const html = items
+    .map(
+      (item) => `
+    <div class="flex flex-col rounded-lg border border-gray-200">
+      <div>
+        <div class="h-[78px] rounded-t-lg border-b border-gray-200 bg-gray-50">
+          <div class="flex h-[78px] items-center gap-10 p-[8px_12px]">
+            <div class="flex h-[62px] items-center gap-3">
+              <div class="flex h-10 w-10 items-center">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background-color: ${item.bg};">
+                  <span class="text-xl">${item.initials}</span>
                 </div>
-                <div class="w-[166px] text-gray-600">
+              </div>
+              <div class="flex h-[62px] w-[204px] items-center gap-[2px] overflow-hidden">
+                <div class="text-gray-600">
                   <div class="flex items-center gap-1">
-                    <div class="max-w-[128px] cursor-pointer whitespace-nowrap">
-                      <p class="text-left text-sm font-semibold leading-5">${item.name}</p>
+                    <div class="max-w-[128px] whitespace-nowrap">
+                      <p class="text-left text-sm font-semibold leading-5">
+                        <a href="${item.href}" target="_blank" class="hover:underline">${item.name}</a>
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center gap-1">
-                    <div class="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
+                    <div class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="text-communities-font-secondary h-3 w-3">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7m0 0H7m10 0v10"></path>
                       </svg>
                     </div>
-                    <div><p class="text-left text-sm font-normal leading-5">${item.phone}</p></div>
+                    <div>
+                      <p class="text-left text-sm font-normal leading-5">
+                        <a href="tel:${item.phone}" class="hover:underline">${item.phone}</a>
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div class="w-22">
-                  <span class="whitespace-nowrap text-left text-xs font-normal leading-4">${item.time}</span>
-                </div>
-                <div class="flex h-5 w-5 items-center gap-1">
-                  <div class="flex h-5 w-5 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="text-communities-font-secondary h-3 w-3">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"></path>
-                    </svg>
+                  <div class="flex items-center gap-2.5 text-gray-500">
+                    <div><span class="text-left text-xs font-normal leading-4">•</span></div>
+                    <div><span class="text-left text-xs font-normal leading-4">${item.time}</span></div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="DividerLine h-px bg-gray-200"></div>
-          </div>`
-          )
-          .join("")}
+            <div class="flex h-[62px] w-5 items-start gap-[10px] py-2">
+              <div class="flex h-5 w-5 cursor-pointer gap-1 rounded-full bg-gray-100 p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="text-communities-font-secondary h-3 w-3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 15l-6-6-6 6"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+      <!-- Bottom actions could go here -->
     </div>
-  `;
+  `
+    )
+    .join("");
 
   container.innerHTML = html;
   container.dataset.queueSig = signature;
@@ -5125,6 +5121,7 @@ function populateCallQueue() {
     modal.style.display = "";
   }
 }
+
 
 function monMonFreeFloat() {
     return;
