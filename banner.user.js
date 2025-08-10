@@ -4993,6 +4993,19 @@ function populateCallQueue() {
     const navText = activeNavIcon?.parentNode?.innerText?.trim() || '';
     if (navText !== 'Queue') return;
 
+    const containers = document.querySelectorAll('.voicemail-container');
+    const container = containers[1]; // second one
+    if (!container) {
+        console.warn('Second .voicemail-container not found.');
+        return;
+    }
+
+    // If already populated once, skip
+    if (container.dataset.queuePopulated === '1') {
+        console.log('Queue already populated once. Skipping reinjection.');
+        return;
+    }
+
     const config = window.scriptConfig || {};
     const createClientList = config.createClientList;
     const myID = config.myID;
@@ -5033,19 +5046,6 @@ function populateCallQueue() {
             console.log(`Data length matches page size (${pageSize}).`);
         }
         console.table(data);
-    }
-
-    const containers = document.querySelectorAll('.voicemail-container');
-    const container = containers[1]; // second one
-    if (!container) {
-        console.warn('Second .voicemail-container not found.');
-        return;
-    }
-
-    // If already populated once, skip
-    if (container.dataset.queuePopulated === '1') {
-        // console.log('Queue already populated once. Skipping reinjection.');
-        return;
     }
 
     const initialsOf = name => {
