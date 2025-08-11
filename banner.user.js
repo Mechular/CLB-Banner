@@ -5032,7 +5032,7 @@ function isWithinCallHours(timeStr) {
 function populateCallQueue() {
   // Only run on Smart Lists
   if (!location.href.includes("/contacts/smart_list/")) {
-    document.querySelector('#template-queue-list')?.remove();
+    // document.querySelector('#template-queue-list')?.remove();
     return;
   }
 
