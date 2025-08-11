@@ -5174,8 +5174,7 @@ function populateCallQueue() {
       phoneLoc: phLoc,
       phoneTz: phTz,
       phoneTime: phTime,
-      address: d.address,
-      addressInfo: addrInfo
+      address: d.address
     };
   });
 
@@ -5216,12 +5215,6 @@ function populateCallQueue() {
                 ${item.address ? `
                   <p class="m-0 mt-0.5 text-[12px] leading-5 text-gray-600">
                     ${item.address}
-                  </p>
-                ` : ""}
-  
-                ${item.addressInfo ? `
-                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500">
-                    ${item.addressInfo}
                   </p>
                 ` : ""}
               </div>
