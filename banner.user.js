@@ -66,7 +66,7 @@ function setInputValueSecurely(input, value) {
 }
 
 // Your secure typing function
-const simulateSecureTyping = async (input, targetValue) => {
+const simulateSecureTyping = async (input, targetValue, dly = 25) => {
   if (!(input instanceof HTMLInputElement)) return;
 
   let typed = '';
@@ -76,17 +76,11 @@ const simulateSecureTyping = async (input, targetValue) => {
     input.focus();
 
     if (typed.length >= targetValue.length - 3) {
-      await delay(25);
+      await delay(dly);
     }
   }
   return typed;
 };
-
-// Usage: find your dialer input and type
-const dialerInput = document.querySelector('input#dialer-input'); // adjust selector if needed
-simulateSecureTyping(dialerInput, '987654321').then(finalValue => {
-  console.log('Finished typing:', finalValue);
-});
 
 const stateAbbreviations = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
