@@ -5029,9 +5029,8 @@ function isWithinCallHours(timeStr) {
 
 function populateCallQueue() {
   if (!location.href.includes("/contacts/smart_list/")) return;
-  const activeNavIcon = document.querySelector(".active-navigation-icon");
-  const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
-  if (navText !== "Queue") return;
+  const container = document.querySelector('#template-queue-list');
+  if (!container) return;
 
   const totalSpan = document.querySelector('.flex-right-portion .barsection span');
   let totalRecords = null;
@@ -5069,11 +5068,6 @@ function populateCallQueue() {
     return; // stop here so the function reruns with the correct size
   }
   
-  // Target the 2nd voicemail container
-  const containers = document.querySelectorAll(".voicemail-container");
-  const container = containers[1];
-  if (!container) return;
-
   // Legacy gate
   if (container.dataset.queuePopulated === "1") {
     delete container.dataset.queuePopulated;
