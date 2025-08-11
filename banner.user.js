@@ -5253,42 +5253,6 @@ function waitForSmartListRows({ minRows = 1, timeoutMs = 5000 } = {}) {
   });
 }
 
-
-// Map a few common area codes; extend as needed
-const AREA_CODE_MAP = {
-  "212": { loc: "New York, NY", tz: "ET", iana: "America/New_York" },
-  "213": { loc: "Los Angeles, CA", tz: "PT", iana: "America/Los_Angeles" },
-  "305": { loc: "Miami, FL", tz: "ET", iana: "America/New_York" },
-  "312": { loc: "Chicago, IL", tz: "CT", iana: "America/Chicago" },
-  "415": { loc: "San Francisco, CA", tz: "PT", iana: "America/Los_Angeles" },
-  "480": { loc: "Phoenix, AZ", tz: "MT", iana: "America/Phoenix" },
-  "617": { loc: "Boston, MA", tz: "ET", iana: "America/New_York" },
-  "702": { loc: "Las Vegas, NV", tz: "PT", iana: "America/Los_Angeles" },
-  "703": { loc: "Northern VA", tz: "ET", iana: "America/New_York" },
-  "907": { loc: "Alaska", tz: "AKT", iana: "America/Anchorage" },
-  "808": { loc: "Hawaii", tz: "HST", iana: "Pacific/Honolulu" },
-};
-
-function getAreaCodeInfo(area) {
-  const code = String(area || "").slice(0,3);
-  const meta = AREA_CODE_MAP[code] || null;
-  const iana = meta?.iana || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
-  const now = new Date();
-  const timeStr = new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: iana
-  }).format(now);
-  return [
-    meta?.loc || "Unknown",
-    meta?.tz || "Local",
-    timeStr
-  ];
-}
-
-// Keep dial icon enabled; change if you want stricter hours by TZ
-function isWithinCallHours(_displayedTime) {
-  return true; // or implement 8a–8p logic by timezone if desired
-}
-
 // ===== Queue population (called after modal mounts) =====
 function populateQueueContainer() {
   const totalSpan = document.querySelector('.flex-right-portion .barsection span');
