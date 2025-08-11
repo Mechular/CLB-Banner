@@ -258,7 +258,7 @@ function clickToNextContact() {
                 const targetElement = clickToNextContact.parentElement;
 
                 // Wait for 3 seconds before clicking
-                delay(5000).then(() => {
+                delay(7000).then(() => {
                     targetElement.click();
                     console.log("Found parent of caret icon:", targetElement);
                 });
