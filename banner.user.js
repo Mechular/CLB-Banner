@@ -5029,25 +5029,25 @@ function isWithinCallHours(timeStr) {
 
 function populateCallQueue() {
   if (!location.href.includes("/contacts/smart_list/")) return;
-  const container = document.querySelector('#template-queue-list');
+    const container = document.querySelector('#template-queue-list');
     if (!container) {
     const target = document.querySelector('#template-power-dialer');
     if (target) {
       target.insertAdjacentHTML(
-        'beforebegin',
-        `<div id="template-queue-list" data-v-app="">
-          <div data-v-330ecc36="" class="flex items-center justify-between gap-4">
-            <button data-v-330ecc36=""
-              class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
-              style="background-color:#2284ff;"
-              aria-label="Queue List">
-              <i class="fas fa-list text-white"></i>
-            </button>
-          </div>
-        </div>`
+      'beforebegin',
+      `<div id="template-queue-list" data-v-app="">
+        <div data-v-330ecc36="" class="flex items-center justify-between gap-4">
+          <button data-v-330ecc36=""
+            class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
+            style="background-color:#2284ff;"
+            aria-label="Queue List">
+            <i class="fas fa-list text-white"></i>
+          </button>
+        </div>
+      </div>`
       );
       return;
-    }    
+    }
   }
 
   const totalSpan = document.querySelector('.flex-right-portion .barsection span');
