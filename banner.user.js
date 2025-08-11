@@ -5043,7 +5043,7 @@ function populateCallQueue() {
   
   // If < 25 records, skip pagination change
   if (typeof totalRecords === 'number' && totalRecords < 25) {
-    return;
+    // return;
   }
 
   // Current page size text
