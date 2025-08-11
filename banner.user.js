@@ -5173,8 +5173,7 @@ function populateCallQueue() {
         ${items.map(item => `
           <div class="flex flex-col">
             <!-- ROW -->
-            <div class="contact-row flex items-start gap-3 py-2"
-                 style="height:auto;min-height:unset;">
+            <div class="contact-row flex items-start gap-3 py-2" style="height:auto;min-height:unset;" data-href="${item.href}">
               <!-- avatar -->
               <div class="h-10 w-10 flex items-center justify-center rounded-full shrink-0"
                    style="background-color:${item.bg};">
@@ -5241,10 +5240,14 @@ function populateCallQueue() {
 
   // Name -> open in new tab
   container.addEventListener("click", (e) => {
-    const nameEl = e.target.closest(".contact-name");
-    if (!nameEl) return;
+    // Ignore clicks on the telephone icon
+    if (e.target.closest(".contact-dial")) return;
+    
+    const rowEl = e.target.closest(".contact-row");
+    if (!rowEl) return;
+    
     e.preventDefault();
-    const href = nameEl.getAttribute("data-href");
+    const href = rowEl.getAttribute("data-href");
     if (href) window.open(href, "_blank");
   });
 
