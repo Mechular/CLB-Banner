@@ -5064,9 +5064,9 @@ function populateCallQueue() {
 
   // Modal HTML (+ queue container added)
   const QUEUE_MODAL_HTML = `
-<div data-v-330ecc36="" class="power-dialer-modal flex" style="">
+<div data-v-330ecc36="" class="queue-list-modal flex" style="">
   <div data-v-330ecc36="" class="dialer">
-    <div data-v-330ecc36="" class="dialer-header">
+    <div data-v-330ecc36="" class="queue-list-header">
       <div data-v-19621f49="" class="dialer-config border-b border-gray-200 bg-gray-50">
         <div data-v-19621f49="" class="config-container flex items-center justify-between">
           <div data-v-19621f49="" class="number-config">
