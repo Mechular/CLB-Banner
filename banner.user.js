@@ -5019,23 +5019,6 @@ function populateCallQueue() {
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
 
-  // Target the 2nd voicemail container
-  const containers = document.querySelectorAll(".voicemail-container");
-  const container = containers[1];
-  if (!container) return;
-
-  // Legacy gate
-  if (container.dataset.queuePopulated === "1") {
-    delete container.dataset.queuePopulated;
-  }
-
-  // Config
-  const { createClientList, myID } = window.scriptConfig || {};
-  if (!createClientList || !myID) return;
-
-  // Use location.origin as requested
-  const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
-
   // Current page size text
   let pageSize = parseInt(
     document.querySelector("#hl_smartlists-main a#dropdownMenuButton")
@@ -5058,7 +5041,24 @@ function populateCallQueue() {
     }
     return; // stop here so the function reruns with the correct size
   }
+  
+  // Target the 2nd voicemail container
+  const containers = document.querySelectorAll(".voicemail-container");
+  const container = containers[1];
+  if (!container) return;
 
+  // Legacy gate
+  if (container.dataset.queuePopulated === "1") {
+    delete container.dataset.queuePopulated;
+  }
+
+  // Config
+  const { createClientList, myID } = window.scriptConfig || {};
+  if (!createClientList || !myID) return;
+
+  // Use location.origin as requested
+  const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
+  
   // Collect current rows
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
