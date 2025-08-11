@@ -5250,7 +5250,7 @@ function populateCallQueue() {
 
     // unhide keypad
     const keypad = document.querySelector(".keypad");
-    if (keypad) keypad.style.display = "";
+    // if (keypad) keypad.style.display = "";
 
     const phone = (dialEl.getAttribute("data-phone") || "").trim();
     if (!phone) return;
@@ -5265,7 +5265,7 @@ function populateCallQueue() {
     if (dialBtn) {
       // await dialBtn.click();
         
-      keypad.style.display = "none";
+      // keypad.style.display = "none";
       
       // Finds the first element with class "navigation-container" containing "Queue" and clicks it
       document.querySelectorAll('.navigation-container').forEach(el => {
