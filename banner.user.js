@@ -5241,7 +5241,13 @@ function populateCallQueue() {
 
     // hide this voicemail container
     // container.style.display = "none";
-    container.style.backgroundColor = "lightgreen";
+    // container.style.backgroundColor = "lightgreen";
+
+    // Highlight the row in lightgreen and persist it
+    const contactRow = dialEl.closest(".contact-row");
+    if (contactRow) {
+      contactRow.style.backgroundColor = "lightgreen";
+    }
 
     // unhide keypad
     const keypad = document.querySelector(".keypad");
