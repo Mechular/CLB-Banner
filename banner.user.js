@@ -5080,8 +5080,9 @@ function populateCallQueue() {
   }
 
   // Config
-  const { createClientList, myID } = window.scriptConfig || {};
-  if (!createClientList || !myID) return;
+  const { createClientList } = window.scriptConfig || {};
+  if (!createClientList) return;
+  const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
 
   // Use location.origin as requested
   const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
