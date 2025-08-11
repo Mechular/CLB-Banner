@@ -5181,6 +5181,8 @@ function populateCallQueue() {
 
   if (items.length === 0) return;
 
+  console.log('items', items);
+  
   const html = `
     <div class="relative overflow-y-auto pt-2">
       <div class="flex flex-col px-4">
