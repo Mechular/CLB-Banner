@@ -5028,6 +5028,7 @@ function isWithinCallHours(timeStr) {
 }
 
 function populateCallQueue() {
+  return;
   if (!location.href.includes("/contacts/smart_list/")) return;
   const activeNavIcon = document.querySelector(".active-navigation-icon");
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
