@@ -5015,7 +5015,7 @@ function moveCallBtn() {
 
 // Configurable allowed call hours
 const CALL_START_HOUR = 8; // 8 AM
-const CALL_END_HOUR = 20;  // 8 PM
+const CALL_END_HOUR = 2;  // 8 PM
 
 // Helper to check if time is within allowed window
 function isWithinCallHours(timeStr) {
