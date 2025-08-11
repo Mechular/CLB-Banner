@@ -5378,12 +5378,6 @@ if (totalRecords >= 25 && pageSize !== 100) {
     const phoneArea = extractAreaCode(d.phoneDisplay || d.phoneRaw);
     const [phLoc, phTz, phTime] = phoneArea ? getAreaCodeInfo(phoneArea) : ["Unknown", "Unknown", "Unknown time"];
 
-    // Optional address TZ info built but not displayed separately here
-    if (d.address) {
-      const addrArea = extractAreaCode(d.address);
-      if (addrArea) getAreaCodeInfo(addrArea);
-    }
-
     return {
       id: d.id,
       name: d.name || d.phoneDisplay || "Unknown Contact",
