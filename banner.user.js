@@ -5027,24 +5027,281 @@ function isWithinCallHours(timeStr) {
   return hour >= CALL_START_HOUR && hour < CALL_END_HOUR;
 }
 
-function populateCallQueue() {
-  return;
-  if (!location.href.includes("/contacts/smart_list/")) return;
-  const activeNavIcon = document.querySelector(".active-navigation-icon");
-  const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
-  if (navText !== "Queue") return;
+// === Power Dialer Queue – Full Script ===
 
+function populateCallQueue() {
+  // Only run on Smart Lists
+  if (!location.href.includes("/contacts/smart_list/")) {
+    document.querySelector('#template-queue-list')?.remove();
+    return;
+  }
+
+  // Ensure the Queue trigger container exists; inject if needed
+  let container = document.querySelector('#template-queue-list');
+  if (!container) {
+    const target = document.querySelector('#template-power-dialer');
+    if (!target) return;
+    target.insertAdjacentHTML(
+      'beforebegin',
+      `<div id="template-queue-list" data-v-app="">
+        <div data-v-330ecc36="" class="flex items-center justify-between gap-4">
+          <button data-v-330ecc36=""
+            class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
+            style="background-color:#2284ff;"
+            aria-label="Queue List">
+            <i class="fas fa-list text-white"></i>
+          </button>
+        </div>
+      </div>`
+    );
+    container = document.querySelector('#template-queue-list');
+  }
+
+  // Bind click once to the button (idempotent)
+  const openBtn = container.querySelector('[aria-label="Queue List"]');
+  if (!openBtn || openBtn.dataset.bound === '1') return;
+  openBtn.dataset.bound = '1';
+
+  // Modal HTML (+ queue container added)
+  const QUEUE_MODAL_HTML = `
+<div data-v-330ecc36="" class="power-dialer-modal flex" style="">
+  <div data-v-330ecc36="" class="dialer">
+    <div data-v-330ecc36="" class="dialer-header">
+      <div data-v-19621f49="" class="dialer-config border-b border-gray-200 bg-gray-50">
+        <div data-v-19621f49="" class="config-container flex items-center justify-between">
+          <div data-v-19621f49="" class="number-config">
+            <div data-v-19621f49="" class="flex items-center gap-2">
+              <div data-v-19621f49="" class="number-config-header hl-display-sm-semibold">Smart List Queue</div>
+            </div>
+          </div>
+          <div data-v-19621f49="" class="input-config"></div>
+        </div>
+        <div data-v-19621f49="" class="number-list-container flex items-center justify-between" style="display: none;">
+          <div data-v-19621f49="" class="selected-number">
+            <div data-v-19621f49="" class="text-xs font-semibold text-primary-600">SELECTED</div>
+            <div data-v-19621f49="">
+              <div data-v-19621f49="" class="number text-sm font-semibold text-gray-700">Mike - (302) 587-7490</div>
+              <div data-v-19621f49="" class="name text-xs font-normal text-gray-600 hl-text-xs-regular">+13025877490</div>
+              <div data-v-19621f49="" class="flex items-center gap-2">
+                <div data-v-19621f49="" class="flex h-4 w-4 items-center justify-center rounded-full bg-gray-200">
+                  <svg data-v-19621f49="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-3 w-3 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21c0-1.396 0-2.093-.172-2.661a4 4 0 00-2.667-2.667c-.568-.172-1.265-.172-2.661-.172h-5c-1.396 0-2.093 0-2.661.172a4 4 0 00-2.667 2.667C4 18.907 4 19.604 4 21M16.5 7.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"></path></svg>
+                </div>
+                <div data-v-19621f49="" class="text-xs font-normal"><span data-v-19621f49="" class="text-gray-700">Mike Levy</span></div>
+              </div>
+            </div>
+          </div>
+          <div data-v-19621f49="" class="close-icon cursor-pointer" role="button">
+            <svg data-v-19621f49="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-5 w-5 text-gray-500"><path stroke-linecap="round" stroke-linejoin="round" d="M17 7L7 17M7 7l10 10"></path></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-v-330ecc36="" class="dialer-body">
+      <div data-v-330ecc36="">
+        <div data-v-330ecc36="">
+          <div data-v-330ecc36="">
+            <div data-v-e4e96728="" class="voicemail" style="">
+              <div data-v-e4e96728="" class="voicemail-container queue-container">
+                <div data-v-e4e96728="" class="voicemail-icon-container h-16 w-16 bg-gray-50">
+                  <svg data-v-e4e96728="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-300"><path stroke-linecap="round" stroke-linejoin="round" d="M15 4v5m0 0h5m-5 0l6-6M10.227 13.863a14.604 14.604 0 01-2.847-4.01 1.698 1.698 0 01-.113-.266 1.046 1.046 0 01.147-.862c.048-.067.105-.124.22-.238.35-.35.524-.524.638-.7a2 2 0 000-2.18c-.114-.176-.289-.351-.638-.7l-.195-.196c-.532-.531-.797-.797-1.083-.941a2 2 0 00-1.805 0c-.285.144-.551.41-1.083.941l-.157.158c-.53.53-.795.794-.997 1.154-.224.4-.386 1.02-.384 1.479 0 .413.081.695.241 1.26a19.038 19.038 0 004.874 8.283 19.039 19.039 0 008.283 4.873c.565.16.847.24 1.26.242a3.377 3.377 0 001.478-.384c.36-.203.625-.468 1.155-.997l.157-.158c.532-.531.797-.797.942-1.082a2 2 0 000-1.806c-.145-.285-.41-.55-.942-1.082l-.195-.195c-.35-.35-.524-.524-.7-.639a2 2 0 00-2.18 0c-.176.114-.35.29-.7.639-.115.114-.172.171-.239.22-.237.17-.581.228-.862.146a1.695 1.695 0 01-.266-.113 14.605 14.605 0 01-4.01-2.846z"></path></svg>
+                </div>
+                <div data-v-e4e96728="" class="text-lg font-extrabold text-gray-900">Queue</div>
+                <div data-v-e4e96728="" class="text-base font-normal text-gray-600">Coming soon...</div>
+              </div>
+            </div>
+
+            <div data-v-a19016f6="" class="dialer-navigation flex items-stretch justify-center bg-gray-25">
+              <div data-v-a19016f6="" class="navigation-container">
+                <div data-v-a19016f6="">
+                  <svg data-v-a19016f6="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z"></path></svg>
+                </div>
+                <span data-v-a19016f6="" class="navigation-title text-gray-500">Recents</span>
+              </div>
+              <div data-v-a19016f6="" class="navigation-container">
+                <div data-v-a19016f6="">
+                  <svg data-v-a19016f6="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M4 21.817C4.603 22 5.416 22 6.8 22h10.4c1.384 0 2.197 0 2.8-.183m-16 0a2.18 2.18 0 01-.362-.144 3 3 0 01-1.311-1.311C2 19.72 2 18.88 2 17.2V6.8c0-1.68 0-2.52.327-3.162a3 3 0 011.311-1.311C4.28 2 5.12 2 6.8 2h10.4c1.68 0 2.52 0 3.162.327a3 3 0 011.311 1.311C22 4.28 22 5.12 22 6.8v10.4c0 1.68 0 2.52 0 3.162a3 3 0 01-1.311 1.311 2.18 2.18 0 01-.362.144m-16 0c0-.809.005-1.237.077-1.597a4 4 0 013.143-3.143C7.606 17 8.07 17 9 17h6c.93 0 1.394 0 1.78.077a4 4 0 013.143 3.143c.072.36.077.788.077 1.597M16 9.5a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </div>
+                <span data-v-a19016f6="" class="navigation-title text-gray-500">Contacts</span>
+              </div>
+              <div data-v-a19016f6="" class="navigation-container">
+                <div data-v-a19016f6="">
+                  <svg data-v-a19016f6="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M8.4 3H4.6c-.56 0-.84 0-1.054.109a1 1 0 00-.437.437C3 3.76 3 4.04 3 4.6v3.8c0 .56 0 .84.109 1.054a1 1 0 00.437.437C3 10 4.04 10 4.6 10h3.8c.56 0 .84 0 1.054-.109a1 1 0 00.437-.437C10 9.24 10 8.96 10 8.4V4.6c0-.56 0-.84-.109-1.054a1 1 0 00-.437-.437C9.24 3 8.96 3 8.4 3zM19.4 3h-3.8c-.56 0-.84 0-1.054.109a1 1 0 00-.437.437C14 3.76 14 4.04 14 4.6v3.8c0 .56 0 .84.109 1.054a1 1 0 00.437.437C14.76 10 15.04 10 15.6 10h3.8c.56 0 .84 0 1.054-.109a1 1 0 00.437-.437C21 9.24 21 8.96 21 8.4V4.6c0-.56 0-.84-.109-1.054a1 1 0 00-.437-.437C20.24 3 19.96 3 19.4 3zM19.4 14h-3.8c-.56 0-.84 0-1.054.109a1 1 0 00-.437.437C14 14.76 14 15.04 14 15.6v3.8c0 .56 0 .84.109 1.054a1 1 0 00.437.437C14.76 21 15.04 21 15.6 21h3.8c.56 0 .84 0 1.054-.109a1 1 0 00.437-.437C21 20.24 21 19.96 21 19.4v-3.8c0-.56 0-.84-.109-1.054a1 1 0 00-.437-.437C20.24 14 19.96 14 19.4 14zM8.4 14H4.6c-.56 0-.84 0-1.054.109a1 1 0 00-.437.437C3 14.76 3 15.04 3 15.6v3.8c0 .56 0 .84.109 1.054a1 1 0 00.437.437C3.76 21 4.04 21 4.6 21h3.8c.56 0 .84 0 1.054-.109a1 1 0 00.437-.437C10 20.24 10 19.96 10 19.4v-3.8c0-.56 0-.84-.109-1.054a1 1 0 00-.437-.437C9.24 14 8.96 14 8.4 14z"></path></svg>
+                </div>
+                <span data-v-a19016f6="" class="navigation-title text-gray-500">Keypad</span>
+              </div>
+              <div data-v-a19016f6="" class="navigation-container">
+                <div data-v-a19016f6="">
+                  <svg data-v-a19016f6="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M6 16h12M6 16a4 4 0 100-8 4 4 0 000 8zm12 0a4 4 0 100-8 4 4 0 000 8z"></path></svg>
+                </div>
+                <span data-v-a19016f6="" class="navigation-title text-gray-500">Voicemail</span>
+              </div>
+              <div data-v-a19016f6="" class="navigation-container active-navigation">
+                <div data-v-a19016f6="" class="active-navigation-icon">
+                  <svg data-v-a19016f6="" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true" class="h-6 w-6 text-gray-600"><path stroke-linecap="round" stroke-linejoin="round" d="M21 9.25h-9M21 4H3m18 10.75h-9M21 20H3M4.28 8.56l3.867 2.9c.29.217.434.326.486.459a.5.5 0 010 .362c-.052.133-.197.242-.486.459l-3.867 2.9c-.412.309-.618.463-.79.46a.5.5 0 01-.384-.192C3 15.773 3 15.515 3 15V9.2c0-.515 0-.772.106-.908A.5.5 0 013.49 8.1c.172-.003.378.151.79.46z"></path></svg>
+                </div>
+                <span data-v-a19016f6="" class="navigation-title text-gray-500">Queue</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+let queueObserver = null;
+let tableObserver = null;
+
+function startQueuePopulationWatcher() {
+  // Populate now
+  populateQueueContainer();
+
+  // Observe the queue container (to handle re-renders of the modal content)
+  const container = document.querySelector(".queue-container");
+  if (container && !queueObserver) {
+    queueObserver = new MutationObserver(() => {
+      // If the queue container was re-rendered, re-build it
+      populateQueueContainer();
+    });
+    queueObserver.observe(container, { childList: true, subtree: true });
+  }
+
+  // Observe Smart List table for any data changes (pagination, filters, page-size changes)
+  const tableRoot =
+    document.querySelector("#hl_smartlists-main table") ||
+    document.querySelector("#hl_smartlists-main");
+  if (tableRoot && !tableObserver) {
+    tableObserver = new MutationObserver(() => {
+      // Table changed, re-populate the queue
+      populateQueueContainer();
+    });
+    tableObserver.observe(tableRoot, { childList: true, subtree: true });
+  }
+}
+
+function stopQueuePopulationWatcher() {
+  if (queueObserver) {
+    queueObserver.disconnect();
+    queueObserver = null;
+  }
+  if (tableObserver) {
+    tableObserver.disconnect();
+    tableObserver = null;
+  }
+}
+    
+  function openQueueModal() {
+    if (document.getElementById('queue-modal-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'queue-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    Object.assign(overlay.style, {
+      position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.45)',
+      zIndex: '9999', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: '24px'
+    });
+
+    const wrapper = document.createElement('div');
+    Object.assign(wrapper.style, {
+      maxHeight: '90vh', overflow: 'auto', width: 'min(960px, 100%)',
+      background: '#fff', borderRadius: '10px', boxShadow: '0 6px 24px rgba(0,0,0,.2)'
+    });
+    wrapper.innerHTML = QUEUE_MODAL_HTML;
+
+    overlay.appendChild(wrapper);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    overlay.addEventListener('click', (evt) => { if (evt.target === overlay) closeQueueModal(); });
+    overlay.querySelectorAll('.close-icon').forEach(el => { el.addEventListener('click', closeQueueModal); });
+    const escHandler = (e) => { if (e.key === 'Escape') closeQueueModal(); };
+    document.addEventListener('keydown', escHandler, { once: true });
+
+    // Populate and keep in sync after modal is in DOM
+    startQueuePopulationWatcher();
+  }
+
+  function closeQueueModal() {
+    const overlay = document.getElementById('queue-modal-overlay');
+    if (!overlay) return;
+    overlay.remove();
+    document.body.style.overflow = '';
+  }
+
+  openBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    openQueueModal();
+  });
+}
+
+// ===== Helpers (minimal, safe defaults) =====
+
+function waitForSmartListRows({ minRows = 1, timeoutMs = 5000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const start = performance.now();
+
+    function check() {
+      const rows = document.querySelectorAll("#hl_smartlists-main tr[id]");
+      if (rows.length >= minRows) return resolve();
+      if (performance.now() - start > timeoutMs) return reject(new Error('Timeout waiting for rows'));
+      requestAnimationFrame(check);
+    }
+    check();
+  });
+}
+
+
+// Map a few common area codes; extend as needed
+const AREA_CODE_MAP = {
+  "212": { loc: "New York, NY", tz: "ET", iana: "America/New_York" },
+  "213": { loc: "Los Angeles, CA", tz: "PT", iana: "America/Los_Angeles" },
+  "305": { loc: "Miami, FL", tz: "ET", iana: "America/New_York" },
+  "312": { loc: "Chicago, IL", tz: "CT", iana: "America/Chicago" },
+  "415": { loc: "San Francisco, CA", tz: "PT", iana: "America/Los_Angeles" },
+  "480": { loc: "Phoenix, AZ", tz: "MT", iana: "America/Phoenix" },
+  "617": { loc: "Boston, MA", tz: "ET", iana: "America/New_York" },
+  "702": { loc: "Las Vegas, NV", tz: "PT", iana: "America/Los_Angeles" },
+  "703": { loc: "Northern VA", tz: "ET", iana: "America/New_York" },
+  "907": { loc: "Alaska", tz: "AKT", iana: "America/Anchorage" },
+  "808": { loc: "Hawaii", tz: "HST", iana: "Pacific/Honolulu" },
+};
+
+function getAreaCodeInfo(area) {
+  const code = String(area || "").slice(0,3);
+  const meta = AREA_CODE_MAP[code] || null;
+  const iana = meta?.iana || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+  const now = new Date();
+  const timeStr = new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: iana
+  }).format(now);
+  return [
+    meta?.loc || "Unknown",
+    meta?.tz || "Local",
+    timeStr
+  ];
+}
+
+// Keep dial icon enabled; change if you want stricter hours by TZ
+function isWithinCallHours(_displayedTime) {
+  return true; // or implement 8a–8p logic by timezone if desired
+}
+
+// ===== Queue population (called after modal mounts) =====
+function populateQueueContainer() {
   const totalSpan = document.querySelector('.flex-right-portion .barsection span');
   let totalRecords = null;
-  
+
   if (totalSpan) {
     const match = totalSpan.textContent.replace(/\s+/g, ' ').match(/Total\s+(\d+)\s+records/i);
     if (match) totalRecords = parseInt(match[1], 10);
   }
-  
-  // If < 25 records, skip pagination change
+
+  // If < 25 records, skip changing pagination (left here for parity)
   if (typeof totalRecords === 'number' && totalRecords < 25) {
-    // return;
+    // no-op
   }
 
   // Current page size text
@@ -5055,24 +5312,27 @@ function populateCallQueue() {
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // If page size is not 100, change it to 100
-  if (totalRecords >= 25 && pageSize !== 100) {
-    const dropdownBtn = document.querySelector("#hl_smartlists-main a#dropdownMenuButton");
-    if (dropdownBtn) {
-      dropdownBtn.click(); // open the dropdown
-      const option100 = document.querySelector("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right");
-      const option100El = Array.from(document.querySelectorAll("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right"))
-        .find(el => el.textContent.trim() === "100");
-      if (option100El) {
-        option100El.click(); // select 100
-      }
+// If page size is not 100, switch to 100 and wait for the table to refresh, then continue
+if (totalRecords >= 25 && pageSize !== 100) {
+  const dropdownBtn = document.querySelector("#hl_smartlists-main a#dropdownMenuButton");
+  if (dropdownBtn) {
+    dropdownBtn.click();
+    const option100El = Array.from(document.querySelectorAll("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right"))
+      .find(el => el.textContent.trim() === "100");
+    if (option100El) {
+      option100El.click();
+
+      // Wait for rows to match new page size before building the queue
+      waitForSmartListRows({ minRows: 1, timeoutMs: 5000 })
+        .then(() => populateQueueContainer())
+        .catch(() => populateQueueContainer()); // still try even if timeout
+      return;
     }
-    return; // stop here so the function reruns with the correct size
   }
-  
-  // Target the 2nd voicemail container
-  const containers = document.querySelectorAll(".voicemail-container");
-  const container = containers[1];
+}
+
+
+  const container = document.querySelector(".queue-container");
   if (!container) return;
 
   // Legacy gate
@@ -5080,32 +5340,24 @@ function populateCallQueue() {
     delete container.dataset.queuePopulated;
   }
 
-  // Config
+  // Config flag
   const { createClientList } = window.scriptConfig || {};
   if (!createClientList) return;
-  const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
 
-  // Use location.origin as requested
+  const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
   const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
-  
-  // Collect current rows
+
+  // Collect rows
   const rows = document.querySelectorAll("tr[id]");
   if (!rows.length) return;
 
-  // Build data from table
   const data = Array.from(rows).map((row) => {
     const tds = row.querySelectorAll("td");
-
-    // Try to find an address if your table has one (robust fallbacks)
     const addrEl =
       row.querySelector('[data-column="Address"], .address, .contact-address') ||
       tds[8] || tds[9] || null;
     const address = (addrEl?.innerText || addrEl?.textContent || "").replace(/\s+/g, " ").trim();
-
-    // Phone raw from table
     const phoneRaw = tds[3]?.querySelector("span")?.textContent.trim() || "";
-
-    // Replace leading "+1" (with optional space) in the ARRAY (display)
     const phoneNoPlus1 = phoneRaw.replace(/^\+1\s*/i, "");
 
     return {
@@ -5113,17 +5365,17 @@ function populateCallQueue() {
       name: tds[2]?.querySelector("a")?.textContent.trim() || "",
       href: `${BASE_URL}${row.id}?view=note`,
       phoneDisplay: phoneNoPlus1,
-      phoneRaw, // keep original just in case
+      phoneRaw,
       address
     };
   });
 
-  // Signature
+  // Signature to avoid unnecessary re-render
   const rowIds = Array.from(rows, (r) => r.id).join("|");
   const signature = `${pageSize}:${rows.length}:${rowIds}`;
   if (container.dataset.queueSig === signature) return;
 
-  // Helpers
+  // Helpers used inside build
   const initialsOf = (nameOrPhone) => {
     const name = nameOrPhone || "";
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -5132,7 +5384,6 @@ function populateCallQueue() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  // Stable RGB for avatar
   const rgbFromId = (id) => {
     let h = 0;
     const s = String(id || "");
@@ -5143,39 +5394,30 @@ function populateCallQueue() {
     return `rgb(${r}, ${g}, ${b})`;
   };
 
-  // For typing: digits only, drop leading 1 if it's 11 digits
   const phoneForTyping = (s) => {
     const digits = String(s || "").replace(/\D+/g, "");
     return digits.replace(/^1(?=\d{10}$)/, "");
   };
 
-  // Extract NANP area code from arbitrary string (phone/address)
   const extractAreaCode = (raw) => {
     if (!raw) return "";
     const digits = String(raw).replace(/\D+/g, "");
     if (!digits) return "";
-    // if it looks like 11 digits with leading 1
     if (digits.length >= 11 && digits.startsWith("1")) return digits.slice(1, 4);
     return digits.slice(0, 3);
   };
 
-  // Build items with zone/time info for phone and address
   const items = data.map((d) => {
     const initials = initialsOf(d.name || d.phoneDisplay || "Unknown");
     const bg = rgbFromId(d.id || d.phoneDisplay || d.name);
 
-    // Phone zone
     const phoneArea = extractAreaCode(d.phoneDisplay || d.phoneRaw);
     const [phLoc, phTz, phTime] = phoneArea ? getAreaCodeInfo(phoneArea) : ["Unknown", "Unknown", "Unknown time"];
 
-    // Address zone (only if address present and we can find 3 digits to treat as area code)
-    let addrInfo = null;
+    // Optional address TZ info built but not displayed separately here
     if (d.address) {
       const addrArea = extractAreaCode(d.address);
-      if (addrArea) {
-        const [aloc, atz, atime] = getAreaCodeInfo(addrArea);
-        addrInfo = `${aloc} (${atz}) · ${atime}`;
-      }
+      if (addrArea) getAreaCodeInfo(addrArea);
     }
 
     return {
@@ -5193,48 +5435,27 @@ function populateCallQueue() {
     };
   });
 
-  if (items.length === 0) return;
+  if (!items.length) return;
 
-  console.log('items', items);
-  
   const html = `
     <div class="relative overflow-y-auto pt-2">
       <div class="flex flex-col px-4">
         ${items.map(item => `
           <div class="flex flex-col">
-            <!-- ROW -->
             <div class="contact-row flex items-start gap-3 py-2" style="height:auto;min-height:unset;" data-href="${item.href}">
-              <!-- avatar -->
-              <div class="h-10 w-10 flex items-center justify-center rounded-full shrink-0"
-                   style="background-color:${item.bg};">
+              <div class="h-10 w-10 flex items-center justify-center rounded-full shrink-0" style="background-color:${item.bg};">
                 <span class="text-base leading-none text-white">${item.initials}</span>
               </div>
-  
-              <!-- content -->
               <div class="flex-1 min-w-0">
-                <p class="m-0 text-left text-sm font-semibold leading-5 text-gray-600 cursor-pointer contact-name"
-                   data-href="${item.href}">
+                <p class="m-0 text-left text-sm font-semibold leading-5 text-gray-600 cursor-pointer contact-name" data-href="${item.href}">
                   ${item.name}
                 </p>
-  
-                ${item.phoneDisplay ? `
-                  <p class="m-0 mt-0.5 text-left text-sm leading-5">${item.phoneDisplay}</p>
-                ` : ""}
-  
+                ${item.phoneDisplay ? `<p class="m-0 mt-0.5 text-left text-sm leading-5">${item.phoneDisplay}</p>` : ""}
                 ${(item.phoneLoc !== "Unknown" || item.phoneTz !== "Unknown") ? `
-                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500">
-                    ${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}
-                  </p>
+                  <p class="m-0 mt-0.5 text-[11px] leading-4 text-gray-500">${item.phoneLoc} (${item.phoneTz}) · ${item.phoneTime}</p>
                 ` : ""}
-  
-                ${item.address ? `
-                  <p class="m-0 mt-0.5 text-[12px] leading-5 text-gray-600">
-                    ${item.address}
-                  </p>
-                ` : ""}
+                ${item.address ? `<p class="m-0 mt-0.5 text-[12px] leading-5 text-gray-600">${item.address}</p>` : ""}
               </div>
-  
-              <!-- dial icon -->
               <div class="shrink-0 p-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                      stroke-width="2" stroke="currentColor"
@@ -5242,12 +5463,10 @@ function populateCallQueue() {
                      data-phone="${item.phoneToType}"
                      ${isWithinCallHours(item.phoneTime) ? '' : 'style="pointer-events:none;"'}>
                   <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
+                        d="M8.38 8.853a14.603 14.603 0 002.847 4.01 14.603 14.603 0 004.01 2.847c.124.06.187.09.265.112.28.082.625.023.862-.147.067-.048.124-.105.239-.219.35-.35.524-.524.7-.639a2 2 0 012.18 0c.176.115.35.29.7.64l.195.194c.532.531.797.797.942 1.082a2 2 0 010 1.806c-.145.285-.41.551-.942 1.082l-.157.158c-.53.53-.795.794-1.155.997-.4.224-1.02.386-1.478.384-.413-.001-.695-.081-1.26-.241a19.038 19.038 0 01-8.283-4.874A19.039 19.039 0 013.17 7.761c-.16-.564-.24-.846-.241-1.26a3.377 3.377 0 01.384-1.477c.202-.36.467-.625.997-1.155l.157-.158c.532-.53.798-.797 1.083-.941a2 2 0 011.805 0c.286.144.551.41 1.083.942l.195.194c.35.35.524.525.638.7a2 2 0 010 2.18c-.114.177-.289.352-.638.701-.115.114-.172.172-.22.238-.17.238-.228.582-.147.862.023.08.053.142.113.266z"></path>
                 </svg>
               </div>
             </div>
-  
-            <!-- divider -->
             <div class="h-px bg-gray-200"></div>
           </div>
         `).join("")}
@@ -5255,51 +5474,32 @@ function populateCallQueue() {
     </div>
   `;
 
-  // Inject into the voicemail container
   container.innerHTML = html;
   container.dataset.queueSig = signature;
 
-  // Make modal visible if it was hidden
-  const modal = document.querySelector(".power-dialer-modal.flex");
-  if (modal && modal.style.display === "none") modal.style.display = "";
-
-  // Name -> open in new tab
+  // Click: open contact in new tab
   container.addEventListener("click", (e) => {
-    // Ignore clicks on the telephone icon
     if (e.target.closest(".contact-dial")) return;
-    
     const rowEl = e.target.closest(".contact-row");
     if (!rowEl) return;
-    
     e.preventDefault();
     const href = rowEl.getAttribute("data-href");
     if (href) window.open(href, "_blank");
   });
 
-  // Phone icon -> hide list, show keypad, type number (no call)
+  // Click: dial
   container.addEventListener("click", async (e) => {
     const dialEl = e.target.closest(".contact-dial");
     if (!dialEl) return;
     e.preventDefault();
 
-    // hide this voicemail container
-    // container.style.display = "none";
-    // container.style.backgroundColor = "lightgreen";
-
-    // Highlight the row in lightgreen and persist it
     const contactRow = dialEl.closest(".contact-row");
-    if (contactRow) {
-      contactRow.style.backgroundColor = "lightgreen";
-    }
-
-    // unhide keypad
-    const keypad = document.querySelector(".keypad");
-    // if (keypad) keypad.style.display = "";
+    if (contactRow) contactRow.style.backgroundColor = "lightgreen";
 
     const phone = (dialEl.getAttribute("data-phone") || "").trim();
     if (!phone) return;
 
-    const dialerInput = document.querySelector("input#dialer-input"); // update if your selector differs
+    const dialerInput = document.querySelector("input#dialer-input");
     if (!(dialerInput instanceof HTMLInputElement)) return;
 
     setInputValueSecurely(dialerInput, "");
@@ -5308,15 +5508,6 @@ function populateCallQueue() {
     const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
     if (dialBtn) {
       await dialBtn.click();
-        
-      // keypad.style.display = "none";
-      
-      // Finds the first element with class "navigation-container" containing "Queue" and clicks it
-      document.querySelectorAll('.navigation-container').forEach(el => {
-        if (el.innerText.includes('Queue')) {
-          el.click();
-        }
-      });
     }
   });
 }
