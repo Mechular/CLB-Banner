@@ -5041,32 +5041,19 @@ function populateCallQueue() {
   );
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
-  // Handle buckets
-  if (pageSize < 25) {
-    // No dropdown — just continue with whatever is loaded
-  } else if (pageSize < 50) {
-    pageSize = 25;
-  } else if (pageSize < 100) {
-    pageSize = 50;
-  } else {
-    pageSize = 100;
-  }
-  
-  // If there IS a dropdown and we're not already at 100, change it
+  // If page size is not 100, change it to 100
   if (pageSize >= 25 && pageSize !== 100) {
     const dropdownBtn = document.querySelector("#hl_smartlists-main a#dropdownMenuButton");
     if (dropdownBtn) {
-      dropdownBtn.click();
-  
-      const option100El = Array.from(
-        document.querySelectorAll("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right")
-      ).find(el => el.textContent.trim() === "100");
-  
+      dropdownBtn.click(); // open the dropdown
+      const option100 = document.querySelector("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right");
+      const option100El = Array.from(document.querySelectorAll("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right"))
+        .find(el => el.textContent.trim() === "100");
       if (option100El) {
-        option100El.click();
+        option100El.click(); // select 100
       }
     }
-    return; // wait for page to reload at 100
+    return; // stop here so the function reruns with the correct size
   }
   
   // Target the 2nd voicemail container
