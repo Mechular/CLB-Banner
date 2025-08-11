@@ -5033,6 +5033,19 @@ function populateCallQueue() {
   const navText = activeNavIcon?.parentNode?.innerText?.trim() || "";
   if (navText !== "Queue") return;
 
+  const totalSpan = document.querySelector('.flex-right-portion .barsection span');
+  let totalRecords = null;
+  
+  if (totalSpan) {
+    const match = totalSpan.textContent.replace(/\s+/g, ' ').match(/Total\s+(\d+)\s+records/i);
+    if (match) totalRecords = parseInt(match[1], 10);
+  }
+  
+  // If < 25 records, skip pagination change
+  if (typeof totalRecords === 'number' && totalRecords < 25) {
+    return;
+  }
+
   // Current page size text
   let pageSize = parseInt(
     document.querySelector("#hl_smartlists-main a#dropdownMenuButton")
@@ -5042,7 +5055,7 @@ function populateCallQueue() {
   if (!Number.isFinite(pageSize)) pageSize = 0;
 
   // If page size is not 100, change it to 100
-  if (pageSize >= 25 && pageSize !== 100) {
+  if (totalRecords >= 25 && pageSize !== 100) {
     const dropdownBtn = document.querySelector("#hl_smartlists-main a#dropdownMenuButton");
     if (dropdownBtn) {
       dropdownBtn.click(); // open the dropdown
