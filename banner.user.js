@@ -1321,43 +1321,83 @@ async function hideCallSummaryNotes() {
 
 
 
-function findAllNoteBlocks() {
-    const container = document.getElementById("notes-list-container-contact");
-    if (!container) return null;  // return null if container is not found
+// Put this at the same place where your current findAllNoteBlocks() lives
+function findAllNoteBlocks({
+  maxMs = 10000,            // total time budget
+  pollIntervalMs = 250,     // wait between checks
+  maxStableChecks = 3       // how many times we see no growth before giving up
+} = {}) {
+  const start = Date.now();
+  let lastHeight = -1;
+  let stableCount = 0;
 
-    // Find all div elements with the specified classes within the container
-    const noteBlocks = container.querySelectorAll('div.text-gray-700.text-sm.overflow-hidden.break-words.whitespace-pre-line');
-    if (!noteBlocks) return;
+  function matchBlockIn(container) {
+    // Find all divs with those classes inside the container
+    const noteBlocks = container.querySelectorAll(
+      'div.text-gray-700.text-sm.overflow-hidden.break-words.whitespace-pre-line'
+    );
 
-    // Process each noteBlock
     for (const noteBlock of noteBlocks) {
-        const content = noteBlock.innerText.toLowerCase(); // Using noteBlock.innerText instead of container.innerText
+      const content = noteBlock.innerText.toLowerCase();
 
-        // Check if any of these patterns exist in the content
-        const isCallSummary = content.includes("****call summary");
-        const hasAddressAndName = content.includes("address") && content.includes("name") && content.includes("email");
-        const hasFirstAndLastName = content.includes("first name") && content.includes("last name");
-        const hasSourceAndName = content.includes("source") && content.includes("name");
-        const hasFirstNameSnakeCase = content.includes("first_name");
+      const isCallSummary = content.includes("****call summary");
+      const hasAddressAndName = content.includes("address") && content.includes("name") && content.includes("email");
+      const hasFirstAndLastName = content.includes("first name") && content.includes("last name");
+      const hasSourceAndName = content.includes("source") && content.includes("name");
+      const hasFirstNameSnakeCase = content.includes("first_name");
 
-        // Match if any of the conditions are true, but not if it's a call summary
-        const matches = (hasAddressAndName || hasFirstAndLastName || hasSourceAndName || hasFirstNameSnakeCase) && !isCallSummary;
+      const matches =
+        (hasAddressAndName || hasFirstAndLastName || hasSourceAndName || hasFirstNameSnakeCase) &&
+        !isCallSummary;
 
-        if (matches) {
-            notesScrollInitialized = true;
-            // console.log("Matching noteBlock found:", noteBlock);
-            console.log("notesScrollInitialized:", notesScrollInitialized);
-            container.scrollTop = 0;
-            return noteBlock;  // Return the matching block immediately
-        }
-
-        // If no match is found, scroll to load more content
-        container.scrollTop = container.scrollHeight;
-        // console.log("No matching noteBlock found. Scrolling to load more content.");
+      if (matches) return noteBlock;
     }
 
-    return null;  // Return null if no matching noteBlock was found
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const tick = () => {
+      const container = document.getElementById("notes-list-container-contact");
+      if (!container) return resolve(null); // container missing; stop
+
+      // 1) Try to find a match among currently loaded notes
+      const match = matchBlockIn(container);
+      if (match) {
+        // put the list back at the top when we succeed
+        container.scrollTop = 0;
+        return resolve(match);
+      }
+
+      // 2) No match yet. If we can still load more, scroll down once.
+      const currentHeight = container.scrollHeight;
+
+      if (currentHeight === lastHeight) {
+        // Height hasn't changed since last check
+        stableCount += 1;
+      } else {
+        stableCount = 0;
+        lastHeight = currentHeight;
+        // try to load more items by scrolling to the bottom
+        container.scrollTop = currentHeight;
+      }
+
+      // 3) Stop conditions: time budget used or list is stable for several checks
+      const timeUp = Date.now() - start >= maxMs;
+      const noMoreGrowth = stableCount >= maxStableChecks;
+
+      if (timeUp || noMoreGrowth) {
+        return resolve(null);
+      }
+
+      // 4) Keep polling until one of the stop conditions hits
+      setTimeout(tick, pollIntervalMs);
+    };
+
+    tick();
+  });
 }
+
 
 function cleanMessageText(msg) {
     // Normalize spacing
@@ -1496,7 +1536,7 @@ async function extractNoteData() {
         // if (dispo !== "") return;
 
         if (!notesScrollInitialized) {
-            noteBlock = findAllNoteBlocks();
+            noteBlock = await findAllNoteBlocks({ maxMs: 12000, pollIntervalMs: 250, maxStableChecks: 3 });
         }
 
         let json = {};
