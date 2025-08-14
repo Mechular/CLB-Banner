@@ -1323,7 +1323,9 @@ async function hideCallSummaryNotes() {
 function findAllNoteBlocks({
   maxMs = 10000,          // total time budget
   pollIntervalMs = 250,   // wait between checks
-  maxStableChecks = 3     // how many no-growth checks before giving up
+  maxStableChecks = 3,    // how many no-growth checks before giving up
+  nudgeToLoad = true,     // allow scroll nudges to load more
+  autoResetToTop = false  // if true, scroll to top ONLY once on success
 } = {}) {
   const start = Date.now();
   let lastHeight = -1;
@@ -1332,6 +1334,7 @@ function findAllNoteBlocks({
   let pollTimer = null;
   let timeoutTimer = null;
   let observer = null;
+  let resolve;
 
   const container = document.getElementById("notes-list-container-contact");
   if (!container) return Promise.resolve(null);
@@ -1340,8 +1343,10 @@ function findAllNoteBlocks({
     const noteBlocks = root.querySelectorAll(
       'div.text-gray-700.text-sm.overflow-hidden.break-words.whitespace-pre-line'
     );
+
     for (const noteBlock of noteBlocks) {
       const content = noteBlock.innerText.toLowerCase();
+
       const isCallSummary = content.includes("****call summary");
       const hasAddressAndName =
         content.includes("address") && content.includes("name") && content.includes("email");
@@ -1368,28 +1373,34 @@ function findAllNoteBlocks({
     if (pollTimer) clearTimeout(pollTimer);
     if (timeoutTimer) clearTimeout(timeoutTimer);
 
-    // Put list back to the top only when we found a result
-    if (result && container) container.scrollTop = 0;
+    // Important: do NOT force scroll position unless explicitly requested
+    if (result && autoResetToTop && container) {
+      // If you want to jump to top on success, set autoResetToTop: true
+      container.scrollTop = 0;
+    }
 
-    // Important: do NOT trigger any more scrolling after this
     resolve(result || null);
   }
 
   function tick() {
     if (stopped) return;
 
-    // 1) Try to find a match among currently loaded notes
+    // 1) Check current DOM for a match
     const match = matchBlockIn(container);
     if (match) return stop(match);
 
-    // 2) If no match, try to load more by scrolling once when height grows
+    // 2) Nudge to load more only when content height has grown
     const currentHeight = container.scrollHeight;
     if (currentHeight === lastHeight) {
       stableCount += 1;
     } else {
       stableCount = 0;
       lastHeight = currentHeight;
-      container.scrollTop = currentHeight; // single scroll nudge to request more
+
+      if (nudgeToLoad) {
+        // Single nudge toward the bottom to request more items
+        container.scrollTop = currentHeight;
+      }
     }
 
     // 3) Stop conditions
@@ -1401,33 +1412,27 @@ function findAllNoteBlocks({
     pollTimer = setTimeout(tick, pollIntervalMs);
   }
 
-  // Use a MutationObserver to react immediately to new notes, and always clean up
   function onMutations() {
     if (stopped) return;
     const match = matchBlockIn(container);
     if (match) stop(match);
   }
 
-  // Wrap in a Promise so callers await a single resolution
-  let resolve;
   const promise = new Promise((res) => (resolve = res));
 
-  // Start timeout guard
+  // Hard timeout guard
   timeoutTimer = setTimeout(() => stop(null), maxMs);
 
-  // Start observing new children/text changes only inside the container
+  // Observe for new items appearing
   observer = new MutationObserver(onMutations);
-  observer.observe(container, {
-    childList: true,
-    subtree: true,
-    characterData: true
-  });
+  observer.observe(container, { childList: true, subtree: true, characterData: true });
 
-  // Kick off first poll cycle
+  // Kick off
   tick();
 
   return promise;
 }
+
 
 
 function cleanMessageText(msg) {
