@@ -5711,6 +5711,68 @@ function spaCleanup(opts = {}) {
     }
 }
 
+function attachPhoneDialHandlers() {
+  function blockRowNav(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+
+  document.querySelectorAll('td[data-title="Phone"]').forEach((phoneCell) => {
+    // If already attached, just refresh the phone number and skip
+    if (phoneCell.dataset.callListenerAttached === "1") {
+      const freshSpan = phoneCell.querySelector("span");
+      const freshPhone = (freshSpan?.textContent || "").replace(/\D/g, "").trim();
+      phoneCell.dataset.callPhone = freshPhone || "";
+      return;
+    }
+
+    const phoneSpan = phoneCell.querySelector("span");
+    let phone = (phoneSpan?.textContent || "").trim();
+
+    const dialerInput = document.querySelector("input#dialer-input");
+    if (!(dialerInput instanceof HTMLInputElement)) return;
+
+    phone = phone.replace(/\D/g, "");
+    if (!phone) return;
+
+    phoneCell.dataset.callPhone = phone;
+
+    phoneCell.addEventListener(
+      "click",
+      async (e) => {
+        blockRowNav(e);
+
+        const currentPhone = (phoneCell.dataset.callPhone || "").trim();
+        if (!currentPhone) return;
+
+        document.querySelector("#end-call-button")?.click();
+        document.querySelector(".end-call-btn")?.click();
+
+        setInputValueSecurely(dialerInput, "");
+        await simulateSecureTyping(dialerInput, currentPhone);
+
+        const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
+        if (dialBtn) {
+          document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
+          await dialBtn.click();
+        }
+      },
+      true
+    );
+
+    phoneCell.dataset.callListenerAttached = "1";
+
+    // Replace existing icon with Font Awesome phone icon
+    const existingIcon = phoneCell.querySelector(".icon-phone-svg");
+    if (existingIcon) existingIcon.remove();
+
+    const faIcon = document.createElement("i");
+    faIcon.classList.add("fa", "fa-phone");
+    faIcon.style.color = "#16a34a";
+    phoneCell.prepend(faIcon);
+  });
+}
 
 (function() {
     'use strict';
@@ -5836,7 +5898,8 @@ function spaCleanup(opts = {}) {
 
             } else {
             }
-            
+
+            attachPhoneDialHandlers();
             populateCallQueue();
             moveCallBtn();
             showDateInTimestamps();
