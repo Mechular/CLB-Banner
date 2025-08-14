@@ -5712,6 +5712,8 @@ function spaCleanup(opts = {}) {
 }
 
 function attachPhoneDialHandlers() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
+  
   function blockRowNav(e) {
     e.preventDefault();
     e.stopPropagation();
