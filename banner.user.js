@@ -1327,6 +1327,7 @@ function findAllNoteBlocks({
   nudgeToLoad = true,     // allow scroll nudges to load more
   autoResetToTop = false  // if true, scroll to top ONLY once on success
 } = {}) {
+  return;
   const start = Date.now();
   let lastHeight = -1;
   let stableCount = 0;
