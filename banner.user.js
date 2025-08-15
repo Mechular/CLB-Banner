@@ -2,13 +2,92 @@ const debugON = false;
 
 // === CALL WINDOW CONFIG (adjust as needed) ===
 const CALL_RULES = {
-  CALL_START_HOUR: 9,        // 0–23 local hour for the callee (inclusive)
-  CALL_END_HOUR: 20,         // 0–23 local hour for the callee (exclusive)
-  BLOCK_WEEKENDS: true,      // true = disallow Sat/Sun by callee local time
-  ALLOW_UNKNOWN_TZ: false,   // false = block if we can't resolve timezone
-  WARN_ONLY: false,          // true = show confirm instead of blocking
-  SHOW_BADGE: true           // show small TZ/time badge in the Phone cell
+  CALL_START_HOUR: 9,        // inclusive (0–23) callee local hour
+  CALL_END_HOUR: 20,         // exclusive (0–23) callee local hour
+  BLOCK_WEEKENDS: true,      // disallow Sat/Sun by callee local time
+  ALLOW_UNKNOWN_TZ: false,   // block if timezone can’t be resolved
+  WARN_ONLY: false,          // true = confirm instead of block
+  SHOW_BADGE: true           // show TZ/time badge in Phone cell
 };
+
+// Keep your original isWithinCallHours working by syncing globals it reads
+(function applyCallWindowGlobalsFromConfig(){
+  try {
+    (typeof window !== "undefined" ? window : globalThis).CALL_START_HOUR = CALL_RULES.CALL_START_HOUR;
+    (typeof window !== "undefined" ? window : globalThis).CALL_END_HOUR   = CALL_RULES.CALL_END_HOUR;
+  } catch {}
+})();
+
+// ---------- Helpers ----------
+function getAreaFromPhone(num) {
+  const digits = String(num).replace(/\D/g, "").replace(/^1/, "");
+  return digits.slice(0, 3);
+}
+
+function isWeekend(dateObj) {
+  if (!(dateObj instanceof Date)) return false;
+  const d = dateObj.getDay(); // 0=Sun..6=Sat
+  return d === 0 || d === 6;
+}
+
+function isCallableByPolicy(localTimeStr, localDateObj) {
+  // honor your existing hour rule
+  const hourOk = isWithinCallHours(localTimeStr);
+  // optional weekend rule
+  const weekendOk = CALL_RULES.BLOCK_WEEKENDS ? !isWeekend(localDateObj) : true;
+  return hourOk && weekendOk;
+}
+
+const CALL_UI = {
+  okColor:   "#16a34a",
+  warnColor: "#f59e0b",
+  blockColor:"#dc2626",
+  badgeBg:   "rgba(0,0,0,0.06)",
+  badgeText: "#111827"
+};
+
+function upsertTimeBadge(phoneCell, tzLabel, localTime, callable, unknownTz) {
+  if (!CALL_RULES.SHOW_BADGE) return;
+  let badge = phoneCell.querySelector(".call-time-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "call-time-badge";
+    badge.style.cssText = `
+      display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;
+      font-size:11px;line-height:16px;background:${CALL_UI.badgeBg};
+      color:${CALL_UI.badgeText};vertical-align:middle;
+    `;
+    phoneCell.appendChild(badge);
+  }
+  const stateColor = unknownTz ? CALL_UI.warnColor : (callable ? CALL_UI.okColor : CALL_UI.blockColor);
+  badge.style.border = `1px solid ${stateColor}`;
+  badge.textContent = `${tzLabel || "TZ?"} ${localTime || "Unknown"}`;
+  badge.title = callable
+    ? "Within call window"
+    : unknownTz
+    ? "Timezone unknown. Check before calling."
+    : "Outside call window";
+}
+
+// Wrapper so you DON'T have to modify your existing getAreaCodeInfo()
+function getAreaCodeInfoWithDate(areaCode) {
+  const [loc, tzLabel, localTime] = getAreaCodeInfo(areaCode) || [];
+  let localDate = null;
+
+  if (tzLabel && tzLabel !== "Unknown") {
+    const base = tzLabel.replace(/DT$/, "ST"); // EDT->EST, CDT->CST, etc.
+    const offsetMap = { EST:-5, CST:-6, MST:-7, PST:-8, AKST:-9, HST:-10, AST:-4, NST:-3.5, ChST:10 };
+    if (Object.prototype.hasOwnProperty.call(offsetMap, base)) {
+      let finalOffset = offsetMap[base] + (tzLabel.endsWith("DT") ? 1 : 0);
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      localDate = new Date(utc + finalOffset * 3600000);
+    }
+  }
+
+  return [loc, tzLabel, localTime, localDate];
+}
+
 
 // Use these to style the badge quickly if needed
 const CALL_UI = {
@@ -5737,11 +5816,33 @@ function attachPhoneDialHandlers() {
   }
 
   document.querySelectorAll('td[data-title="Phone"]').forEach((phoneCell) => {
-    // If already attached, just refresh the phone number and skip
+    // If already attached, just refresh the phone number, badge, and icon then exit
     if (phoneCell.dataset.callListenerAttached === "1") {
       const freshSpan = phoneCell.querySelector("span");
       const freshPhone = (freshSpan?.textContent || "").replace(/\D/g, "").trim();
       phoneCell.dataset.callPhone = freshPhone || "";
+
+      if (freshPhone) {
+        const area = getAreaFromPhone(freshPhone);
+        const [loc, tzLabel, localTime, localDate] = getAreaCodeInfoWithDate(area);
+        const unknownTz = !tzLabel || tzLabel === "Unknown" || !localDate;
+        const callableNow = !unknownTz && isCallableByPolicy(localTime, localDate);
+
+        upsertTimeBadge(phoneCell, tzLabel, localTime, callableNow, unknownTz);
+
+        phoneCell.dataset.calleeTzLabel = tzLabel || "";
+        phoneCell.dataset.calleeLocalTime = localTime || "Unknown time";
+        phoneCell.dataset.calleeUnknownTz = String(unknownTz);
+        phoneCell.dataset.calleeCallable = String(callableNow);
+
+        const faIconExisting = phoneCell.querySelector(".fa.fa-phone");
+        if (faIconExisting) {
+          faIconExisting.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+          faIconExisting.title = callableNow
+            ? "Within call window"
+            : (unknownTz ? "Timezone unknown" : "Outside call window");
+        }
+      }
       return;
     }
 
@@ -5756,6 +5857,19 @@ function attachPhoneDialHandlers() {
 
     phoneCell.dataset.callPhone = phone;
 
+    // Compute + badge on first attach
+    const area = getAreaFromPhone(phone);
+    const [loc, tzLabel, localTime, localDate] = getAreaCodeInfoWithDate(area);
+    const unknownTz = !tzLabel || tzLabel === "Unknown" || !localDate;
+    const callableNow = !unknownTz && isCallableByPolicy(localTime, localDate);
+
+    upsertTimeBadge(phoneCell, tzLabel, localTime, callableNow, unknownTz);
+
+    phoneCell.dataset.calleeTzLabel = tzLabel || "";
+    phoneCell.dataset.calleeLocalTime = localTime || "Unknown time";
+    phoneCell.dataset.calleeUnknownTz = String(unknownTz);
+    phoneCell.dataset.calleeCallable = String(callableNow);
+
     phoneCell.addEventListener(
       "click",
       async (e) => {
@@ -5764,6 +5878,42 @@ function attachPhoneDialHandlers() {
         const currentPhone = (phoneCell.dataset.callPhone || "").trim();
         if (!currentPhone) return;
 
+        // Re-evaluate time at click moment
+        const areaNow = getAreaFromPhone(currentPhone);
+        const [locNow, tzNow, timeNow, dateNow] = getAreaCodeInfoWithDate(areaNow);
+        const unknownTzNow = !tzNow || tzNow === "Unknown" || !dateNow;
+        const allowedNow = !unknownTzNow && isCallableByPolicy(timeNow, dateNow);
+
+        // Update visuals
+        upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
+        const faIconAtClick = phoneCell.querySelector(".fa.fa-phone");
+        if (faIconAtClick) {
+          faIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+          faIconAtClick.title = allowedNow
+            ? "Within call window"
+            : (unknownTzNow ? "Timezone unknown" : "Outside call window");
+        }
+
+        // Enforce policy
+        if (unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && !CALL_RULES.WARN_ONLY) {
+          alert(`Cannot dial. Timezone unknown for area ${areaNow}.`);
+          return;
+        }
+        if (!allowedNow && !CALL_RULES.WARN_ONLY) {
+          alert(`Cannot dial. Local time for area ${areaNow} (${tzNow || "TZ?"}) is ${timeNow || "unknown"}, outside your call window (${CALL_RULES.CALL_START_HOUR}:00–${CALL_RULES.CALL_END_HOUR}:00${CALL_RULES.BLOCK_WEEKENDS ? ", no weekends" : ""}).`);
+          return;
+        }
+        if ((unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && CALL_RULES.WARN_ONLY) ||
+            (!allowedNow && CALL_RULES.WARN_ONLY)) {
+          const ok = confirm(
+            `Outside policy:\n\n` +
+            `Area ${areaNow} ${tzNow || ""} local time is ${timeNow || "unknown"}.\n\n` +
+            `Proceed anyway?`
+          );
+          if (!ok) return;
+        }
+
+        // Proceed with dialing
         document.querySelector("#end-call-button")?.click();
         document.querySelector(".end-call-btn")?.click();
 
@@ -5787,10 +5937,12 @@ function attachPhoneDialHandlers() {
 
     const faIcon = document.createElement("i");
     faIcon.classList.add("fa", "fa-phone");
-    faIcon.style.color = "#16a34a";
+    faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+    faIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
     phoneCell.prepend(faIcon);
   });
 }
+
 
 (function() {
     'use strict';
