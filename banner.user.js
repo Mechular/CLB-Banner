@@ -38,7 +38,7 @@ function isCallableByPolicy(localTimeStr, localDateObj) {
   return hourOk && weekendOk;
 }
 
-const CALL_UI = {
+const CALL_UI_CONFIG = {
   okColor:   "#16a34a",
   warnColor: "#f59e0b",
   blockColor:"#dc2626",
@@ -54,12 +54,12 @@ function upsertTimeBadge(phoneCell, tzLabel, localTime, callable, unknownTz) {
     badge.className = "call-time-badge";
     badge.style.cssText = `
       display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;
-      font-size:11px;line-height:16px;background:${CALL_UI.badgeBg};
-      color:${CALL_UI.badgeText};vertical-align:middle;
+      font-size:11px;line-height:16px;background:${CALL_UI_CONFIG.badgeBg};
+      color:${CALL_UI_CONFIG.badgeText};vertical-align:middle;
     `;
     phoneCell.appendChild(badge);
   }
-  const stateColor = unknownTz ? CALL_UI.warnColor : (callable ? CALL_UI.okColor : CALL_UI.blockColor);
+  const stateColor = unknownTz ? CALL_UI_CONFIG.warnColor : (callable ? CALL_UI_CONFIG.okColor : CALL_UI_CONFIG.blockColor);
   badge.style.border = `1px solid ${stateColor}`;
   badge.textContent = `${tzLabel || "TZ?"} ${localTime || "Unknown"}`;
   badge.title = callable
@@ -90,7 +90,7 @@ function getAreaCodeInfoWithDate(areaCode) {
 
 
 // Use these to style the badge quickly if needed
-const CALL_UI = {
+const CALL_UI_CONFIG = {
   okColor: "#16a34a",
   warnColor: "#f59e0b",
   blockColor: "#dc2626",
@@ -5837,7 +5837,7 @@ function attachPhoneDialHandlers() {
 
         const faIconExisting = phoneCell.querySelector(".fa.fa-phone");
         if (faIconExisting) {
-          faIconExisting.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+          faIconExisting.style.color = callableNow ? CALL_UI_CONFIG.okColor : CALL_UI_CONFIG.blockColor;
           faIconExisting.title = callableNow
             ? "Within call window"
             : (unknownTz ? "Timezone unknown" : "Outside call window");
@@ -5888,7 +5888,7 @@ function attachPhoneDialHandlers() {
         upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
         const faIconAtClick = phoneCell.querySelector(".fa.fa-phone");
         if (faIconAtClick) {
-          faIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+          faIconAtClick.style.color = allowedNow ? CALL_UI_CONFIG.okColor : CALL_UI_CONFIG.blockColor;
           faIconAtClick.title = allowedNow
             ? "Within call window"
             : (unknownTzNow ? "Timezone unknown" : "Outside call window");
@@ -5937,7 +5937,7 @@ function attachPhoneDialHandlers() {
 
     const faIcon = document.createElement("i");
     faIcon.classList.add("fa", "fa-phone");
-    faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+    faIcon.style.color = callableNow ? CALL_UI_CONFIG.okColor : CALL_UI_CONFIG.blockColor;
     faIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
     phoneCell.prepend(faIcon);
   });
