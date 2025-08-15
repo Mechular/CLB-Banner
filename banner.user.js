@@ -5912,6 +5912,7 @@ function attachPhoneDialHandlers() {
         const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
         if (dialBtn) {
           phoneCell.dataset.callMade = true;
+          console.log('phoneCell.parentNode', phoneCell.parentNode);
           phoneCell.parentNode.style.backgroundColor = "lightgray";
           document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
           await dialBtn.click();
