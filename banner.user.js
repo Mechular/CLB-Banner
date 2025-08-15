@@ -2,7 +2,7 @@ const debugON = false;
 
 // === CALL WINDOW CONFIG (adjust as needed) ===
 const CALL_RULES = {
-  CALL_START_HOUR: 9,        // inclusive (0–23) callee local hour
+  CALL_START_HOUR: 12,        // inclusive (0–23) callee local hour
   CALL_END_HOUR: 20,         // exclusive (0–23) callee local hour
   BLOCK_WEEKENDS: true,      // disallow Sat/Sun by callee local time
   ALLOW_UNKNOWN_TZ: false,   // block if timezone can’t be resolved
