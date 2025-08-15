@@ -55,7 +55,6 @@ function upsertTimeBadge(phoneCell, tzLabel, localTime, callable, unknownTz) {
     badge.style.cssText = `
       display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;
       font-size:11px;line-height:16px;background:${CALL_UI.badgeBg};
-      color:${CALL_UI.badgeText};vertical-align:middle;
     `;
     phoneCell.appendChild(badge);
   }
