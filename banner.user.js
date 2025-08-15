@@ -6,7 +6,7 @@ const CALL_RULES = {
   CALL_END_HOUR: 20,         // exclusive (0–23) callee local hour
   BLOCK_WEEKENDS: true,      // disallow Sat/Sun by callee local time
   ALLOW_UNKNOWN_TZ: false,   // block if timezone can’t be resolved
-  WARN_ONLY: false,          // true = confirm instead of block
+  WARN_ONLY: true,           // true = confirm instead of block
   SHOW_BADGE: true           // show TZ/time badge in Phone cell
 };
 
