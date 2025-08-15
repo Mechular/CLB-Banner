@@ -5838,6 +5838,9 @@ function attachPhoneDialHandlers() {
     const phoneSpan = phoneCell.querySelector("span");
     let phone = (phoneSpan?.textContent || "").trim();
 
+    if (phoneSpan) phoneSpan.style.display = "inline";
+    phoneCell.style.whiteSpace = "nowrap";
+    
     const dialerInput = document.querySelector("input#dialer-input");
     if (!(dialerInput instanceof HTMLInputElement)) return;
 
@@ -5915,7 +5918,7 @@ function attachPhoneDialHandlers() {
           console.log('phoneCell.parentNode', phoneCell.parentNode);
           phoneCell.parentNode.style.backgroundColor = "lightgray";
           document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
-          await dialBtn.click();
+          // await dialBtn.click();
         }
       },
       true
@@ -5929,6 +5932,7 @@ function attachPhoneDialHandlers() {
 
     const faIcon = document.createElement("i");
     faIcon.classList.add("fa", "fa-phone");
+    faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
     faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
     faIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
     phoneCell.prepend(faIcon);
