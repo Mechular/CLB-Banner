@@ -5918,7 +5918,7 @@ function attachPhoneDialHandlers() {
           console.log('phoneCell.parentNode', phoneCell.parentNode);
           phoneCell.parentNode.style.backgroundColor = "lightgray";
           document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
-          // await dialBtn.click();
+          await dialBtn.click();
         }
       },
       true
