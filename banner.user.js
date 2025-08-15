@@ -1,5 +1,25 @@
 const debugON = false;
 
+// === CALL WINDOW CONFIG (adjust as needed) ===
+const CALL_RULES = {
+  CALL_START_HOUR: 9,        // 0–23 local hour for the callee (inclusive)
+  CALL_END_HOUR: 20,         // 0–23 local hour for the callee (exclusive)
+  BLOCK_WEEKENDS: true,      // true = disallow Sat/Sun by callee local time
+  ALLOW_UNKNOWN_TZ: false,   // false = block if we can't resolve timezone
+  WARN_ONLY: false,          // true = show confirm instead of blocking
+  SHOW_BADGE: true           // show small TZ/time badge in the Phone cell
+};
+
+// Use these to style the badge quickly if needed
+const CALL_UI = {
+  okColor: "#16a34a",
+  warnColor: "#f59e0b",
+  blockColor: "#dc2626",
+  badgeBg: "rgba(0,0,0,0.06)",
+  badgeText: "#111827"
+};
+
+
 // === Feature toggles ===
 let ENABLE_MYSTATS_WIDGET = true;
 let ENABLE_BANNER_UPDATE = true;
@@ -5069,10 +5089,6 @@ function moveCallBtn() {
         );
     }
 }
-
-// Configurable allowed call hours
-const CALL_START_HOUR = 8; // 8 AM
-const CALL_END_HOUR = 20;  // 8 PM
 
 // Helper to check if time is within allowed window
 function isWithinCallHours(timeStr) {
