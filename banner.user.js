@@ -88,17 +88,6 @@ function getAreaCodeInfoWithDate(areaCode) {
   return [loc, tzLabel, localTime, localDate];
 }
 
-
-// Use these to style the badge quickly if needed
-const CALL_UI = {
-  okColor: "#16a34a",
-  warnColor: "#f59e0b",
-  blockColor: "#dc2626",
-  badgeBg: "rgba(0,0,0,0.06)",
-  badgeText: "#111827"
-};
-
-
 // === Feature toggles ===
 let ENABLE_MYSTATS_WIDGET = true;
 let ENABLE_BANNER_UPDATE = true;
