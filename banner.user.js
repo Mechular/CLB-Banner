@@ -5160,10 +5160,8 @@ function moveCallBtn() {
 
 function avatarHref() {
   if (!location.href.includes("/contacts/smart_list/")) return;
-  
-  const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
 
-  document.querySelectorAll('#hl_smartlists-main .avatar_img').forEach(item => {
+  document.querySelectorAll('#hl_smartlists-main .avatar_img').forEach(item => {    
     if (item.dataset.listenerAttached) return; // already bound
     item.dataset.listenerAttached = 'true';
   
@@ -5171,6 +5169,8 @@ function avatarHref() {
       e.preventDefault();
       e.stopPropagation();
   
+      const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
+      
       // Get the contact row id robustly
       const id =
         item.closest('tr[id]')?.id ||     // preferred: table row with id
