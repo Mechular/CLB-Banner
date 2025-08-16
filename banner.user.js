@@ -5158,6 +5158,36 @@ function moveCallBtn() {
     }
 }
 
+function avatarHref() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
+  
+  document.querySelectorAll('#hl_smartlists-main .avatar_img').forEach(item => {
+    if (item.dataset.listenerAttached) return; // already bound
+    item.dataset.listenerAttached = 'true';
+  
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+  
+      // Get the contact row id robustly
+      const id =
+        item.closest('tr[id]')?.id ||     // preferred: table row with id
+        item.closest('[id]')?.id ||       // fallback: any ancestor with id
+        null;
+  
+      if (!myID || !id) {
+        console.warn('Missing myID or contact row id.');
+        return;
+      }
+  
+      window.open(
+        `${location.origin}/v2/location/${myID}/contacts/detail/${id}?view=note`,
+        '_blank'
+      );
+    });
+  });
+}
+
 // Helper to check if time is within allowed window
 function isWithinCallHours(timeStr) {
   if (!timeStr || timeStr === "Unknown time") return false;
@@ -5224,32 +5254,6 @@ function populateCallQueue() {
   const { createClientList } = window.scriptConfig || {};
   if (!createClientList) return;
   const myID = location.pathname.match(/(?:^|\/)location\/([^/]+)\/contacts(?:\/|$)/)?.[1] || null;
-  
-  document.querySelectorAll('#hl_smartlists-main .avatar_img').forEach(item => {
-    if (item.dataset.listenerAttached) return; // already bound
-    item.dataset.listenerAttached = 'true';
-  
-    item.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-  
-      // Get the contact row id robustly
-      const id =
-        item.closest('tr[id]')?.id ||     // preferred: table row with id
-        item.closest('[id]')?.id ||       // fallback: any ancestor with id
-        null;
-  
-      if (!myID || !id) {
-        console.warn('Missing myID or contact row id.');
-        return;
-      }
-  
-      window.open(
-        `${location.origin}/v2/location/${myID}/contacts/detail/${id}?view=note`,
-        '_blank'
-      );
-    });
-  });
 
   // Use location.origin as requested
   const BASE_URL = `${location.origin}/v2/location/${myID}/contacts/detail/`;
@@ -6090,7 +6094,8 @@ function attachPhoneDialHandlers() {
 
             } else {
             }
-
+          
+            avatarHref();
             attachPhoneDialHandlers();
             populateCallQueue();
             moveCallBtn();
