@@ -3469,7 +3469,7 @@ async function addTemplateMenu({
                                 'Initial No Contact': {
                                     //message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling${propMention}. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`
                                     // message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I'm looking to purchase ${propMention}. Please give me a call when you're free, my direct number is ${myTele}. Looking forward to hearing from you soon! Have a great day!`
-                                  message: `Hi ${sellerFirstName}, my name is ${myFirstName}. I'm looking to purchase ${propMention}. Please give me a call. my number is ${myTele}. Thanks!`
+                                  message: `Hi ${sellerFirstName}, my name is ${myFirstName}. I'm looking to purchase ${propMention}. Please give me a call. My number is ${myTele}. Thanks!`
                                 },
                                 'Second No Contact': {
                                     // message: `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA following up on my previous message about${propMention}. I wanted to see if you had any questions or if you're still considering selling and if you are, I'll make the process as easy as possible for you. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon.`
@@ -5458,6 +5458,32 @@ function populateCallQueue() {
         }
       });
     }
+  });
+  
+  document.querySelectorAll('#hl_smartlists-main .avatar_img').forEach(item => {
+    if (item.dataset.listenerAttached) return; // already bound
+    item.dataset.listenerAttached = 'true';
+  
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+  
+      // Get the contact row id robustly
+      const id =
+        item.closest('tr[id]')?.id ||     // preferred: table row with id
+        item.closest('[id]')?.id ||       // fallback: any ancestor with id
+        null;
+  
+      if (!myID || !id) {
+        console.warn('Missing myID or contact row id.');
+        return;
+      }
+  
+      window.open(
+        `${location.origin}/v2/location/${myID}/contacts/detail/${id}?view=note`,
+        '_blank'
+      );
+    });
   });
 }
 
