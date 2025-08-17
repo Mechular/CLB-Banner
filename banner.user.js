@@ -3047,7 +3047,7 @@ async function addTextMessageMenu() {
                 `We put our offers in writing and don’t overprice, then undercut at the last minute like others may try to do.`,
                 `It’s normal to go back and forth on the price until we find something that feels fair for both sides. What price would you be willing to sell your property for?`,
                 `Hi, it's ${myFirstName} with CLB. I tried calling back on and after our scheduled time, but I wasn't able to reach you. If you're no longer interested in the offer, just let me know so I can close out your file.`,
-                `Hey ${myFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.`
+                `Hey ${sellerFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.`
             ];
 
 
@@ -3102,7 +3102,7 @@ async function addTextMessageMenu() {
 
                 const item = document.createElement('div');
                 item.innerHTML = cleaned.replace(/\n/g, '<br>');
-                floatingModal.attachHover(dropdown, cleaned.replace(/\n/g, '<br>'));
+                floatingModal.attachHover(item, cleaned.replace(/\n/g, '<br>'));
 
                 // item.title = cleaned.replace(/\n/g, ' ');
                 item.className = 'text-message-option block w-full px-4 py-2 text-sm cursor-pointer hover:bg-gray-100';
@@ -3530,7 +3530,6 @@ async function addTemplateMenu({
                             // const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
                             let cleanedMessage = '';
 
-                            cleanMessageEmail
                             if (type === 'email') {
                                 cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
 
@@ -3575,7 +3574,7 @@ async function addTemplateMenu({
                                         await new Promise(resolve => setTimeout(resolve, 250));
                                     }
 
-                                    setInputValue(input, message, 'smsMsg');
+                                    setInputValue(input, cleanedMessage, 'smsMsg');
 
                                     activeTab = document.querySelector('.nav-link.active');
 
@@ -6065,7 +6064,7 @@ function attachPhoneDialHandlers() {
                 autoResizeNotes();
                 monMonFreeFloat();
                 hideCallSummaryNotes();
-                extractNoteData();
+                await extractNoteData();
 
                 moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
                 moveFieldByLabel('Asking Price');
