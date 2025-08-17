@@ -5722,13 +5722,6 @@ function attachPhoneDialHandlers() {
                 //     hasRunExtractNoteData = true;
                 // }
 
-                // await createDropdownMenu({
-                //     menuId: 'tb_voicemail11',
-                //     label: 'Voicemail Message1s',
-                //     prevMenu: document.getElementById('tb_email_menu'),
-                //     type: 'email'
-                // });
-
             } else {
             }
           
