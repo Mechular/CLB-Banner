@@ -4529,7 +4529,10 @@ async function extractContactData() {
     const today = new Date();
 
     // DND detection
-    if (document.querySelector('.activity-body-contact')?.innerText === "DnD enabled by customer for SMS") {
+    if ((document.querySelector('.activity-body-contact')?.innerText || "")
+          .toLowerCase()
+          .includes("dnd enabled") ) {
+
 
         let el = document.getElementById("tb_textmessage_menu");
 
@@ -4636,7 +4639,11 @@ async function extractContactData() {
             const isTodayEmail = date.toDateString() === today.toDateString();
 
             // Determine if it's own message
-            const isOwnMessage = item.querySelector('.avatar-container .text-xs')?.innerText === myInitials; // use user's initials if known
+            const initialsEl = item.querySelector('.avatar-container .text-xs');
+            const initialsTxt = initialsEl?.innerText?.trim() || "";
+            const isOwnMessage = myInitials
+              ? initialsTxt === myInitials
+              : !!item.querySelector('.avatar-container [data-initials]'); // fallback: presence of own avatar marker if available
 
             if (isOwnMessage) {
                 counts.outbound.email++;
@@ -4809,9 +4816,9 @@ function showDateInTimestamps() {
             const span = element.querySelector('span');
 
             // Ensure the span exists and check if its innerText doesn't include the title
-            if (span && !span.innerText.includes(span.title)) {
-                // If it doesn't, replace the innerText with the title
-                span.innerText = span.title;
+            const t = span?.title || '';
+            if (span && t && !span.innerText.includes(t)) {
+                span.innerText = t;
             }
         });
     }
@@ -4847,7 +4854,6 @@ async function checkUrlChange() {
         hasClickedNotesTab = false;
         bannerDismissed = false;
         myStatsAdded = false;
-        storedAddress = '';
         jsonData = [];
         noteBlock = null;
         notesScrollInitialized = false;
@@ -5196,7 +5202,10 @@ function isWithinCallHours(timeStr) {
   let [hour, minute] = time.split(":").map(Number);
   if (meridian === "PM" && hour !== 12) hour += 12;
   if (meridian === "AM" && hour === 12) hour = 0;
-  return hour >= CALL_START_HOUR && hour < CALL_END_HOUR;
+  const start = typeof CALL_START_HOUR === 'number' ? CALL_START_HOUR : 8;
+  const end   = typeof CALL_END_HOUR   === 'number' ? CALL_END_HOUR   : 20;
+  return hour >= start && hour < end;
+
 }
 
 function populateCallQueue() {
@@ -5231,7 +5240,6 @@ function populateCallQueue() {
     const dropdownBtn = document.querySelector("#hl_smartlists-main a#dropdownMenuButton");
     if (dropdownBtn) {
       dropdownBtn.click(); // open the dropdown
-      const option100 = document.querySelector("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right");
       const option100El = Array.from(document.querySelectorAll("#hl_smartlists-main .dropdown-menu .dropdown-item span.text.align-right"))
         .find(el => el.textContent.trim() === "100");
       if (option100El) {
@@ -5964,7 +5972,6 @@ function attachPhoneDialHandlers() {
     const faIcon = document.createElement("i");
     faIcon.classList.add("fa", "fa-phone");
     faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
-    faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
     faIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
     phoneCell.prepend(faIcon);
   });
@@ -6000,7 +6007,7 @@ function attachPhoneDialHandlers() {
     // Main interval loop every 1 second
     setInterval(() => {
         (async () => {
-            const urlChanged = checkUrlChange();
+            const urlChanged = await checkUrlChange();
             const url = location.href;
             const onContactPage = isOnContactPage(url);
 
