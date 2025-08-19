@@ -839,7 +839,7 @@ function setDisposition(value, preReq = false) {
     if (value === "Move to Contacted") {
         if (document.querySelector('select[name="contact.call_disposal_automations"]').value !== "") {
             console.log("setDisposition: preReq not met.");
-            return;
+            // return;
         }
     }
 
