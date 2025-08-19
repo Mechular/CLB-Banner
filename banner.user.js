@@ -3596,7 +3596,7 @@ async function addTemplateMenu({
                                 cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
 
                                 handleClick = () => {
-                                    const textarea = document.querySelector('#note-input');
+                                    const textarea = document.querySelector('#voicemail-note');
                                     if (textarea) {
                                         setInputValue(textarea, cleanedMessage, 'vm-template');
                                     }
@@ -3666,172 +3666,6 @@ async function addTemplateMenu({
 }
 
 
-
-async function addVoicemailMenu() {
-    if (!ENABLE_MENU_BUTTONS) return;
-
-    try {
-        const prevMenu = document.getElementById('tb_email_menu');
-        const notesTab = document.getElementById("notes-tab");
-        const vmMenu = document.getElementById("tb_voicemail_menu");
-
-        if (!prevMenu || !notesTab) return;
-
-        if (!vmMenu) {
-            const voicemailLink = document.createElement('a');
-            voicemailLink.id = 'tb_voicemail_menu';
-            voicemailLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-            voicemailLink.setAttribute('aria-label', 'Voicemail Messages');
-            voicemailLink.style.lineHeight = '1.6rem';
-
-            voicemailLink.innerHTML = `
-                                <span class="flex items-center select-none">
-                                    Voicemail Messages
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                                </svg>
-                    </span>
-                    <div role="menu" class="hidden voicemail-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
-                    `;
-
-            prevMenu.parentNode.insertBefore(voicemailLink, prevMenu.nextSibling);
-
-            const wrapper = voicemailLink.querySelector('.voicemail-dropdown');
-            wrapper.style.left = '0';
-
-            voicemailLink.addEventListener('click', async e => {
-                e.preventDefault();
-                closeOtherMenus('tb_voicemail_menu');
-                wrapper.innerHTML = '';
-
-                try {
-                    const userInfo = await getUserData();
-                    if (!userInfo) return;
-
-                    let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
-                    let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-                    let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || "";
-                    let propertyStreetName = getStreetName(document.querySelector('[name="contact.street_address"]')?.value) || "";
-
-                    let myFullName = '';
-                    let myFirstName = '';
-                    let myLastName = '';
-                    let myInitials = '';
-                    let myEmail = '';
-                    let myTele = '';
-
-                    if (userInfo && userInfo.myFirstName) {
-                        myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
-                        myFirstName = userInfo.myFirstName;
-                        myLastName = userInfo.myLastName;
-                        myInitials = userInfo.myInitials;
-                        myEmail = userInfo.myEmail;
-                        myTele = userInfo.myTele;
-                    }
-
-                    let voicemailScripts = {};
-
-                    if (propertyStreetName === '' || propertyStreetName === undefined) {
-                        voicemailScripts = {
-                            'Initial No Contact': {
-                                'Initial No Contact': `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling your property. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so if you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`,
-                                'Second No Contact': `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA following up on my previous message about your property. I wanted to see if you had any questions or if you're still considering selling and if you are, I'll make the process as easy as possible for you. I'm very interested in discussing this further with you so if you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon.`,
-                                'Third No Contact': `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I've reached out a few times regarding your property and haven’t heard back. If you're still serious about selling, please get in touch as soon as possible to discuss how we can proceed. You can call or text me directly at ${myTele}. If I don't hear from you soon, I'll assume you're no longer interested. Thanks.`
-                            },
-                            'Pre-Sale Follow-Up': {
-                                'Contract Sent Check-in #1 ': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`,
-                                'Contract Sent Check-in #2 ': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`,
-                                'Ghosting - Contract Sent': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                            }
-                        };
-                    } else {
-                        voicemailScripts = {
-                            'Initial No Contact': {
-                                'Initial No Contact': `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling your property on ${propertyStreetName}. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`,
-                                'Second No Contact': `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA following up on my previous message about your property on ${propertyStreetName}. I wanted to see if you had any questions or if you're still considering selling and if you are, I'll make the process as easy as possible for you. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon.`,
-                                'Third No Contact': `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I've reached out a few times regarding your property on ${propertyStreetName} and haven’t heard back. If you're still serious about selling, please get in touch as soon as possible to discuss how we can proceed. You can call or text me directly at ${myTele}. If I don't hear from you soon, I'll assume you're no longer interested. Thanks.`
-                            },
-                            'Pre-Sale Follow-Up': {
-                                'Contract Sent Check-in #1 ': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent for ${propertyStreetName}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`,
-                                'Contract Sent Check-in #2 ': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent for ${propertyStreetName}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`,
-                                'Ghosting - Contract Sent': `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent for ${propertyStreetName}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                            }
-                        };
-                    }
-
-                    wrapper.innerHTML = `${Object.keys(voicemailScripts).map(group => `
-                        <div class="relative group submenu-wrapper">
-                            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-                                <span>${group}</span>
-                                <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-                            </button>
-                            <div class="hidden script-panel" data-group="${group}">
-                                ${Object.entries(voicemailScripts[group]).map(([label, msg], i, arr) => {
-                        const cleaned = cleanMessageText(msg);
-                        return `
-                                        <div style="margin-bottom: 0.5rem;">
-                                            <div style="font-weight: 500; color: #1f2937; margin-bottom: 0.25rem;">${label}</div>
-                                            <div style="color: #374151;">${cleaned}</div>
-                                        </div>
-                                        ${i < arr.length - 1 ? '<hr style="border: none; height: 1px; background-color: #e5e7eb; width: 90%; margin: 1rem auto;" />' : ''}
-                                `;
-                    }).join('')}
-                            </div>
-                        </div>
-                    `).join('')}`;
-
-                    const submenuWrappers = wrapper.querySelectorAll('.submenu-wrapper');
-                    submenuWrappers.forEach(wrap => {
-                        const button = wrap.querySelector('button');
-                        const panel = wrap.querySelector('.script-panel');
-
-                        Object.assign(panel.style, {
-                            fontFamily: 'inherit',
-                            fontSize: '0.875rem',
-                            lineHeight: '1.25rem',
-                            padding: '0.5rem',
-                            maxWidth: '500px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-                            zIndex: '9999',
-                            position: 'fixed',
-                            display: 'none',
-                            whiteSpace: 'normal',
-                            color: '#374151'
-                        });
-
-                        wrap.addEventListener('mouseenter', () => {
-                            const rect = button.getBoundingClientRect();
-                            panel.style.top = `${rect.top + window.scrollY}px`;
-                            panel.style.left = `${rect.right + window.scrollX}px`;
-                            panel.style.display = 'block';
-                        });
-
-                        wrap.addEventListener('mouseleave', () => {
-                            panel.style.display = 'none';
-                            panel.classList.remove('hideToolTips');
-                        });
-
-                        panel.addEventListener('mouseleave', () => {
-                            panel.style.display = 'none';
-                            panel.classList.add('hideToolTips');
-                        });
-
-                        wrapper.addEventListener('mouseleave', () => {
-                            wrapper.classList.add('hidden');
-                        });
-                    });
-                } finally {
-                    wrapper.classList.toggle('hidden');
-                }
-            });
-        }
-    } catch (err) {
-        cErr('Error in addVoicemailMenu:' + err);
-    }
-}
 
 
 async function addQuickNotesMenu() {
@@ -4032,7 +3866,7 @@ async function addQuickNotesMenu() {
                 floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
 
                 noteButtonItem.addEventListener('click', () => {
-                    const textareaSelector = "textarea.n-input__textarea-el";
+                    const textareaSelector = "textarea.hr-input__textarea-el";
                     const saveButtonSelector = "#notes-form-save-btn";
 
                     function setTextareaValue(el, newText) {
@@ -5690,7 +5524,6 @@ function attachPhoneDialHandlers() {
                     rightOf: 'tb_email_menu'
                 });
 
-                // addVoicemailMenu();
                 addQuickNotesMenu();
 
                 removePostDialModal();
