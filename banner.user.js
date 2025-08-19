@@ -3866,7 +3866,7 @@ async function addQuickNotesMenu() {
                 floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
 
                 noteButtonItem.addEventListener('click', () => {
-                    const textareaSelector = "textarea.hr-input__textarea-el";
+                    const textareaSelector = 'textarea[class*="input__textarea-el"]';
                     const saveButtonSelector = "#notes-form-save-btn";
 
                     function setTextareaValue(el, newText) {
