@@ -3445,6 +3445,9 @@ async function addTemplateMenu({
                                 },
                                 'Closing File Soft Exit': {
                                     message: `Hi ${sellerFirstName}, I don’t want to keep bothering you. If I don’t hear back, I’ll assume you’re not interested and close your file. No hard feelings at all. I'll try reaching out again in the near future.`
+                                },
+                                'Expiring (FOMO)': {
+                                    message: `Hi ${sellerFirstName}. Our offer is about to expire. Don't miss out! Call or text me when you can.`
                                 }
                             },
                             'Advisor Change': {
