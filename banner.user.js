@@ -5846,7 +5846,8 @@ function attachPhoneDialHandlers() {
 
             } else {
             }
-          
+
+            modalBanner();
             avatarHref();
             attachPhoneDialHandlers();
             populateCallQueue();
