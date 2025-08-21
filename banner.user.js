@@ -2336,6 +2336,290 @@ function conversationsBanner() {
     }
 }
 
+async function modalBanner() {
+  const isOnContactPage = await isOnContactPage(location.href);
+  if (!isOnContactPage) return;
+
+  const config = window.scriptConfig || {};
+  const bannerMode = config.bannerMode;
+  const debugON = config.debug;
+
+  if (bannerMode === "modal") {
+    const userInfo = await getUserData();
+    if (!userInfo) return;
+
+    let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
+    let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
+    let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || "";
+    let propertyStreetName = getStreetName(document.querySelector('[name="contact.street_address"]')?.value) || "";
+
+    let myFullName = '';
+    let myFirstName = '';
+    let myLastName = '';
+    let myInitials = '';
+    let myEmail = '';
+    let myTele = '';
+
+    if (userInfo && userInfo.myFirstName) {
+      myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
+      myFirstName = userInfo.myFirstName;
+      myLastName = userInfo.myLastName;
+      myInitials = userInfo.myInitials;
+      myEmail = userInfo.myEmail;
+      myTele = userInfo.myTele;
+    }
+
+    // ===== FULL FIX WITH "END CALL" BUTTON TOGGLE + PER-ROUTE SUPPRESSION =====
+    (() => {
+      if (document.getElementById('modalOverlay')) return;
+
+      // ---------- namespace + helpers ----------
+      window.__leadTools = window.__leadTools || {};
+      const NS = window.__leadTools;
+      if (typeof NS.delay !== 'function') NS.delay = ms => new Promise(res => setTimeout(res, ms));
+
+      // ---------- per-route suppression (stay closed until SPA route changes) ----------
+      const MODAL_SUPPRESS_PREFIX = 'modalSuppressed::';
+      const PAGE_KEY = `${MODAL_SUPPRESS_PREFIX}${location.pathname}${location.search}${location.hash}`;
+
+      // If user previously closed on this route, don't open again
+      try {
+        if (sessionStorage.getItem(PAGE_KEY) === '1') return;
+      } catch (e) {}
+
+      // One-time hook into SPA navigation so a new route re-allows the modal
+      (() => {
+        if (NS.historyHooked) return;
+        NS.historyHooked = true;
+
+        const cleanOldKeys = () => {
+          try {
+            for (let i = sessionStorage.length - 1; i >= 0; i--) {
+              const k = sessionStorage.key(i);
+              if (k && k.startsWith(MODAL_SUPPRESS_PREFIX)) sessionStorage.removeItem(k);
+            }
+          } catch (e) {}
+        };
+
+        const onRouteChange = () => {
+          cleanOldKeys();
+        };
+
+        const _push = history.pushState;
+        const _replace = history.replaceState;
+
+        history.pushState = function () {
+          const ret = _push.apply(this, arguments);
+          onRouteChange();
+          return ret;
+        };
+        history.replaceState = function () {
+          const ret = _replace.apply(this, arguments);
+          onRouteChange();
+          return ret;
+        };
+        window.addEventListener('popstate', onRouteChange);
+      })();
+
+      // ---------- styles (idempotent, hard overrides) ----------
+      if (!document.getElementById('leadtools-style')) {
+        const style = document.createElement('style');
+        style.id = 'leadtools-style';
+        style.textContent = `
+          #modalOverlay{
+            position:fixed;inset:0;background:rgba(0,0,0,0.7);
+            display:flex;align-items:center;justify-content:center;z-index:999999
+          }
+          #modal{
+            background:#fff;border-radius:12px;
+            width:90vw !important;height:90dvh !important;
+            max-width:none !important;max-height:none !important;
+            display:flex;flex-direction:column;
+            box-shadow:0 4px 15px rgba(0,0,0,0.4);
+            font-family:sans-serif;font-size:2rem;line-height:1.6;
+          }
+          @supports not (height: 90dvh){
+            #modal{ height:90vh !important; }
+          }
+          #modal .body{padding:30px;flex:1;overflow-y:auto}
+          #modal .voicemail{padding:30px;border-top:2px solid #ddd;font-size:1.8rem}
+          #modal footer{
+            padding:20px;border-top:2px solid #ddd;
+            display:flex;flex-wrap:wrap;justify-content:center;gap:20px
+          }
+          #modal button{
+            cursor:pointer;font-size:2rem;padding:18px 28px;
+            border-radius:12px;border:none;min-width:220px
+          }
+          #modal button.primary{
+            background:#007bff !important;color:#fff !important;
+          }
+          #modal button.call{
+            background:#28a745 !important;color:#fff !important;
+          }
+          #modal button.end{
+            background:#dc3545 !important;color:#fff !important;
+          }
+          #modal button.secondary{
+            background:#ccc !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // ---------- actions ----------
+      window.clickToCall = async function clickToCall() {
+        const labelBlock = document.querySelector('.hl_header--controls');
+        if (!labelBlock) return console.warn('No .hl_header--controls');
+        const innerBlock = labelBlock.querySelector('.contact-detail-actions');
+        if (!innerBlock) return console.warn('No .contact-detail-actions');
+        const phoneIcon = innerBlock.querySelector('i.fa.fa-phone');
+        if (!phoneIcon) return console.warn('No phone icon');
+        const targetElement = phoneIcon.parentElement;
+        await NS.delay(10);
+        targetElement?.click();
+        phoneIcon?.click();
+      };
+
+      window.clickToNextContact = async function clickToNextContact() {
+        const labelBlock = document.querySelector('.d-inline-block.text-xs.text-gray-900');
+        const innerBlock = labelBlock?.querySelector('.d-inline-block');
+        const caret = innerBlock?.querySelector('i.fa.fa-caret-right.--blue');
+        if (caret?.parentElement) { await NS.delay(5000); caret.parentElement.click(); return; }
+        const fbCaret = document.querySelector('.hl_header--controls i.fa.fa-caret-right');
+        const fbTarget = fbCaret ? fbCaret.closest('.pointer, span, button, a, div') : null;
+        if (fbTarget) { await NS.delay(5000); fbTarget.click(); return; }
+        console.warn('Next caret not found.');
+      };
+
+      window.clickToEndCall = async function clickToEndCall() {
+        const interval = setInterval(() => {
+          const btn = document.querySelector('.dialer-body #end-call-button');
+          if (btn) {
+            btn.click();
+            clearInterval(interval);
+          }
+        }, 200);
+      };
+
+      // ---------- cleaners ----------
+      const isOnlyPipesOrSpace = t => /^\s*(\|\s*)*$/.test(t || '');
+      function cleanNode(node) {
+        if (!node) return node;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const t = node.textContent || '';
+          node.textContent = isOnlyPipesOrSpace(t) ? '' : t.replace(/\|/g, ' ').replace(/\s{2,}/g, ' ');
+          return node;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          node.removeAttribute('style');
+          node.removeAttribute('id');
+          node.removeAttribute('class');
+          if (node.tagName === 'A') { node.remove(); return null; }
+          if (node.tagName === 'I' && (node.className || '').includes('fa-clipboard')) {
+            node.remove(); return null;
+          }
+        }
+        [...node.childNodes].forEach(cleanNode);
+        return node;
+      }
+
+      // ---------- extract name + address ----------
+      const rawName = document.querySelector('#notification-banner-left')?.innerText.split('\n')[0].trim() || '';
+      const firstName = rawName.split(' ')[0] || '';
+      const rawAddress = document.querySelector('#notification-banner-left b')?.innerText.trim() || '';
+
+      // ---------- clone & clean banner pieces ----------
+      const left = document.querySelector('#notification-banner-left')?.cloneNode(true);
+      const centerLeft = document.querySelector('#notification-banner-center-left')?.cloneNode(true);
+      const cleanedLeft = left ? cleanNode(left) : null;
+      const cleanedCenter = centerLeft ? cleanNode(centerLeft) : null;
+
+      // ---------- build modal ----------
+      const overlay = document.createElement('div');
+      overlay.id = 'modalOverlay';
+      overlay.innerHTML = `
+        <div id="modal" role="dialog" aria-modal="true" aria-label="Lead details">
+          <div class="body" id="modalBody"></div>
+          <div class="voicemail" id="voicemailBody"></div>
+          <footer>
+            <button class="call" id="callBtn"><i class="fa fa-phone"></i> Call</button>
+            <button class="end" id="endBtn"><i class="fa fa-phone-slash"></i> End Call</button>
+            <button class="primary" id="nextBtn"><i class="fa fa-caret-right"></i> Next Account</button>
+            <button class="secondary" id="modalFooterClose">Close</button>
+          </footer>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const m = document.getElementById('modal');
+      if (m) {
+        m.style.width = '90vw';
+        m.style.height = (CSS.supports('height','90dvh') ? '90dvh' : '90vh');
+        m.style.maxWidth = 'none';
+        m.style.maxHeight = 'none';
+      }
+
+      const modalBody = document.getElementById('modalBody');
+      const voicemailBody = document.getElementById('voicemailBody');
+      if (cleanedLeft) modalBody.appendChild(cleanedLeft);
+      if (cleanedCenter) modalBody.appendChild(cleanedCenter);
+
+      modalBody.querySelectorAll('*').forEach(el => {
+        el.childNodes.forEach(n => {
+          if (n.nodeType === Node.TEXT_NODE) {
+            n.textContent = (n.textContent || '').replace(/\s{2,}/g, ' ');
+          }
+        });
+      });
+
+      voicemailBody.innerHTML = `
+        Hi ${firstName || '[first name]'}, my name is ${myFirstName}. I'm looking to purchase your property (on ${rawAddress || '[address]'}).<br>
+        Please give me a call. My number is ${myTele}. Thanks!
+      `;
+
+      // ---------- handlers ----------
+      const callBtn = document.getElementById('callBtn');
+      const endBtn = document.getElementById('endBtn');
+
+      // hide "End Call" button by default
+      endBtn.style.display = 'none';
+
+      function closeModal() {
+        try { sessionStorage.setItem(PAGE_KEY, '1'); } catch (e) {}
+        document.getElementById('modalOverlay')?.remove();
+        window.removeEventListener('keydown', onKey);
+      }
+      function onKey(e) { if (e.key === 'Escape') closeModal(); }
+
+      document.getElementById('modalFooterClose').onclick = closeModal;
+
+      callBtn.onclick = () => {
+        window.clickToCall();
+        callBtn.style.display = 'none';
+        endBtn.style.display = 'inline-block';
+      };
+
+      endBtn.onclick = () => {
+        window.clickToEndCall();
+        endBtn.style.display = 'none';
+        callBtn.style.display = 'inline-block';
+      };
+
+      document.getElementById('nextBtn').onclick = () => window.clickToNextContact();
+
+      document.getElementById('modalOverlay').addEventListener('click', e => {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+
+      window.addEventListener('keydown', onKey);
+      const modalEl = document.getElementById('modal');
+      modalEl.tabIndex = -1;
+      modalEl.focus();
+    })();
+  }
+}
+
 
 async function updateBanner() {
     if (!ENABLE_BANNER_UPDATE) return;
