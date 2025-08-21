@@ -2801,23 +2801,23 @@ async function updateBanner() {
                     <tbody>
                         <tr>
                             <td style="padding: 0 6px; text-align: right;">Inbound</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.inbound.phone}</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.inbound.sms}</td>
+                            <td style="padding: 0 6px; text-align: center;" id="inboundCallCount">${counts.inbound.phone}</td>
+                            <td style="padding: 0 6px; text-align: center;" id="inboundSMSCount">${counts.inbound.sms}</td>
                             <td style="padding: 0 6px; text-align: center;">—</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.inbound.email}</td>
+                            <td style="padding: 0 6px; text-align: center;" id="inboundEmailCount">${counts.inbound.email}</td>
                         </tr>
                         <tr>
                             <td style="padding: 0 6px; text-align: right;">Outbound</td>
-                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.phone > 2 ? 'color: red; font-weight: bold;' : ''}">
+                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.phone > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundCallCount">
                                 ${counts.outbound.phone}
                             </td>
-                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.sms === 'DND' ? 'color: red;' : (counts.outbound.sms > 2 ? 'color: red; font-weight: bold;' : '')}">
+                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.sms === 'DND' ? 'color: red;' : (counts.outbound.sms > 2 ? 'color: red; font-weight: bold;' : '')}" id="outboundSMSCount">
                                 ${counts.outbound.sms === 'DND' ? 'DND' : counts.outbound.sms}
                             </td>
-                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.voicemail > 2 ? 'color: red; font-weight: bold;' : ''}">
+                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.voicemail > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundVMCount">
                                 ${counts.outbound.voicemail}
                             </td>
-                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.email > 2 ? 'color: red; font-weight: bold;' : ''}">
+                            <td style="padding: 0 6px; text-align: center; ${counts.outbound.email > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundEmailCount">
                                 ${counts.outbound.email}
                             </td>
                         </tr>
