@@ -5749,7 +5749,7 @@ async function autoDispoCall() {
   }
   
   if (dispo === "Move to Final Contact" && counts.outbound.phone > 4) {
-     setDisposition("Unable to reach");
+     // setDisposition("Unable to reach");
      return;
   }
 }
