@@ -2337,6 +2337,7 @@ function conversationsBanner() {
 }
 
 async function modalBanner() {
+  return;
   const isOnContactPage = await isOnContactPage(location.href);
   if (!isOnContactPage) return;
 
