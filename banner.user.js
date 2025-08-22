@@ -215,7 +215,7 @@ function normalize(str) {
 }
 
 // Check if current page is a contact detail page
-function isOnContactPage(url = location.href) {
+function isOnContactPage(url) {
     if (!url) return;
     return url.includes('/contacts/detail/');
 }
