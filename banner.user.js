@@ -4431,7 +4431,7 @@ function removePostDialModal() {
             const button = el.getElementsByTagName("button")[0];
             if (button && button.innerText.includes("Done")) {
                 button.click();
-                setDisposition("Move to Contacted", "");
+                /// setDisposition("Move to Contacted", "");
                 // autoDispositionCall("Move to Contacted", "Contacted");
 
                 let sellerFirstName = ' '+document.querySelector('[name="contact.first_name"]').value;
@@ -5730,7 +5730,7 @@ function attachPhoneDialHandlers() {
 }
 
 async function autoDispoCall() {
-  const isOnContactPage = await isOnContactPage(location.href);
+  const isOnContactPage = await isOnContactPage();
   if (!isOnContactPage) return;
   
   let dispo = await getDisposition();
