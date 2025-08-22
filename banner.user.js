@@ -5729,6 +5729,25 @@ function attachPhoneDialHandlers() {
   });
 }
 
+async function autoDispoCall() {
+  const isOnContactPage = await isOnContactPage(location.href);
+  if (!isOnContactPage) return;
+  
+  let dispo = await getDisposition();
+  
+  if (dispo === "" && counts.outbound.phone < 3) {
+     setDisposition("Move to Contacted");
+  }
+  
+  if (dispo === "Move to Contacted" && counts.outbound.phone < 5) {
+     setDisposition("Move to Final Contact");
+  }
+  
+  if (dispo === "Move to Final Contact" && counts.outbound.phone < 7) {
+     setDisposition("Unable to reach");
+  }
+}
+
 
 (function() {
     'use strict';
@@ -5865,23 +5884,3 @@ function attachPhoneDialHandlers() {
         })();
     }, 1000);
 })();
-
-
-async function autoDispoCall() {
-  const isOnContactPage = await isOnContactPage(location.href);
-  if (!isOnContactPage) return;
-  
-  let dispo = await getDisposition();
-  
-  if (dispo === "" && counts.outbound.phone < 3) {
-     setDisposition("Move to Contacted");
-  }
-  
-  if (dispo === "Move to Contacted" && counts.outbound.phone < 5) {
-     setDisposition("Move to Final Contact");
-  }
-  
-  if (dispo === "Move to Final Contact" && counts.outbound.phone < 7) {
-     setDisposition("Unable to reach");
-  }
-}
