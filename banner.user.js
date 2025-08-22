@@ -5730,8 +5730,7 @@ function attachPhoneDialHandlers() {
 }
 
 async function autoDispoCall() {
-  const isOnContactPage = await isOnContactPage();
-  if (!isOnContactPage) return;
+  if (!location.href.includes('/contacts/detail/')) return;
   
   let dispo = await getDisposition();
   
