@@ -5746,7 +5746,7 @@ async function autoDispoCall() {
      setDisposition("Move to Final Contact");
   }
   
-  if (dispo === "Move to Final Contact" && counts.outbound.phone < 7) {
+  if (dispo === "Move to Final Contact" && counts.outbound.phone > 4) {
      setDisposition("Unable to reach");
   }
 }
