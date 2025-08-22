@@ -5732,6 +5732,8 @@ function attachPhoneDialHandlers() {
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
   const counts = await extractContactData();
+
+  if (!counts) return;
   
   let dispo = await getDisposition();
   
