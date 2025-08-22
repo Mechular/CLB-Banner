@@ -5857,6 +5857,7 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
+            autoDispoCall();
                 // execute extractNoteData once
                 // if (!hasRunExtractNoteData) {
                 //     extractNoteData();
@@ -5878,7 +5879,6 @@ async function autoDispoCall() {
             updateDocuSealIframeSrc();
             openConversationSameWindow();
             conversationsBanner();
-            autoDispoCall();
 
             // cleanupDetachedDOMNodes();
         })();
