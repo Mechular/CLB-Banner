@@ -5737,20 +5737,20 @@ async function autoDispoCall() {
   if (!counts) return;
   
   let dispo = await getDisposition();
-
-  console.log('counts.outbound.phone', counts.outbound.phone);
-  return;
   
   if (dispo === "" && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
+     return;
   }
   
   if (dispo === "Move to Contacted" && counts.outbound.phone < 5) {
      setDisposition("Move to Final Contact");
+     return;
   }
   
   if (dispo === "Move to Final Contact" && counts.outbound.phone > 4) {
      setDisposition("Unable to reach");
+     return;
   }
 }
 
