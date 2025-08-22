@@ -215,7 +215,7 @@ function normalize(str) {
 }
 
 // Check if current page is a contact detail page
-function isOnContactPage(url) {
+function isOnContactPage(url = location.href) {
     if (!url) return;
     return url.includes('/contacts/detail/');
 }
@@ -4026,7 +4026,7 @@ async function addQuickNotesMenu() {
             const noteOptions = [];
 
             let dispo = await getDisposition();
-
+          
             // Check if dispo is empty or "Move to Contacted"
             if (dispo === "Unable to reach") {
                 noteOptions.push({
@@ -4182,7 +4182,7 @@ async function addQuickNotesMenu() {
                             if (saveButton) {
                                 setTimeout(() => saveButton.click(), 100);
                                 if (dispo) {
-                                    setDisposition(dispo);
+                                    // setDisposition(dispo);
                                 }
                                 if (nextAccount) {
                                     clickToNextContact();
@@ -5859,8 +5859,29 @@ function attachPhoneDialHandlers() {
             updateDocuSealIframeSrc();
             openConversationSameWindow();
             conversationsBanner();
+            autoDispoCall();
 
             // cleanupDetachedDOMNodes();
         })();
     }, 1000);
 })();
+
+
+async function autoDispoCall() {
+  const isOnContactPage = await isOnContactPage(location.href);
+  if (!isOnContactPage) return;
+  
+  let dispo = await getDisposition();
+  
+  if (dispo === "" && counts.outbound.phone < 3) {
+     setDisposition("Move to Contacted");
+  }
+  
+  if (dispo === "Move to Contacted" && counts.outbound.phone < 5) {
+     setDisposition("Move to Final Contact");
+  }
+  
+  if (dispo === "Move to Final Contact" && counts.outbound.phone < 7) {
+     setDisposition("Unable to reach");
+  }
+}
