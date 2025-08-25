@@ -1877,7 +1877,7 @@ async function extractNoteData() {
             json.propertyAddressLine1 = json.propertyAddress;
         }
 
-        // console.log(JSON.stringify(json, null, 2));
+        console.log(JSON.stringify(json, null, 2));
         // console.log(json);
 
         return json;
