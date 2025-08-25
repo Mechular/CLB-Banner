@@ -5743,7 +5743,7 @@ async function autoDispoCall() {
      return;
   }
   
-  if (dispo === "Move to Contacted" && counts.outbound.phone < 5) {
+  if (dispo === "Move to Contacted" && counts.outbound.phone > 2) {
      setDisposition("Move to Final Contact");
      return;
   }
@@ -5863,7 +5863,7 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
-            // autoDispoCall();
+            autoDispoCall();
                 // execute extractNoteData once
                 // if (!hasRunExtractNoteData) {
                 //     extractNoteData();
