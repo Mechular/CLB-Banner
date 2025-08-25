@@ -1425,7 +1425,7 @@ function findAllNoteBlocks({
 
   function matchBlockIn(root) {
     const noteBlocks = root.querySelectorAll(
-      'div.text-gray-700.text-sm.overflow-hidden.break-words.whitespace-pre-line'
+      'div.note-content'
     );
 
     for (const noteBlock of noteBlocks) {
