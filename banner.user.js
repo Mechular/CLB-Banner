@@ -1706,6 +1706,8 @@ async function extractNoteData() {
 
             const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").replace("، الولايات المتحدة", "").split("\n");
 
+          console.log('lines', lines);
+
             for (let line of lines) {
                 const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
                 if (!match) continue;
