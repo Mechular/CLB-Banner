@@ -5863,7 +5863,7 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
-            autoDispoCall();
+            // autoDispoCall();
                 // execute extractNoteData once
                 // if (!hasRunExtractNoteData) {
                 //     extractNoteData();
