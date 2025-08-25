@@ -1706,7 +1706,8 @@ async function extractNoteData() {
 
             const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").split("\n");
 
-            for (const line of lines) {
+            for (let line of lines) {
+                line = line.split("،")[0];
                 const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
                 if (!match) continue;
 
