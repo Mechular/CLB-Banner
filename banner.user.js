@@ -1704,11 +1704,9 @@ async function extractNoteData() {
 
             json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
 
-            const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").split("\n");
+            const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").replace("، الولايات المتحدة", "").split("\n");
 
             for (let line of lines) {
-                line = line.split("،")[0];
-                console.log('line :::', line);
                 const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
                 if (!match) continue;
 
