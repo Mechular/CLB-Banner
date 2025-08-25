@@ -1744,7 +1744,7 @@ async function extractNoteData() {
             // json.propertyAddressLine1 = json.propertyAddress || document.querySelector('[name="contact.street_address"]')?.value || "";
         }
 
-        let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value;
+        let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value.replace(", USA", "").replace(" USA", "");
         let propertyCity = document.querySelector('[name="contact.property_city"]')?.value;
         let propertyStateShort = document.querySelector('[name="contact.state_property"]')?.value;
         let propertyZip = document.querySelector('[name="contact.property_postal_code"]')?.value;
