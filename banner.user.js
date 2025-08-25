@@ -5733,11 +5733,12 @@ function attachPhoneDialHandlers() {
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
   const counts = await extractContactData();
+  let dispo = await getDisposition();
 
   if (!counts) return;
-  
-  let dispo = await getDisposition();
-  
+
+  console.log('autoDispoCall running');
+    
   if (dispo === "" && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
      return;
