@@ -1390,7 +1390,7 @@ async function hideCallSummaryNotes() {
         myTele = userInfo.myTele;
     }
 
-    const noteBlocks = container.querySelectorAll('div.text-gray-700.text-sm.overflow-hidden.break-words.whitespace-pre-line');
+    const noteBlocks = container.querySelectorAll('div.note-content');
     if (!noteBlocks) return;
 
     for (const noteBlock of noteBlocks) {
@@ -5736,8 +5736,6 @@ async function autoDispoCall() {
   let dispo = await getDisposition();
 
   if (!counts) return;
-
-  console.log('autoDispoCall running');
     
   if (dispo === "" && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
