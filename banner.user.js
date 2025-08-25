@@ -1398,7 +1398,7 @@ async function hideCallSummaryNotes() {
         const isCallSummary = content.includes("****call summary");
 
         if (isCallSummary) {
-            const target = noteBlock.parentNode.parentNode;
+            const target = noteBlock.parentNode.parentNode.parentNode;
             if (target && target.style.display !== "none") {
                 target.style.display = "none";
             }
