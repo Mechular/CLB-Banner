@@ -1734,8 +1734,8 @@ async function extractNoteData() {
             // console.log(noteBlock);
         }
 
-        // console.log('json.propertyAddress :: ', json.propertyAddress);
-        // console.log('json.propertyAddressLine1 :: ', json.propertyAddressLine1);
+        console.log('json.propertyAddress :: ', json.propertyAddress);
+        console.log('json.propertyAddressLine1 :: ', json.propertyAddressLine1);
         if ((!json.propertyAddress || json.propertyAddress === '') && json.propertyAddressLine1) {
             json.propertyAddress = json.propertyAddressLine1 || document.querySelector('[name="contact.street_address"]')?.value || "";
         }
