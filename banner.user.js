@@ -1708,6 +1708,7 @@ async function extractNoteData() {
 
             for (let line of lines) {
                 line = line.split("،")[0];
+                console.log('line :::', line);
                 const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
                 if (!match) continue;
 
