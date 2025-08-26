@@ -1709,7 +1709,7 @@ async function extractNoteData() {
             remainder = rest.slice(next).trim();
           }
 
-          out.push([keyCand.toLowerCase().replace(/\s+/g, ""), value]);
+          out.push([keyCand.toLowerCase().replace(/[^\w]/g, ""), value]);
 
           // Continue with the remainder to catch further pairs
           s = remainder;
@@ -1769,7 +1769,10 @@ async function extractNoteData() {
         amountOwed: ["ifnohowmuchowed"],
         additionalPropertyNotes: ["doyouhaveanythingelseyouliketoshareaboutyourproperty"],
         saleReason: ["thankyouforprovidingthisinformationonelastquestionwhyareyoulookingtosellyourproperty"],
-        additionalComments: ["comments"]
+        additionalComments: [
+          "comments",
+          "mayiaskthenatureofyourcall"
+        ]
       };
 
       json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
@@ -1797,6 +1800,22 @@ async function extractNoteData() {
         const found = extractValidEmail(noteText);
         if (found) json.sellerEmail = found;
       }
+
+      // Backfill first and last names from full name if available
+      if (!json.sellerFirstName && json.sellerFullName) {
+        const parts = json.sellerFullName.trim().split(/\s+/);
+        if (parts.length) {
+          json.sellerFirstName = json.sellerFirstName || parts[0];
+          if (!json.sellerLastName && parts.length > 1) {
+            json.sellerLastName = parts.slice(1).join(" ");
+          }
+        }
+      }
+      
+      // Treat lone hyphen values like "Comments:  -" as empty
+      ["additionalComments", "appointmentDate", "scenario"].forEach(k => {
+        if (json[k] && json[k].trim() === "-") json[k] = "";
+      });
     }
 
     // Form input fallbacks if present
