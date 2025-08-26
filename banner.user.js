@@ -4115,7 +4115,8 @@ async function addQuickNotesMenu() {
 
 
             if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
-                if (counts.outbound.phone >= 2 && (counts.outbound.sms >= 2 || counts.outbound.sms === "DND")) {
+                //if (counts.outbound.phone >= 2 && (counts.outbound.sms >= 2 || counts.outbound.sms === "DND")) {
+              if (counts.outbound.phone >= 5) {
                     noteOptions.push({
                         name: 'Move to Unable to Reach',
                         text: `Call attempt #${counts.outbound.phone} - Unable to reach.\nTotal Voicemail: ${counts.outbound.voicemail}\nTotal SMS: ${counts.outbound.sms}\nTotal Email: ${counts.outbound.email} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
