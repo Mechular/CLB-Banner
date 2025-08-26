@@ -1651,6 +1651,55 @@ async function extractNoteData() {
           return m ? m[0].toLowerCase() : "";
         };
 
+        function toUspsState(abbrevOrName = "") {
+          const s = abbrevOrName.trim();
+          if (!s) return "";
+          // Already a 2-letter code
+          if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+        
+          const map = {
+            Alabama:"AL", Alaska:"AK", Arizona:"AZ", Arkansas:"AR", California:"CA",
+            Colorado:"CO", Connecticut:"CT", Delaware:"DE", "District of Columbia":"DC",
+            Florida:"FL", Georgia:"GA", Hawaii:"HI", Idaho:"ID", Illinois:"IL",
+            Indiana:"IN", Iowa:"IA", Kansas:"KS", Kentucky:"KY", Louisiana:"LA",
+            Maine:"ME", Maryland:"MD", Massachusetts:"MA", Michigan:"MI", Minnesota:"MN",
+            Mississippi:"MS", Missouri:"MO", Montana:"MT", Nebraska:"NE", Nevada:"NV",
+            "New Hampshire":"NH", "New Jersey":"NJ", "New Mexico":"NM", "New York":"NY",
+            "North Carolina":"NC", "North Dakota":"ND", Ohio:"OH", Oklahoma:"OK",
+            Oregon:"OR", Pennsylvania:"PA", "Rhode Island":"RI", "South Carolina":"SC",
+            "South Dakota":"SD", Tennessee:"TN", Texas:"TX", Utah:"UT", Vermont:"VT",
+            Virginia:"VA", Washington:"WA", "West Virginia":"WV", Wisconsin:"WI", Wyoming:"WY"
+          };
+          // Title-case lookup
+          const key = s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+          return map[key] || "";
+        }
+
+        // Split any line that accidentally contains multiple "key - value" pairs
+        function explodePairs(line) {
+          // Fast path: exactly one delimiter → leave it
+          const one = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
+          if (!one) return [line];
+          const delim = one[2];
+        
+          // If there are more delimiters after the first, split into tokens and
+          // reconstruct pairs as [key, value, key, value, ...].
+          const tokens = line.split(delim).map(s => s.trim()).filter(Boolean);
+          if (tokens.length <= 2) return [line];
+        
+          const out = [];
+          for (let i = 0; i < tokens.length; i += 2) {
+            const k = tokens[i];
+            const v = tokens[i + 1] ?? "";
+            if (!k || !v) {
+              // if we can’t form a clean pair, fall back to the original line
+              return [line];
+            }
+            out.push(`${k} - ${v}`);
+          }
+          return out;
+        }
+
         if (noteBlock) {
             keyMapping = {
                 sellerFullName: [
@@ -1710,7 +1759,15 @@ async function extractNoteData() {
 
             json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
 
-            const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").replace("، الولايات المتحدة", "").split("\n");
+            const rawLines = noteBlock.innerText
+            .replace(/\s{2,}/g, "  ")
+            .replace("، الولايات المتحدة", "")
+            .split("\n")
+            .map(l => l.trim())
+            .filter(Boolean);
+          
+          // Expand any lines that contain multiple pairs into individual lines
+          const lines = rawLines.flatMap(explodePairs);
 
           // if no email captured yet, scan the entire note text for any email pattern
           if (!json.sellerEmail) {
@@ -1781,7 +1838,7 @@ async function extractNoteData() {
             json.propertyAddress          = parts[0] || "";
             json.propertyAddressLine1     = json.propertyAddress;
             json.propertyCity             = propertyCity || parts[1] || "";
-            json.propertyStateShort       = propertyStateShort || stateZip[0] || "";
+            json.propertyStateShort       = toUspsState(propertyStateShort || stateZip[0] || json.propertyState || "");
             json.propertyZip              = propertyZip || stateZip[1] || "";
 
         } else if (commaCount === 1) {
@@ -1793,7 +1850,7 @@ async function extractNoteData() {
             json.propertyAddress          = parts[0] || "";
             json.propertyAddressLine1     = json.propertyAddress;
             json.propertyCity             = propertyCity || cityStateZip[0] || "";
-            json.propertyStateShort       = propertyStateShort || cityStateZip[1] || "";
+            json.propertyStateShort       = toUspsState(propertyStateShort || cityStateZip[1] || json.propertyState || "");
             json.propertyZip              = propertyZip || cityStateZip[2] || "";
         } else {
             cLog("No commas — applying regex fallback");
@@ -1804,7 +1861,7 @@ async function extractNoteData() {
                 json.propertyAddress      = match[1]?.trim() || "";
                 json.propertyAddressLine1 = json.propertyAddress;
                 json.propertyCity         = propertyCity || match[2]?.trim() || "";
-                json.propertyStateShort   = propertyStateShort || match[3] || "";
+                json.propertyStateShort   = toUspsState(propertyStateShort || match[3] || json.propertyState || "");
                 json.propertyZip          = propertyZip || match[4] || "";
             } else {
                 cLog("Regex failed — using fallback heuristics");
@@ -1816,7 +1873,7 @@ async function extractNoteData() {
                 const thirdLast = words[words.length - 3];
 
                 json.propertyZip          = propertyZip || (/^\d{5}$/.test(last) ? last : "");
-                json.propertyStateShort   = propertyStateShort || (/^[A-Za-z]{2}$/.test(secondLast) ? secondLast : "");
+                json.propertyStateShort   = toUspsState(propertyStateShort || (/^[A-Za-z]{2}$/.test(secondLast) ? secondLast : json.propertyState) || "");
                 json.propertyCity         = propertyCity || thirdLast || "";
                 json.propertyAddress      = rawAddress;
                 json.propertyAddressLine1 = rawAddress;
@@ -1881,12 +1938,15 @@ async function extractNoteData() {
             delete json[key];
         }
 
-        json.propertyAddress = [
-            json.propertyAddressLine1,
-            json.propertyCity,
-            json.propertyStateShort,
-            json.propertyZip
-        ].filter(part => part && part.trim() !== '').join(', ');
+        // Build "Street, City, ST ZIP" (no comma before ZIP)
+        {
+          const line1 = (json.propertyAddressLine1 || "").trim();
+          const city  = (json.propertyCity || "").trim();
+          const st    = toUspsState(json.propertyStateShort || json.propertyState || "");
+          const zip   = (json.propertyZip || "").trim();
+          const stZip = [st, zip].filter(Boolean).join(" "); // ← space, not comma
+          json.propertyAddress = [line1, city, stZip].filter(Boolean).join(", ");
+        }
 
         applyFallbacks(json);
 
