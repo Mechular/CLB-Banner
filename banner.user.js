@@ -1709,7 +1709,8 @@ async function extractNoteData() {
             remainder = rest.slice(next).trim();
           }
 
-          out.push([keyCand.toLowerCase().replace(/[^\w]/g, ""), value]);
+          // Preserve spaces when normalizing the key
+          out.push([keyCand.toLowerCase().replace(/[^a-z0-9\s]/gi, "").replace(/\s+/g, ""), value]);
 
           // Continue with the remainder to catch further pairs
           s = remainder;
@@ -1801,10 +1802,10 @@ async function extractNoteData() {
         if (found) json.sellerEmail = found;
       }
       
-      // --- CLEANUP: cut any trailing jammed pairs off full name ---
       if (json.sellerFullName) {
+        // Keep everything until another valid key appears
         json.sellerFullName = json.sellerFullName
-          .split(/\s{2,}(?=[A-Za-z][A-Za-z\s?()']*\s(?:-\s|:|\s{2,}))/)[0]
+          .replace(/\s{2,}(?=[A-Za-z][A-Za-z\s?()']*\s(?:-\s|:|\s{2,}))/g, "")
           .trim();
       }
       
