@@ -4350,7 +4350,8 @@ async function extractContactData() {
     let counts = {
         outbound: { phone: 0, sms: 0, email: 0, voicemail: 0 },
         inbound: { phone: 0, sms: 0, email: 0 },
-        today: { phone: false, voicemail: false, sms: false, email: false }
+        // today: { phone: false, voicemail: false, sms: false, email: false }
+        today: { phone: 0, voicemail: 0, sms: 0, email: 0 }
     };
 
     let isDND = false;
@@ -4419,18 +4420,27 @@ async function extractContactData() {
                 counts.outbound.phone++;
                 if (isVoicemail) {
                     counts.outbound.voicemail++;
-                    if (isToday) counts.today.voicemail = true;
+                    if (isToday) {
+                      // counts.today.voicemail = true;
+                      counts.today.voicemail++;
+                    }
                 }
             } else if (isInbound) {
                 counts.inbound.phone++;
             }
 
-            if (isToday) counts.today.phone = true;
+            if (isToday) {
+              // counts.today.phone = true;
+              counts.today.phone++;
+            }
 
         } else if (smsBubble || isSmsIcon) {
             if (isOutbound && !isDND) {
                 counts.outbound.sms++;
-                if (isToday) counts.today.sms = true;
+                if (isToday) {
+                  // counts.today.sms = true;
+                  counts.today.sms++;
+                }
             } else if (isInbound) {
                 counts.inbound.sms++;
 
@@ -4475,7 +4485,10 @@ async function extractContactData() {
 
             if (isOwnMessage) {
                 counts.outbound.email++;
-                if (isTodayEmail) counts.today.email = true;
+                if (isTodayEmail) {
+                  // counts.today.email = true;
+                  counts.today.email++;
+                }
             } else {
                 counts.inbound.email++;
             }
