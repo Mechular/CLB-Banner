@@ -1645,6 +1645,12 @@ async function extractNoteData() {
 
         let json = {};
 
+        const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+        const extractValidEmail = (s = "") => {
+          const m = s.match(EMAIL_REGEX);
+          return m ? m[0].toLowerCase() : "";
+        };
+
         if (noteBlock) {
             keyMapping = {
                 sellerFullName: [
@@ -1729,9 +1735,15 @@ async function extractNoteData() {
                 if (!mappedKey) mappedKey = rawKey;
 
                 if (mappedKey in json && json[mappedKey] === '') {
-                    json[mappedKey] = value;
-                    // console.log('mappedKey', mappedKey, 'value', value);
+                    const sanitized =
+                        mappedKey === "sellerEmail" ? extractValidEmail(value) : value;
+                
+                    // only set sellerEmail if it actually contains a valid email
+                    if (mappedKey !== "sellerEmail" || sanitized) {
+                        json[mappedKey] = sanitized;
+                    }
                 }
+
             }
             // console.log(noteBlock);
         }
@@ -1812,6 +1824,13 @@ async function extractNoteData() {
         json.propertyCounty = json.propertyCounty || "";
         json.propertyZip = json.propertyZip || "";
 
+        // if no email captured yet, scan the entire note text for any email pattern
+        if (!json.sellerEmail) {
+            const wholeNote = lines.join(" ");
+            const found = extractValidEmail(wholeNote);
+            if (found) json.sellerEmail = found;
+        }
+      
         if (json.sellerEmail) {
             json.sellerEmail = json.sellerEmail.toLowerCase().trim();
         }
