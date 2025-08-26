@@ -4114,7 +4114,7 @@ async function addQuickNotesMenu() {
             }
 
 
-            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
+            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
                 //if (counts.outbound.phone >= 2 && (counts.outbound.sms >= 2 || counts.outbound.sms === "DND")) {
               if (counts.outbound.phone >= 5) {
                     noteOptions.push({
