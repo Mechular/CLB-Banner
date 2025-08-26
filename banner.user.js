@@ -1630,355 +1630,306 @@ function cleanMessageEmail(msg) {
 
 
 async function extractNoteData() {
-    try {
-        const container = document.getElementById("notes-list-container-contact");
-        if (!container) return;
+  try {
+    const container = document.getElementById("notes-list-container-contact");
+    if (!container) return;
 
-        let keyMapping = {};
+    let keyMapping = {};
 
-        // let dispo = await getDisposition();
-        // if (dispo !== "") return;
+    // let dispo = await getDisposition();
+    // if (dispo !== "") return;
 
-        if (!notesScrollInitialized) {
-            noteBlock = await findAllNoteBlocks({ maxMs: 12000, pollIntervalMs: 250, maxStableChecks: 3 });
-        }
-
-        let json = {};
-
-        const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-        const extractValidEmail = (s = "") => {
-          const m = s.match(EMAIL_REGEX);
-          return m ? m[0].toLowerCase() : "";
-        };
-
-        function toUspsState(abbrevOrName = "") {
-          const s = abbrevOrName.trim();
-          if (!s) return "";
-          // Already a 2-letter code
-          if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
-        
-          const map = {
-            Alabama:"AL", Alaska:"AK", Arizona:"AZ", Arkansas:"AR", California:"CA",
-            Colorado:"CO", Connecticut:"CT", Delaware:"DE", "District of Columbia":"DC",
-            Florida:"FL", Georgia:"GA", Hawaii:"HI", Idaho:"ID", Illinois:"IL",
-            Indiana:"IN", Iowa:"IA", Kansas:"KS", Kentucky:"KY", Louisiana:"LA",
-            Maine:"ME", Maryland:"MD", Massachusetts:"MA", Michigan:"MI", Minnesota:"MN",
-            Mississippi:"MS", Missouri:"MO", Montana:"MT", Nebraska:"NE", Nevada:"NV",
-            "New Hampshire":"NH", "New Jersey":"NJ", "New Mexico":"NM", "New York":"NY",
-            "North Carolina":"NC", "North Dakota":"ND", Ohio:"OH", Oklahoma:"OK",
-            Oregon:"OR", Pennsylvania:"PA", "Rhode Island":"RI", "South Carolina":"SC",
-            "South Dakota":"SD", Tennessee:"TN", Texas:"TX", Utah:"UT", Vermont:"VT",
-            Virginia:"VA", Washington:"WA", "West Virginia":"WV", Wisconsin:"WI", Wyoming:"WY"
-          };
-          // Title-case lookup
-          const key = s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-          return map[key] || "";
-        }
-
-        // Split any line that accidentally contains multiple "key - value" pairs
-        function explodePairs(line) {
-          // Fast path: exactly one delimiter → leave it
-          const one = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
-          if (!one) return [line];
-          const delim = one[2];
-        
-          // If there are more delimiters after the first, split into tokens and
-          // reconstruct pairs as [key, value, key, value, ...].
-          const tokens = line.split(delim).map(s => s.trim()).filter(Boolean);
-          if (tokens.length <= 2) return [line];
-        
-          const out = [];
-          for (let i = 0; i < tokens.length; i += 2) {
-            const k = tokens[i];
-            const v = tokens[i + 1] ?? "";
-            if (!k || !v) {
-              // if we can’t form a clean pair, fall back to the original line
-              return [line];
-            }
-            out.push(`${k} - ${v}`);
-          }
-          return out;
-        }
-
-        if (noteBlock) {
-            keyMapping = {
-                sellerFullName: [
-                    "name",
-                    "callername"
-                ],
-                sellerFirstName: ["firstname"],
-                sellerLastName: ["lastname"],
-                sellerPhone: ["phone", "mayihaveyourphonenumber"],
-                sellerEmail: ["email", "mayihaveyouremailaddress"],
-                propertyAddressLine1: ["streetaddress"],
-                propertyAddress: [
-                    "addressstreetaddress", "formattedaddress",
-                    "mayihavethephysicaladdressorapntotheproperty?(oranyotherpropertyidentifier)",
-                    "street", "address", "propertyaddress"
-                ],
-                propertyStreetNumber: ["streetnumber"],
-                propertyGarage: ["garage"],
-                propertyBedrooms: ["bedrooms"],
-                propertyBathrooms: ["bathrooms"],
-                propertyRepairs: ["repairs"],
-                propertyOccupied: ["occupied"],
-                sellerUrgency: ["sellfast"],
-                propertyGoal: ["goal"],
-                propertyOwner: ["owner"],
-                propertyOwnedYears: ["ownedyears"],
-                propertyMortgage: ["mortgage"],
-                propertyListed: ["listed", "isthepropertylistedwitharealtornoworhasitbeeninthelast12months"],
-                listedPrice: ["ifyeshowmuchiswasitlistedfor"],
-                propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin"],
-                propertyCity: ["citystate", "city"],
-                propertyState: ["state"],
-                propertyZip: ["zip", "postalcode"],
-                leadDate: ["date"],
-                leadStatus: ["leadstatus"],
-                leadSource: ["source"],
-                leadSourceChannel: ["sourcechannel"],
-                appointmentDate: ["appointmentdate"],
-                scenario: ["scenario"],
-                callId: ["callid"],
-                callFromNumber: ["fromnumber"],
-                callToNumber: ["tonumber"],
-                callStart: ["callstart"],
-                callStop: ["callstop"],
-                callDuration: ["duration"],
-                callStatus: ["callstatus"],
-                askingPrice: ["howmuchareyouaskingforyourproperty"],
-                isOwner: ["areyoutheownerofrecord"],
-                ownerOfRecord: ["ifnowhoistheownerofrecord"],
-                ownerRelationship: ["ifnorelationship"],
-                isFreeAndClear: ["doownthepropertyfreeandclear"],
-                amountOwed: ["ifnohowmuchowed"],
-                additionalPropertyNotes: ["doyouhaveanythingelseyouliketoshareaboutyourproperty"],
-                saleReason: ["thankyouforprovidingthisinformationonelastquestionwhyareyoulookingtosellyourproperty"],
-                additionalComments: ["comments"]
-            };
-
-            json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
-
-            const rawLines = noteBlock.innerText
-            .replace(/\s{2,}/g, "  ")
-            .replace("، الولايات المتحدة", "")
-            .split("\n")
-            .map(l => l.trim())
-            .filter(Boolean);
-          
-          // Expand any lines that contain multiple pairs into individual lines
-          const lines = rawLines.flatMap(explodePairs);
-
-          // if no email captured yet, scan the entire note text for any email pattern
-          if (!json.sellerEmail) {
-              const wholeNote = lines.join(" ");
-              const found = extractValidEmail(wholeNote);
-              if (found) json.sellerEmail = found;
-          }
-          
-          console.log('lines', lines);
-
-            for (let line of lines) {
-                const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
-                if (!match) continue;
-
-                const rawKey = match[1]?.trim()?.toLowerCase()?.replace(/[\s:\-]/g, '') || '';
-                const value = match[3]?.trim() || '';
-                if (!value) continue;
-
-                let mappedKey = null;
-
-                for (const [key, aliases] of Object.entries(keyMapping)) {
-                    const aliasList = Array.isArray(aliases) ? aliases : [aliases];
-                    if (aliasList.includes(rawKey)) {
-                        mappedKey = key;
-                        break;
-                    }
-                }
-
-                if (!mappedKey) mappedKey = rawKey;
-
-                if (mappedKey in json && json[mappedKey] === '') {
-                    const sanitized =
-                        mappedKey === "sellerEmail" ? extractValidEmail(value) : value;
-                
-                    // only set sellerEmail if it actually contains a valid email
-                    if (mappedKey !== "sellerEmail" || sanitized) {
-                        json[mappedKey] = sanitized;
-                    }
-                }
-
-            }
-            // console.log(noteBlock);
-        }
-
-        console.log('json.propertyAddress :: ', json.propertyAddress);
-        console.log('json.propertyAddressLine1 :: ', json.propertyAddressLine1);
-        if ((!json.propertyAddress || json.propertyAddress === '') && json.propertyAddressLine1) {
-            json.propertyAddress = json.propertyAddressLine1 || document.querySelector('[name="contact.street_address"]')?.value || "";
-        }
-
-        if (json.propertyAddress && !json.propertyAddressLine1) {
-            // json.propertyAddressLine1 = json.propertyAddress || document.querySelector('[name="contact.street_address"]')?.value || "";
-        }
-
-        let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value.replace(", USA", "").replace(" USA", "");
-        let propertyCity = document.querySelector('[name="contact.property_city"]')?.value;
-        let propertyStateShort = document.querySelector('[name="contact.state_property"]')?.value;
-        let propertyZip = document.querySelector('[name="contact.property_postal_code"]')?.value;
-
-        const rawAddress = json.propertyAddress || "";
-        const commaCount = (rawAddress.match(/,/g) || []).length;
-
-        if (commaCount >= 2) {
-            cLog("2+ commas — parsing address as Street, City, State Zip");
-            const parts = rawAddress.split(",").map(p => p.trim());
-            const stateZip = parts[2]?.split(/\s+/) || [];
-
-            json.propertyAddress          = parts[0] || "";
-            json.propertyAddressLine1     = json.propertyAddress;
-            json.propertyCity             = propertyCity || parts[1] || "";
-            json.propertyStateShort       = toUspsState(propertyStateShort || stateZip[0] || json.propertyState || "");
-            json.propertyZip              = propertyZip || stateZip[1] || "";
-
-        } else if (commaCount === 1) {
-            cLog("1 comma — parsing address as Street, City State Zip");
-
-            const parts = rawAddress.split(",").map(p => p.trim());
-            const cityStateZip = parts[1]?.split(/\s+/) || [];
-
-            json.propertyAddress          = parts[0] || "";
-            json.propertyAddressLine1     = json.propertyAddress;
-            json.propertyCity             = propertyCity || cityStateZip[0] || "";
-            json.propertyStateShort       = toUspsState(propertyStateShort || cityStateZip[1] || json.propertyState || "");
-            json.propertyZip              = propertyZip || cityStateZip[2] || "";
-        } else {
-            cLog("No commas — applying regex fallback");
-            const match = rawAddress.match(/^(.*)\s+([A-Za-z\s]+?)\s+([A-Za-z]{2})\s+(\d{5})$/);
-
-            if (match) {
-                cLog("Regex matched full address with city/state/zip");
-                json.propertyAddress      = match[1]?.trim() || "";
-                json.propertyAddressLine1 = json.propertyAddress;
-                json.propertyCity         = propertyCity || match[2]?.trim() || "";
-                json.propertyStateShort   = toUspsState(propertyStateShort || match[3] || json.propertyState || "");
-                json.propertyZip          = propertyZip || match[4] || "";
-            } else {
-                cLog("Regex failed — using fallback heuristics");
-
-                // Best-effort fallback: split into chunks from the end
-                const words = rawAddress.trim().split(/\s+/);
-                const last = words[words.length - 1];
-                const secondLast = words[words.length - 2];
-                const thirdLast = words[words.length - 3];
-
-                json.propertyZip          = propertyZip || (/^\d{5}$/.test(last) ? last : "");
-                json.propertyStateShort   = toUspsState(propertyStateShort || (/^[A-Za-z]{2}$/.test(secondLast) ? secondLast : json.propertyState) || "");
-                json.propertyCity         = propertyCity || thirdLast || "";
-                json.propertyAddress      = rawAddress;
-                json.propertyAddressLine1 = rawAddress;
-            }
-        }
-
-
-        json.propertyAddress = json.propertyAddress || "";
-        json.propertyCity = json.propertyCity || "";
-        json.propertyState = json.propertyState || "";
-        json.propertyStateShort = json.propertyStateShort || "";
-        json.propertyCounty = json.propertyCounty || "";
-        json.propertyZip = json.propertyZip || "";
-      
-        if (json.sellerEmail) {
-            json.sellerEmail = json.sellerEmail.toLowerCase().trim();
-        }
-
-        if (json.sellerPhone) {
-            let digits = json.sellerPhone.replace(/\D/g, '');
-            if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-            json.sellerPhone = digits;
-            json.sellerPhoneFormatted = digits.length === 10
-                ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-            : digits;
-        }
-
-        const properCaseJSON = ["propertyStreetName", "propertyCity", "propertyCountyName"];
-        const properCaseInput = ["contact.first_name", "contact.last_name", "contact.full_name_new", "contact.property_city"];
-        const upperCaseInput = ["contact.state_property"];
-
-        properCaseInput.forEach(key => {
-            const selector = `[name="${key}"]`;
-            const input = document.querySelector(selector);
-            if (input && input.value !== toProperCase(input.value) && !input.value.includes("'")) {
-                setInputValue(input, toProperCase(input.value), 'propercase input');
-            }
-        });
-
-        upperCaseInput.forEach(key => {
-            const selector = `[name="${key}"]`;
-            const input = document.querySelector(selector);
-            if (input && input.value !== input.value.toUpperCase()) {
-                setInputValue(input, input.value.toUpperCase(), 'uppercase input');
-            }
-        });
-
-        properCaseJSON.forEach(key => {
-            if (json[key]) {
-                json[key] = toProperCase(json[key]);
-            }
-        });
-
-        const keysToDelete = [
-            'postal code', 'street address', 'street name', 'street number',
-            'formatted address', 'address', 'street', 'phone', 'name', 'phone raw',
-            'callStart', 'callStop', 'callDuration', 'callStatus', 'callId', 'leadSourceChannel',
-            'leadStatus', 'leadSource'
-        ];
-
-        for (const key of keysToDelete) {
-            delete json[key];
-        }
-
-        // Build "Street, City, ST ZIP" (no comma before ZIP)
-        {
-          const line1 = (json.propertyAddressLine1 || "").trim();
-          const city  = (json.propertyCity || "").trim();
-          const st    = toUspsState(json.propertyStateShort || json.propertyState || "");
-          const zip   = (json.propertyZip || "").trim();
-          const stZip = [st, zip].filter(Boolean).join(" "); // ← space, not comma
-          json.propertyAddress = [line1, city, stZip].filter(Boolean).join(", ");
-        }
-
-        applyFallbacks(json);
-
-        if (!json.propertyStreetName || json.propertyStreetName === '') {
-            json.propertyStreetName = json.propertyAddressLine1;
-        }
-
-        if (!json.propertyAddressLine1 && json.propertyAddress) {
-            json.propertyAddressLine1 = json.propertyAddress;
-        }
-
-        console.log(JSON.stringify(json, null, 2));
-        // console.log(json);
-
-        return json;
-    } catch (error) {
-        console.error("[extractNoteData] Unhandled error:", error);
-
-        // Optional: More verbose debugging
-        console.debug("[extractNoteData] Stack trace:", error.stack);
-        console.debug("[extractNoteData] Error type:", error.name);
-        console.debug("[extractNoteData] Error message:", error.message);
-
-        // Optional: if you want to alert yourself visually during dev
-        // alert("An error occurred in extractNoteData. Check the console for details.");
-
-        return null;
-    } finally {
-        // console.log("[extractNoteData] Finished running.");
-        // Optional cleanup, loading spinner toggle, etc.
-        // console.log("extractNoteData completed");
+    if (!notesScrollInitialized) {
+      noteBlock = await findAllNoteBlocks({ maxMs: 12000, pollIntervalMs: 250, maxStableChecks: 3 });
     }
+
+    let json = {};
+
+    const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+    const extractValidEmail = (s = "") => {
+      const m = s.match(EMAIL_REGEX);
+      return m ? m[0].toLowerCase() : "";
+    };
+
+    function toUspsState(s = "") {
+      s = s.trim();
+      if (!s) return "";
+      if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+      const map = { Alabama:"AL", Alaska:"AK", Arizona:"AZ", Arkansas:"AR", California:"CA",
+        Colorado:"CO", Connecticut:"CT", Delaware:"DE", "District of Columbia":"DC", Florida:"FL",
+        Georgia:"GA", Hawaii:"HI", Idaho:"ID", Illinois:"IL", Indiana:"IN", Iowa:"IA", Kansas:"KS",
+        Kentucky:"KY", Louisiana:"LA", Maine:"ME", Maryland:"MD", Massachusetts:"MA", Michigan:"MI",
+        Minnesota:"MN", Mississippi:"MS", Missouri:"MO", Montana:"MT", Nebraska:"NE", Nevada:"NV",
+        "New Hampshire":"NH", "New Jersey":"NJ", "New Mexico":"NM", "New York":"NY",
+        "North Carolina":"NC", "North Dakota":"ND", Ohio:"OH", Oklahoma:"OK", Oregon:"OR",
+        Pennsylvania:"PA", "Rhode Island":"RI", "South Carolina":"SC", "South Dakota":"SD",
+        Tennessee:"TN", Texas:"TX", Utah:"UT", Vermont:"VT", Virginia:"VA", Washington:"WA",
+        "West Virginia":"WV", Wisconsin:"WI", Wyoming:"WY" };
+      const key = s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+      return map[key] || "";
+    }
+
+    // Split any line that accidentally contains multiple "key - value" pairs
+    function explodePairs(line) {
+      const one = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
+      if (!one) return [line];
+      const delim = one[2];
+
+      const tokens = line.split(delim).map(s => s.trim()).filter(Boolean);
+      if (tokens.length <= 2) return [line];
+
+      const out = [];
+      for (let i = 0; i < tokens.length; i += 2) {
+        const k = tokens[i];
+        const v = tokens[i + 1] ?? "";
+        if (!k || !v) return [line]; // fall back if uneven
+        out.push(`${k} - ${v}`);
+      }
+      return out;
+    }
+
+    if (noteBlock) {
+      keyMapping = {
+        sellerFullName: ["name", "callername"],
+        sellerFirstName: ["firstname"],
+        sellerLastName: ["lastname"],
+        sellerPhone: ["phone", "mayihaveyourphonenumber"],
+        sellerEmail: ["email", "mayihaveyouremailaddress"],
+        propertyAddressLine1: ["streetaddress"],
+        propertyAddress: [
+          "addressstreetaddress", "formattedaddress",
+          "mayihavethephysicaladdressorapntotheproperty?(oranyotherpropertyidentifier)",
+          "street", "address", "propertyaddress"
+        ],
+        propertyStreetNumber: ["streetnumber"],
+        propertyGarage: ["garage"],
+        propertyBedrooms: ["bedrooms"],
+        propertyBathrooms: ["bathrooms"],
+        propertyRepairs: ["repairs"],
+        propertyOccupied: ["occupied"],
+        sellerUrgency: ["sellfast"],
+        propertyGoal: ["goal"],
+        propertyOwner: ["owner"],
+        propertyOwnedYears: ["ownedyears"],
+        propertyMortgage: ["mortgage"],
+        propertyListed: ["listed", "isthepropertylistedwitharealtornoworhasitbeeninthelast12months"],
+        listedPrice: ["ifyeshowmuchiswasitlistedfor"],
+        propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin"],
+        propertyCity: ["citystate", "city"],
+        propertyState: ["state"],
+        propertyZip: ["zip", "postalcode"],
+        leadDate: ["date"],
+        leadStatus: ["leadstatus"],
+        leadSource: ["source"],
+        leadSourceChannel: ["sourcechannel"],
+        appointmentDate: ["appointmentdate"],
+        scenario: ["scenario"],
+        callId: ["callid"],
+        callFromNumber: ["fromnumber"],
+        callToNumber: ["tonumber"],
+        callStart: ["callstart"],
+        callStop: ["callstop"],
+        callDuration: ["duration"],
+        callStatus: ["callstatus"],
+        askingPrice: ["howmuchareyouaskingforyourproperty"],
+        isOwner: ["areyoutheownerofrecord"],
+        ownerOfRecord: ["ifnowhoistheownerofrecord"],
+        ownerRelationship: ["ifnorelationship"],
+        isFreeAndClear: ["doownthepropertyfreeandclear"],
+        amountOwed: ["ifnohowmuchowed"],
+        additionalPropertyNotes: ["doyouhaveanythingelseyouliketoshareaboutyourproperty"],
+        saleReason: ["thankyouforprovidingthisinformationonelastquestionwhyareyoulookingtosellyourproperty"],
+        additionalComments: ["comments"]
+      };
+
+      json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
+
+      // Parse lines using explodePairs to avoid jammed pair pollution
+      const rawLines = noteBlock.innerText
+        .replace(/\s{2,}/g, "  ")
+        .replace("، الولايات المتحدة", "")
+        .split("\n")
+        .map(l => l.trim())
+        .filter(Boolean);
+
+      const lines = rawLines.flatMap(explodePairs);
+
+      for (let line of lines) {
+        const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
+        if (!match) continue;
+
+        const rawKey = (match[1] || "").trim().toLowerCase().replace(/[\s:\-]/g, "");
+        const value  = (match[3] || "").trim();
+        if (!value) continue;
+
+        let mappedKey = null;
+        for (const [key, aliases] of Object.entries(keyMapping)) {
+          const aliasList = Array.isArray(aliases) ? aliases : [aliases];
+          if (aliasList.includes(rawKey)) { mappedKey = key; break; }
+        }
+        if (!mappedKey) continue; // ignore unknown keys
+
+        const sanitized = mappedKey === "sellerEmail" ? extractValidEmail(value) : value;
+        if (mappedKey !== "sellerEmail" || sanitized) {
+          if (!json[mappedKey]) json[mappedKey] = sanitized;
+        }
+      }
+
+      // If no email captured yet, scan the entire note text
+      if (!json.sellerEmail) {
+        const wholeNote = lines.join(" ");
+        const found = extractValidEmail(wholeNote);
+        if (found) json.sellerEmail = found;
+      }
+    }
+
+    // Fallbacks from form inputs if present
+    const formLine1 = document.querySelector('[name="contact.street_address"]')?.value?.replace(", USA", "").replace(" USA", "");
+    const formCity  = document.querySelector('[name="contact.property_city"]')?.value;
+    const formST    = document.querySelector('[name="contact.state_property"]')?.value;
+    const formZip   = document.querySelector('[name="contact.property_postal_code"]')?.value;
+
+    // Address parsing from whatever is in json.propertyAddress
+    const rawAddress = json.propertyAddress || "";
+    const commaCount = (rawAddress.match(/,/g) || []).length;
+
+    if (commaCount >= 2) {
+      cLog("2+ commas — parsing address as Street, City, State Zip");
+      const parts = rawAddress.split(",").map(p => p.trim());
+      const stateZip = parts[2]?.split(/\s+/) || [];
+
+      json.propertyAddress      = parts[0] || "";
+      json.propertyAddressLine1 = json.propertyAddress;
+      json.propertyCity         = json.propertyCity || formCity || parts[1] || "";
+      json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || stateZip[0] || json.propertyState || "");
+      json.propertyZip          = json.propertyZip || formZip || stateZip[1] || "";
+
+    } else if (commaCount === 1) {
+      cLog("1 comma — parsing address as Street, City State Zip");
+      const parts = rawAddress.split(",").map(p => p.trim());
+      const cityStateZip = parts[1]?.split(/\s+/) || [];
+
+      json.propertyAddress      = parts[0] || "";
+      json.propertyAddressLine1 = json.propertyAddress;
+      json.propertyCity         = json.propertyCity || formCity || cityStateZip[0] || "";
+      json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || cityStateZip[1] || json.propertyState || "");
+      json.propertyZip          = json.propertyZip || formZip || cityStateZip[2] || "";
+
+    } else if (rawAddress) {
+      cLog("No commas — applying regex fallback");
+      const match = rawAddress.match(/^(.*)\s+([A-Za-z\s]+?)\s+([A-Za-z]{2})\s+(\d{5})$/);
+
+      if (match) {
+        cLog("Regex matched full address with city/state/zip");
+        json.propertyAddress      = match[1]?.trim() || "";
+        json.propertyAddressLine1 = json.propertyAddress;
+        json.propertyCity         = json.propertyCity || formCity || match[2]?.trim() || "";
+        json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || match[3] || json.propertyState || "");
+        json.propertyZip          = json.propertyZip || formZip || match[4] || "";
+      } else {
+        cLog("Regex failed — using fallback heuristics");
+        const words = rawAddress.trim().split(/\s+/);
+        const last = words[words.length - 1];
+        const secondLast = words[words.length - 2];
+        const thirdLast = words[words.length - 3];
+
+        json.propertyZip          = json.propertyZip || formZip || (/^\d{5}$/.test(last) ? last : "");
+        json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || (/^[A-Za-z]{2}$/.test(secondLast) ? secondLast : json.propertyState) || "");
+        json.propertyCity         = json.propertyCity || formCity || thirdLast || "";
+        json.propertyAddress      = rawAddress;
+        json.propertyAddressLine1 = rawAddress;
+      }
+    }
+
+    // Normalize blanks
+    json.propertyAddress   = json.propertyAddress || "";
+    json.propertyCity      = json.propertyCity || "";
+    json.propertyState     = json.propertyState || "";
+    json.propertyStateShort= json.propertyStateShort || "";
+    json.propertyCounty    = json.propertyCounty || "";
+    json.propertyZip       = json.propertyZip || "";
+
+    if (json.sellerEmail) {
+      json.sellerEmail = json.sellerEmail.toLowerCase().trim();
+    }
+
+    if (json.sellerPhone) {
+      let digits = json.sellerPhone.replace(/\D/g, '');
+      if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+      json.sellerPhone = digits;
+      json.sellerPhoneFormatted = digits.length === 10
+        ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+        : digits;
+    }
+
+    const properCaseJSON = ["propertyStreetName", "propertyCity", "propertyCountyName"];
+    const properCaseInput = ["contact.first_name", "contact.last_name", "contact.full_name_new", "contact.property_city"];
+    const upperCaseInput = ["contact.state_property"];
+
+    properCaseInput.forEach(key => {
+      const selector = `[name="${key}"]`;
+      const input = document.querySelector(selector);
+      if (input && input.value !== toProperCase(input.value) && !input.value.includes("'")) {
+        setInputValue(input, toProperCase(input.value), 'propercase input');
+      }
+    });
+
+    upperCaseInput.forEach(key => {
+      const selector = `[name="${key}"]`;
+      const input = document.querySelector(selector);
+      if (input && input.value !== input.value.toUpperCase()) {
+        setInputValue(input, input.value.toUpperCase(), 'uppercase input');
+      }
+    });
+
+    properCaseJSON.forEach(key => {
+      if (json[key]) json[key] = toProperCase(json[key]);
+    });
+
+    const keysToDelete = [
+      'postal code', 'street address', 'street name', 'street number',
+      'formatted address', 'address', 'street', 'phone', 'name', 'phone raw',
+      'callStart', 'callStop', 'callDuration', 'callStatus', 'callId', 'leadSourceChannel',
+      'leadStatus', 'leadSource'
+    ];
+    for (const key of keysToDelete) delete json[key];
+
+    // Build "Street, City, ST ZIP" (no comma before ZIP)
+    {
+      const line1 = (json.propertyAddressLine1 || formLine1 || "").trim();
+      const city  = (json.propertyCity || formCity || "").trim();
+      const st    = toUspsState(json.propertyStateShort || json.propertyState || formST || "");
+      const zip   = (json.propertyZip || formZip || "").trim();
+      if (line1 && city) {
+        const stZip = [st, zip].filter(Boolean).join(" ");
+        json.propertyAddress = [line1, city, stZip].filter(Boolean).join(", ");
+        json.propertyAddressLine1 = line1;
+      } else if (!json.propertyAddress && formLine1) {
+        json.propertyAddress = formLine1;
+        json.propertyAddressLine1 = formLine1;
+      }
+    }
+
+    applyFallbacks(json);
+
+    if (!json.propertyStreetName || json.propertyStreetName === '') {
+      json.propertyStreetName = json.propertyAddressLine1;
+    }
+    if (!json.propertyAddressLine1 && json.propertyAddress) {
+      json.propertyAddressLine1 = json.propertyAddress;
+    }
+
+    console.log(JSON.stringify(json, null, 2));
+    return json;
+  } catch (error) {
+    console.error("[extractNoteData] Unhandled error:", error);
+    console.debug("[extractNoteData] Stack trace:", error.stack);
+    console.debug("[extractNoteData] Error type:", error.name);
+    console.debug("[extractNoteData] Error message:", error.message);
+    return null;
+  } finally {
+    // Finished
+  }
 }
 
 
