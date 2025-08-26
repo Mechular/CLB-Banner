@@ -1627,32 +1627,27 @@ function cleanMessageEmail(msg) {
 }
 
 
-
-
 async function extractNoteData() {
   try {
     const container = document.getElementById("notes-list-container-contact");
     if (!container) return;
 
-    let keyMapping = {};
-
-    // let dispo = await getDisposition();
-    // if (dispo !== "") return;
-
+    // Find notes block
     if (!notesScrollInitialized) {
       noteBlock = await findAllNoteBlocks({ maxMs: 12000, pollIntervalMs: 250, maxStableChecks: 3 });
     }
 
     let json = {};
+    let keyMapping = {};
 
     const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
     const extractValidEmail = (s = "") => {
-      const m = s.match(EMAIL_REGEX);
+      const m = (s || "").match(EMAIL_REGEX);
       return m ? m[0].toLowerCase() : "";
     };
 
     function toUspsState(s = "") {
-      s = s.trim();
+      s = (s || "").trim();
       if (!s) return "";
       if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
       const map = { Alabama:"AL", Alaska:"AK", Arizona:"AZ", Arkansas:"AR", California:"CA",
@@ -1669,16 +1664,56 @@ async function extractNoteData() {
       return map[key] || "";
     }
 
-    // Robust global extractor for "key - value" pairs (handles jammed lines, empty values)
-    function extractPairs(text) {
-      // matches: key - value  [then lookahead for next " key - " or end]
-      const re = /([A-Za-z][A-Za-z\s]*?)\s*-\s*([^-:\n]*?)(?=\s+[A-Za-z][A-Za-z\s]*?\s*-\s*|$)/g;
+    // ---- Pair extraction that handles jammed lines and keeps hyphens inside values ----
+    // We only treat " - " (space-hyphen-space), ":" or 2+ spaces as delimiters.
+    // This avoids splitting values like "2-3 months".
+    function explodeAllPairs(text) {
+      const lines = (text || "")
+        .replace(/\s{2,}/g, "  ")
+        .replace("، الولايات المتحدة", "")
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+
       const out = [];
-      let m;
-      while ((m = re.exec(text)) !== null) {
-        const rawKey = (m[1] || "").trim().toLowerCase().replace(/\s+/g, "");
-        const value  = (m[2] || "").trim();
-        out.push([rawKey, value]); // may be empty; we’ll skip empties when assigning
+      const KEY_RE = /^[A-Za-z][A-Za-z\s]*$/;
+
+      for (let line of lines) {
+        // Iteratively peel off leading key/value pairs from the line
+        let s = line;
+        while (s.length) {
+          // Find the first delimiter occurrence: " - ", ":", or 2+ spaces
+          const m = s.match(/\s-\s|:|\s{2,}/);
+          if (!m) { break; }
+
+          const delimIdx = m.index;
+          const delim = m[0];
+
+          const keyCand = s.slice(0, delimIdx).trim();
+          if (!KEY_RE.test(keyCand)) {
+            // Not a valid key → stop processing this line
+            break;
+          }
+
+          // Find the next key start to bound the value
+          // Look for " <letters> (then delimiter)" ahead
+          const rest = s.slice(delimIdx + delim.length);
+          const next = rest.search(/\s[A-Za-z][A-Za-z\s]*\s(?:-\s|:|\s{2,})/);
+
+          let value, remainder;
+          if (next === -1) {
+            value = rest.trim();
+            remainder = "";
+          } else {
+            value = rest.slice(0, next).trim();
+            remainder = rest.slice(next).trim();
+          }
+
+          out.push([keyCand.toLowerCase().replace(/\s+/g, ""), value]);
+
+          // Continue with the remainder to catch further pairs
+          s = remainder;
+        }
       }
       return out;
     }
@@ -1686,7 +1721,7 @@ async function extractNoteData() {
     if (noteBlock) {
       keyMapping = {
         sellerFullName: ["name", "callername"],
-        sellerFirstName: ["firstname", "firstname(s)"], // tolerate odd captures
+        sellerFirstName: ["firstname", "firstn ame", "firstname(s)"],
         sellerLastName: ["lastname", "lastname(s)"],
         sellerPhone: ["phone", "mayihaveyourphonenumber"],
         sellerEmail: ["email", "mayihaveyouremailaddress"],
@@ -1709,7 +1744,7 @@ async function extractNoteData() {
         propertyMortgage: ["mortgage"],
         propertyListed: ["listed", "isthepropertylistedwitharealtornoworhasitbeeninthelast12months"],
         listedPrice: ["ifyeshowmuchiswasitlistedfor"],
-        propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin", "countyname(s)"],
+        propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin"],
         propertyCity: ["citystate", "city"],
         propertyState: ["state"],
         propertyZip: ["zip", "postalcode"],
@@ -1739,19 +1774,15 @@ async function extractNoteData() {
 
       json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
 
-      const noteText = noteBlock.innerText
-        .replace(/\s{2,}/g, " ")        // normalize spaces
-        .replace("، الولايات المتحدة", "")
-        .trim();
+      const noteText = (noteBlock.innerText || "").trim();
+      const pairs = explodeAllPairs(noteText);
 
-      const pairs = extractPairs(noteText);
-
+      // Map pairs → json (skip empties; avoid poisoning)
       for (const [rawKey, value] of pairs) {
-        if (!value) continue; // skip empties so "mortgage -" doesn't poison anything
+        if (!value) continue;
         let mappedKey = null;
         for (const [key, aliases] of Object.entries(keyMapping)) {
-          const aliasList = Array.isArray(aliases) ? aliases : [aliases];
-          if (aliasList.includes(rawKey)) { mappedKey = key; break; }
+          if (aliases.includes(rawKey)) { mappedKey = key; break; }
         }
         if (!mappedKey) continue;
 
@@ -1761,148 +1792,152 @@ async function extractNoteData() {
         }
       }
 
-      // If no email captured yet, scan whole note for any pattern
+      // Fallback email scan
       if (!json.sellerEmail) {
         const found = extractValidEmail(noteText);
         if (found) json.sellerEmail = found;
       }
     }
 
-    // Fallbacks from form inputs if present
+    // Form input fallbacks if present
     const formLine1 = document.querySelector('[name="contact.street_address"]')?.value?.replace(", USA", "").replace(" USA", "");
     const formCity  = document.querySelector('[name="contact.property_city"]')?.value;
     const formST    = document.querySelector('[name="contact.state_property"]')?.value;
     const formZip   = document.querySelector('[name="contact.property_postal_code"]')?.value;
 
-    // Parse whatever we have in json.propertyAddress
-    const rawAddress = json.propertyAddress || "";
-    const commaCount = (rawAddress.match(/,/g) || []).length;
+    // --- Address parsing from captured "address" field ---
+    const capturedFull = (json.propertyAddress || "").trim();
 
-    if (commaCount >= 2) {
-      cLog("2+ commas — parsing address as Street, City, State Zip");
-      const parts = rawAddress.split(",").map(p => p.trim());
-      const stateZip = parts[2]?.split(/\s+/) || [];
-
-      json.propertyAddress      = parts[0] || "";
-      json.propertyAddressLine1 = json.propertyAddress;
-      json.propertyCity         = json.propertyCity || formCity || parts[1] || "";
-      json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || stateZip[0] || json.propertyState || "");
-      json.propertyZip          = json.propertyZip || formZip || stateZip[1] || "";
-
-    } else if (commaCount === 1) {
-      cLog("1 comma — parsing address as Street, City State Zip");
-      const parts = rawAddress.split(",").map(p => p.trim());
-      const cityStateZip = parts[1]?.split(/\s+/) || [];
-
-      json.propertyAddress      = parts[0] || "";
-      json.propertyAddressLine1 = json.propertyAddress;
-      json.propertyCity         = json.propertyCity || formCity || cityStateZip[0] || "";
-      json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || cityStateZip[1] || json.propertyState || "");
-      json.propertyZip          = json.propertyZip || formZip || cityStateZip[2] || "";
-
-    } else if (rawAddress) {
-      cLog("No commas — applying regex fallback");
-      const match = rawAddress.match(/^(.*)\s+([A-Za-z\s]+?)\s+([A-Za-z]{2})\s+(\d{5})$/);
-
-      if (match) {
-        cLog("Regex matched full address with city/state/zip");
-        json.propertyAddress      = match[1]?.trim() || "";
-        json.propertyAddressLine1 = json.propertyAddress;
-        json.propertyCity         = json.propertyCity || formCity || match[2]?.trim() || "";
-        json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || match[3] || json.propertyState || "");
-        json.propertyZip          = json.propertyZip || formZip || match[4] || "";
+    function parseAddress(full) {
+      if (!full) return {};
+      const cnt = (full.match(/,/g) || []).length;
+      if (cnt >= 2) {
+        // "Street, City, ST ZIP"
+        const parts = full.split(",").map(s => s.trim());
+        const line1 = parts[0] || "";
+        const city  = parts[1] || "";
+        const sz    = (parts[2] || "").split(/\s+/);
+        const st    = toUspsState(sz[0] || "");
+        const zip   = (sz[1] || "").trim();
+        return { line1, city, st, zip };
+      } else if (cnt === 1) {
+        // "Street, City ST ZIP"
+        const parts = full.split(",").map(s => s.trim());
+        const line1 = parts[0] || "";
+        const csz   = (parts[1] || "").split(/\s+/);
+        const city  = csz[0] || "";
+        const st    = toUspsState(csz[1] || "");
+        const zip   = (csz[2] || "").trim();
+        return { line1, city, st, zip };
       } else {
-        cLog("Regex failed — using fallback heuristics");
-        const words = rawAddress.trim().split(/\s+/);
-        const last = words[words.length - 1];
-        const secondLast = words[words.length - 2];
-        const thirdLast = words[words.length - 3];
-
-        json.propertyZip          = json.propertyZip || formZip || (/^\d{5}$/.test(last) ? last : "");
-        json.propertyStateShort   = toUspsState(json.propertyStateShort || formST || (/^[A-Za-z]{2}$/.test(secondLast) ? secondLast : json.propertyState) || "");
-        json.propertyCity         = json.propertyCity || formCity || thirdLast || "";
-        json.propertyAddress      = rawAddress;
-        json.propertyAddressLine1 = rawAddress;
+        // Try "Street City ST ZIP"
+        const m = full.match(/^(.*)\s+([A-Za-z\s]+?)\s+([A-Za-z]{2})\s+(\d{5})$/);
+        if (m) {
+          return { line1: (m[1] || "").trim(), city: (m[2] || "").trim(), st: toUspsState(m[3] || ""), zip: (m[4] || "").trim() };
+        }
+        return {};
       }
     }
 
-    // Normalize blanks
-    json.propertyAddress    = json.propertyAddress || "";
-    json.propertyCity       = json.propertyCity || "";
-    json.propertyState      = json.propertyState || "";
-    json.propertyStateShort = json.propertyStateShort || toUspsState(json.propertyState || formST || "");
-    json.propertyCounty     = json.propertyCounty || ""; // unused but kept
-    json.propertyZip        = json.propertyZip || "";
-
-    if (json.sellerEmail) {
-      json.sellerEmail = json.sellerEmail.toLowerCase().trim();
+    // Prefer captured address; if bad, fall back to form fields
+    let parsed = parseAddress(capturedFull);
+    // If line1 parsed as a 2-letter state (bad), try to rebuild from form fields
+    if (!parsed.line1 || /^[A-Za-z]{2}$/.test(parsed.line1)) {
+      // Try reconstruct from form
+      if (formLine1 && (formCity || parsed.city) && (formST || parsed.st)) {
+        parsed = {
+          line1: formLine1,
+          city : (formCity || parsed.city || "").trim(),
+          st   : toUspsState(formST || parsed.st || ""),
+          zip  : (formZip || parsed.zip || "").trim()
+        };
+      } else if (capturedFull) {
+        // As a last resort, take the first comma segment as line1 only if it contains a digit (street number)
+        const firstSeg = capturedFull.split(",")[0]?.trim() || "";
+        if (/\d/.test(firstSeg)) {
+          parsed.line1 = firstSeg;
+        }
+      }
     }
 
-    if (json.sellerPhone) {
-      let digits = json.sellerPhone.replace(/\D/g, '');
-      if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-      json.sellerPhone = digits;
-      json.sellerPhoneFormatted = digits.length === 10
-        ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-        : digits;
-    }
+    // Apply parsed/form values to json
+    if (parsed.line1) json.propertyAddressLine1 = parsed.line1;
+    if (parsed.city || formCity) json.propertyCity = (json.propertyCity || parsed.city || formCity || "").trim();
+    const finalST = toUspsState(json.propertyStateShort || parsed.st || json.propertyState || formST || "");
+    if (finalST) json.propertyStateShort = finalST;
+    if (!json.propertyZip) json.propertyZip = (parsed.zip || formZip || "").trim();
 
-    const properCaseJSON = ["propertyStreetName", "propertyCity", "propertyCountyName"];
-    const properCaseInput = ["contact.first_name", "contact.last_name", "contact.full_name_new", "contact.property_city"];
-    const upperCaseInput = ["contact.state_property"];
-
-    properCaseInput.forEach(key => {
-      const selector = `[name="${key}"]`;
-      const input = document.querySelector(selector);
-      if (input && input.value !== toProperCase(input.value) && !input.value.includes("'")) {
-        setInputValue(input, toProperCase(input.value), 'propercase input');
-      }
-    });
-
-    upperCaseInput.forEach(key => {
-      const selector = `[name="${key}"]`;
-      const input = document.querySelector(selector);
-      if (input && input.value !== input.value.toUpperCase()) {
-        setInputValue(input, input.value.toUpperCase(), 'uppercase input');
-      }
-    });
-
-    properCaseJSON.forEach(key => {
-      if (json[key]) json[key] = toProperCase(json[key]);
-    });
-
-    const keysToDelete = [
-      'postal code', 'street address', 'street name', 'street number',
-      'formatted address', 'address', 'street', 'phone', 'name', 'phone raw',
-      'callStart', 'callStop', 'callDuration', 'callStatus', 'callId', 'leadSourceChannel',
-      'leadStatus', 'leadSource'
-    ];
-    for (const key of keysToDelete) delete json[key];
-
-    // Build "Street, City, ST ZIP" (no comma before ZIP)
+    // Final address rebuild: "Street, City, ST ZIP"
     {
       const line1 = (json.propertyAddressLine1 || formLine1 || "").trim();
       const city  = (json.propertyCity || formCity || "").trim();
       const st    = toUspsState(json.propertyStateShort || json.propertyState || formST || "");
       const zip   = (json.propertyZip || formZip || "").trim();
-
+      const stZip = [st, zip].filter(Boolean).join(" ");
       if (line1 && city) {
-        const stZip = [st, zip].filter(Boolean).join(" ");
         json.propertyAddress = [line1, city, stZip].filter(Boolean).join(", ");
-        json.propertyAddressLine1 = line1;
-      } else if (!json.propertyAddress && formLine1) {
-        json.propertyAddress = formLine1;
-        json.propertyAddressLine1 = formLine1;
+      } else {
+        // fallback to any captured full if it looks valid
+        if (capturedFull) json.propertyAddress = capturedFull;
       }
     }
 
-    applyFallbacks(json);
+    // Normalize common fields
+    if (json.sellerEmail) json.sellerEmail = json.sellerEmail.toLowerCase().trim();
 
-    if (!json.propertyStreetName || json.propertyStreetName === '') {
-      json.propertyStreetName = json.propertyAddressLine1;
+    if (json.sellerPhone) {
+      let digits = json.sellerPhone.replace(/\D/g, "");
+      if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+      json.sellerPhone = digits;
+      json.sellerPhoneFormatted = digits.length === 10
+        ? `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+        : digits;
     }
-    if (!json.propertyAddressLine1 && json.propertyAddress) {
-      json.propertyAddressLine1 = json.propertyAddress;
+
+    // Inputs casing
+    const properCaseJSON = ["propertyStreetName", "propertyCity", "propertyCountyName"];
+    const properCaseInput = ["contact.first_name", "contact.last_name", "contact.full_name_new", "contact.property_city"];
+    const upperCaseInput = ["contact.state_property"];
+
+    properCaseInput.forEach(name => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el && el.value && el.value !== toProperCase(el.value) && !el.value.includes("'")) {
+        setInputValue(el, toProperCase(el.value), "propercase input");
+      }
+    });
+    upperCaseInput.forEach(name => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el && el.value !== el.value.toUpperCase()) {
+        setInputValue(el, el.value.toUpperCase(), "uppercase input");
+      }
+    });
+    properCaseJSON.forEach(k => { if (json[k]) json[k] = toProperCase(json[k]); });
+
+    // Clean noise keys we never want to persist
+    ["postal code","street address","street name","street number","formatted address","address","street","phone","name","phone raw",
+     "callStart","callStop","callDuration","callStatus","callId","leadSourceChannel","leadStatus","leadSource"
+    ].forEach(k => delete json[k]);
+
+    // Extra safety: if a jammed line made scenario contain another pair text, blank it
+    if (/^[a-z\s]+-\s*/i.test(json.scenario || "")) json.scenario = "";
+
+    // County name normalization
+    if (!json.propertyCountyName && json.propertyCounty) json.propertyCountyName = json.propertyCounty;
+
+    // StreetName fallback
+    if (!json.propertyStreetName) json.propertyStreetName = json.propertyAddressLine1 || "";
+
+    // Final sanity: if line1 wrongly became a 2-letter state, clear it
+    if (json.propertyAddressLine1 && /^[A-Za-z]{2}$/.test(json.propertyAddressLine1)) {
+      json.propertyAddressLine1 = (formLine1 || parsed.line1 || "").trim();
+      // rebuild address again if we fixed line1
+      const city  = (json.propertyCity || formCity || "").trim();
+      const st    = toUspsState(json.propertyStateShort || json.propertyState || formST || "");
+      const zip   = (json.propertyZip || formZip || "").trim();
+      const stZip = [st, zip].filter(Boolean).join(" ");
+      if (json.propertyAddressLine1 && city) {
+        json.propertyAddress = [json.propertyAddressLine1, city, stZip].filter(Boolean).join(", ");
+      }
     }
 
     console.log(JSON.stringify(json, null, 2));
@@ -1913,10 +1948,19 @@ async function extractNoteData() {
     console.debug("[extractNoteData] Error type:", error.name);
     console.debug("[extractNoteData] Error message:", error.message);
     return null;
-  } finally {
-    // done
   }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 function applyFallbacks(json) {
     return;
