@@ -1940,7 +1940,7 @@ async function extractNoteData() {
       }
     }
 
-    console.log(JSON.stringify(json, null, 2));
+    // console.log(JSON.stringify(json, null, 2));
     return json;
   } catch (error) {
     console.error("[extractNoteData] Unhandled error:", error);
@@ -1950,17 +1950,6 @@ async function extractNoteData() {
     return null;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
 
 function applyFallbacks(json) {
     return;
