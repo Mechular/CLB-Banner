@@ -1669,21 +1669,16 @@ async function extractNoteData() {
       return map[key] || "";
     }
 
-    // Split any line that accidentally contains multiple "key - value" pairs
-    function explodePairs(line) {
-      const one = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
-      if (!one) return [line];
-      const delim = one[2];
-
-      const tokens = line.split(delim).map(s => s.trim()).filter(Boolean);
-      if (tokens.length <= 2) return [line];
-
+    // Robust global extractor for "key - value" pairs (handles jammed lines, empty values)
+    function extractPairs(text) {
+      // matches: key - value  [then lookahead for next " key - " or end]
+      const re = /([A-Za-z][A-Za-z\s]*?)\s*-\s*([^-:\n]*?)(?=\s+[A-Za-z][A-Za-z\s]*?\s*-\s*|$)/g;
       const out = [];
-      for (let i = 0; i < tokens.length; i += 2) {
-        const k = tokens[i];
-        const v = tokens[i + 1] ?? "";
-        if (!k || !v) return [line]; // fall back if uneven
-        out.push(`${k} - ${v}`);
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const rawKey = (m[1] || "").trim().toLowerCase().replace(/\s+/g, "");
+        const value  = (m[2] || "").trim();
+        out.push([rawKey, value]); // may be empty; we’ll skip empties when assigning
       }
       return out;
     }
@@ -1691,8 +1686,8 @@ async function extractNoteData() {
     if (noteBlock) {
       keyMapping = {
         sellerFullName: ["name", "callername"],
-        sellerFirstName: ["firstname"],
-        sellerLastName: ["lastname"],
+        sellerFirstName: ["firstname", "firstname(s)"], // tolerate odd captures
+        sellerLastName: ["lastname", "lastname(s)"],
         sellerPhone: ["phone", "mayihaveyourphonenumber"],
         sellerEmail: ["email", "mayihaveyouremailaddress"],
         propertyAddressLine1: ["streetaddress"],
@@ -1714,7 +1709,7 @@ async function extractNoteData() {
         propertyMortgage: ["mortgage"],
         propertyListed: ["listed", "isthepropertylistedwitharealtornoworhasitbeeninthelast12months"],
         listedPrice: ["ifyeshowmuchiswasitlistedfor"],
-        propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin"],
+        propertyCountyName: ["countyname", "county", "whatcountyisthepropertylocatedin", "countyname(s)"],
         propertyCity: ["citystate", "city"],
         propertyState: ["state"],
         propertyZip: ["zip", "postalcode"],
@@ -1722,7 +1717,7 @@ async function extractNoteData() {
         leadStatus: ["leadstatus"],
         leadSource: ["source"],
         leadSourceChannel: ["sourcechannel"],
-        appointmentDate: ["appointmentdate"],
+        appointmentDate: ["appointmentdate", "appointment"],
         scenario: ["scenario"],
         callId: ["callid"],
         callFromNumber: ["fromnumber"],
@@ -1744,30 +1739,21 @@ async function extractNoteData() {
 
       json = Object.fromEntries(Object.keys(keyMapping).map(k => [k, ""]));
 
-      // Parse lines using explodePairs to avoid jammed pair pollution
-      const rawLines = noteBlock.innerText
-        .replace(/\s{2,}/g, "  ")
+      const noteText = noteBlock.innerText
+        .replace(/\s{2,}/g, " ")        // normalize spaces
         .replace("، الولايات المتحدة", "")
-        .split("\n")
-        .map(l => l.trim())
-        .filter(Boolean);
+        .trim();
 
-      const lines = rawLines.flatMap(explodePairs);
+      const pairs = extractPairs(noteText);
 
-      for (let line of lines) {
-        const match = line.match(/^(.+?)([:\-–]|\s{2,})(.+)$/);
-        if (!match) continue;
-
-        const rawKey = (match[1] || "").trim().toLowerCase().replace(/[\s:\-]/g, "");
-        const value  = (match[3] || "").trim();
-        if (!value) continue;
-
+      for (const [rawKey, value] of pairs) {
+        if (!value) continue; // skip empties so "mortgage -" doesn't poison anything
         let mappedKey = null;
         for (const [key, aliases] of Object.entries(keyMapping)) {
           const aliasList = Array.isArray(aliases) ? aliases : [aliases];
           if (aliasList.includes(rawKey)) { mappedKey = key; break; }
         }
-        if (!mappedKey) continue; // ignore unknown keys
+        if (!mappedKey) continue;
 
         const sanitized = mappedKey === "sellerEmail" ? extractValidEmail(value) : value;
         if (mappedKey !== "sellerEmail" || sanitized) {
@@ -1775,10 +1761,9 @@ async function extractNoteData() {
         }
       }
 
-      // If no email captured yet, scan the entire note text
+      // If no email captured yet, scan whole note for any pattern
       if (!json.sellerEmail) {
-        const wholeNote = lines.join(" ");
-        const found = extractValidEmail(wholeNote);
+        const found = extractValidEmail(noteText);
         if (found) json.sellerEmail = found;
       }
     }
@@ -1789,7 +1774,7 @@ async function extractNoteData() {
     const formST    = document.querySelector('[name="contact.state_property"]')?.value;
     const formZip   = document.querySelector('[name="contact.property_postal_code"]')?.value;
 
-    // Address parsing from whatever is in json.propertyAddress
+    // Parse whatever we have in json.propertyAddress
     const rawAddress = json.propertyAddress || "";
     const commaCount = (rawAddress.match(/,/g) || []).length;
 
@@ -1842,12 +1827,12 @@ async function extractNoteData() {
     }
 
     // Normalize blanks
-    json.propertyAddress   = json.propertyAddress || "";
-    json.propertyCity      = json.propertyCity || "";
-    json.propertyState     = json.propertyState || "";
-    json.propertyStateShort= json.propertyStateShort || "";
-    json.propertyCounty    = json.propertyCounty || "";
-    json.propertyZip       = json.propertyZip || "";
+    json.propertyAddress    = json.propertyAddress || "";
+    json.propertyCity       = json.propertyCity || "";
+    json.propertyState      = json.propertyState || "";
+    json.propertyStateShort = json.propertyStateShort || toUspsState(json.propertyState || formST || "");
+    json.propertyCounty     = json.propertyCounty || ""; // unused but kept
+    json.propertyZip        = json.propertyZip || "";
 
     if (json.sellerEmail) {
       json.sellerEmail = json.sellerEmail.toLowerCase().trim();
@@ -1900,6 +1885,7 @@ async function extractNoteData() {
       const city  = (json.propertyCity || formCity || "").trim();
       const st    = toUspsState(json.propertyStateShort || json.propertyState || formST || "");
       const zip   = (json.propertyZip || formZip || "").trim();
+
       if (line1 && city) {
         const stZip = [st, zip].filter(Boolean).join(" ");
         json.propertyAddress = [line1, city, stZip].filter(Boolean).join(", ");
@@ -1928,12 +1914,9 @@ async function extractNoteData() {
     console.debug("[extractNoteData] Error message:", error.message);
     return null;
   } finally {
-    // Finished
+    // done
   }
 }
-
-
-
 
 function applyFallbacks(json) {
     return;
