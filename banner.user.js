@@ -1712,6 +1712,13 @@ async function extractNoteData() {
 
             const lines = noteBlock.innerText.replace(/\s{2,}/g, "  ").replace("، الولايات المتحدة", "").split("\n");
 
+          // if no email captured yet, scan the entire note text for any email pattern
+          if (!json.sellerEmail) {
+              const wholeNote = lines.join(" ");
+              const found = extractValidEmail(wholeNote);
+              if (found) json.sellerEmail = found;
+          }
+          
           console.log('lines', lines);
 
             for (let line of lines) {
@@ -1823,13 +1830,6 @@ async function extractNoteData() {
         json.propertyStateShort = json.propertyStateShort || "";
         json.propertyCounty = json.propertyCounty || "";
         json.propertyZip = json.propertyZip || "";
-
-        // if no email captured yet, scan the entire note text for any email pattern
-        if (!json.sellerEmail) {
-            const wholeNote = lines.join(" ");
-            const found = extractValidEmail(wholeNote);
-            if (found) json.sellerEmail = found;
-        }
       
         if (json.sellerEmail) {
             json.sellerEmail = json.sellerEmail.toLowerCase().trim();
