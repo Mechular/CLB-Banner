@@ -2899,10 +2899,10 @@ async function updateBanner() {
                         </tr>
                         <tr>
                             <td style="padding: 0 6px; text-align: right;">Today</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.today.phone ? '✓' : '—'}</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.today.sms ? '✓' : '—'}</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail ? '✓' : '—'}</td>
-                            <td style="padding: 0 6px; text-align: center;">${counts.today.email ? '✓' : '—'}</td>
+                              <td style="padding: 0 6px; text-align: center;">${counts.today.phone || '—'}</td>
+                              <td style="padding: 0 6px; text-align: center;">${counts.today.sms || '—'}</td>
+                              <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
+                              <td style="padding: 0 6px; text-align: center;">${counts.today.email || '—'}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -2945,10 +2945,10 @@ async function updateBanner() {
                     </tr>
                     <tr>
                         <td style="padding: 0 6px; text-align: right;">Today</td>
-                        <td style="padding: 0 6px; text-align: center;">${counts.today.phone ? '✓' : '—'}</td>
-                        <td style="padding: 0 6px; text-align: center;">${counts.today.sms ? '✓' : '—'}</td>
-                        <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail ? '✓' : '—'}</td>
-                        <td style="padding: 0 6px; text-align: center;">${counts.today.email ? '✓' : '—'}</td>
+                        <td style="padding: 0 6px; text-align: center;">${counts.today.phone || '—'}</td>
+                        <td style="padding: 0 6px; text-align: center;">${counts.today.sms || '—'}</td>
+                        <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
+                        <td style="padding: 0 6px; text-align: center;">${counts.today.email || '—'}</td>
                     </tr>
                 </tbody>
             </table>
