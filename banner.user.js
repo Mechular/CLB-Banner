@@ -1698,7 +1698,7 @@ async function extractNoteData() {
           // Find the next key start to bound the value
           // Look for " <letters> (then delimiter)" ahead
           const rest = s.slice(delimIdx + delim.length);
-          const next = rest.search(/\s[A-Za-z][A-Za-z\s]*\s(?:-\s|:|\s{2,})/);
+          const next = rest.search(/\s{1,}[A-Za-z][A-Za-z\s?()']*\s(?:-\s|:|\s{2,})/);
 
           let value, remainder;
           if (next === -1) {
@@ -1800,7 +1800,14 @@ async function extractNoteData() {
         const found = extractValidEmail(noteText);
         if (found) json.sellerEmail = found;
       }
-
+      
+      // --- CLEANUP: cut any trailing jammed pairs off full name ---
+      if (json.sellerFullName) {
+        json.sellerFullName = json.sellerFullName
+          .split(/\s{2,}(?=[A-Za-z][A-Za-z\s?()']*\s(?:-\s|:|\s{2,}))/)[0]
+          .trim();
+      }
+      
       // Backfill first and last names from full name if available
       if (!json.sellerFirstName && json.sellerFullName) {
         const parts = json.sellerFullName.trim().split(/\s+/);
