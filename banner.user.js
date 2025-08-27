@@ -5826,7 +5826,7 @@ async function autoDispoCall() {
 
   if (!counts) return;
     
-  if (dispo === "" && counts.outbound.phone < 3) {
+  if (dispo === "" && counts.outbound.phone > 0 && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
      return;
   }
