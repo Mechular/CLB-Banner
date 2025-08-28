@@ -869,27 +869,25 @@ function setSecondaryDisposition() {
     const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
     const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
     const select4 = document.querySelector('select[name="contact.send_to_dispositions"]');
-        
+
     // Ensure we always have targets
-    if (!select2 || !select3 || !select3) {
+    if (!select2 || !select3 || !select4) {
       console.warn('Missing select2, select3, or select4');
       return;
     }
 
     let pipelineStageName = '';
     let realtorStageName = 'No';
+    let sendOfferOwner = false;
+    let sendOfferDispo = "";
     let value = select.value;
   
     if (value === "Move to Contacted" || value === "Move to Final Contact" || value === "Move to Analyzing" || value === "Move to Hot Lead" || value === "Move to Nurture" || value === "Wholesaler") {
       pipelineStageName = "Contacted";
     } else if (value === "Move to Initial Offer Made") {
-      const checkbox = document.querySelector('input[name="contact.send_offer"]');
-      if (checkbox && !checkbox.checked) {
-        checkbox.checked = true;
-      }
       pipelineStageName = "Initial Offer Made";
-    } else if (value === "Move to Offer Accepted") {      
-      setSelectByLabelOrValue(select4, realtorStageName);
+    } else if (value === "Move to Offer Accepted") {
+      sendOfferDispo = "Yes";
       pipelineStageName = "Offer Accepted";
     } else if (value === "Listed with Agent") {
       realtorStageName = "Yes";
@@ -924,10 +922,16 @@ function setSecondaryDisposition() {
         selectEl.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
+  
+      const checkbox = document.querySelector('input[name="contact.send_offer"]');
+      if (checkbox && checkbox.checked !== sendOfferOwner) {
+        checkbox.checked = sendOfferOwner;
+      }
     
     // 3) Apply
     setSelectByLabelOrValue(select2, pipelineStageName);
-    setSelectByLabelOrValue(select3, realtorStageName);
+    setSelectByLabelOrValue(select3, realtorStageName); 
+    setSelectByLabelOrValue(select4, sendOfferDispo);
 
 }
 
