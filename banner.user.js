@@ -862,8 +862,12 @@ function setDisposition(value, preReq = false) {
     } else {
       select2.value = "Dead";
     }
-      select2.dispatchEvent(new Event("input", { bubbles: true }));
-      select2.dispatchEvent(new Event("change", { bubbles: true }));  
+  
+    select2.dispatchEvent(new Event("change", { bubbles: true })); // trigger change
+
+    if ($(select2).selectpicker) {
+      $(select2).selectpicker('refresh');
+    }
   
     // Set the disposition value
     select.value = value;
