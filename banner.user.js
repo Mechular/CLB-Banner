@@ -868,10 +868,11 @@ function setSecondaryDisposition() {
     const select = document.querySelector('select[name="contact.call_disposal_automations"]');
     const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
     const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
+    const select4 = document.querySelector('select[name="contact.send_to_dispositions"]');
         
     // Ensure we always have targets
-    if (!select2 || !select3) {
-      console.warn('Missing select2 or select3');
+    if (!select2 || !select3 || !select3) {
+      console.warn('Missing select2, select3, or select4');
       return;
     }
 
@@ -887,13 +888,12 @@ function setSecondaryDisposition() {
         checkbox.checked = true;
       }
       pipelineStageName = "Initial Offer Made";
-    } else if (value === "Move to Offer Accepted") {
+    } else if (value === "Move to Offer Accepted") {      
+      setSelectByLabelOrValue(select4, realtorStageName);
       pipelineStageName = "Offer Accepted";
     } else if (value === "Listed with Agent") {
       realtorStageName = "Yes";
       pipelineStageName = "Dead";
-    } else {
-      // pipelineStageName = "Dead";
     }
     
     // 1) Compute values (give pipeline a default)
