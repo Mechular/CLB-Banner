@@ -863,18 +863,11 @@ function setDisposition(value, preReq = false) {
       select2.value = "Dead";
     }
       
-    const jq = window.jQuery; // do not use $
-    if (jq && jq.fn && jq.fn.selectpicker) {
-      jq('select[name="contact.pipeline_stage_name"]')
-        .val('Contacted')                // set the value
-        .trigger('change')               // notify listeners
-        .selectpicker('refresh');        // sync the UI
-    } else {
-      // Fallback if jQuery/bootstrap-select isn't available
-      const select = document.querySelector('select[name="contact.pipeline_stage_name"]');
-      select.value = 'Contacted';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    const wrapper = document.querySelector('.bootstrap-select.selectItem.contact\\.pipeline_stage_name');
+    wrapper.querySelector('button.dropdown-toggle')?.click();
+    [...wrapper.querySelectorAll('ul li a')]
+      .find(a => a.textContent.trim() === 'Contacted')
+      ?.click();
   
     // Set the disposition value
     select.value = value;
