@@ -830,10 +830,8 @@ function closeOtherMenus(currentId) {
 
 function setDisposition(value, preReq = false) {
     const select = document.querySelector('select[name="contact.call_disposal_automations"]');
-    const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
-    const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
   
-    if (!select || !select2) {
+    if (!select) {
         cWarn('Select element not found.');
         return;
     }
@@ -854,8 +852,32 @@ function setDisposition(value, preReq = false) {
         return;
     }
 
+    // Set the disposition value
+    select.value = value;
+    select.dispatchEvent(new Event("input", { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+       
+    cLog('Disposition set successfully');
+}
+
+
+
+function setSecondaryDisposition() {
+    if (!location.href.includes('/contacts/detail/')) return;
+  
+    const select = document.querySelector('select[name="contact.call_disposal_automations"]');
+    const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
+    const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
+  
+    if (!select || !select2 || !select3) {
+        cWarn('Select element not found.');
+        return;
+    }
+
     let pipelineStageName = '';
     let realtorStageName = 'No';
+    let value = select.value;
+  
     if (value === "Move to Contacted" || value === "Move to Final Contact" || value === "Move to Analyzing" || value === "Move to Hot Lead" || value === "Move to Nurture" || value === "Wholesaler") {
       pipelineStageName = "Contacted";
     } else if (value === "Move to Initial Offer Made") {
@@ -866,14 +888,9 @@ function setDisposition(value, preReq = false) {
       realtorStageName = "Yes";
       pipelineStageName = "Dead";
     } else {
-      pipelineStageName = "Dead";
+      // pipelineStageName = "Dead";
     }
- 
-    // Set the disposition value
-    select.value = value;
-    select.dispatchEvent(new Event("input", { bubbles: true }));
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-       
+        
     select2.querySelector('button.dropdown-toggle')?.click();
     [...select2.querySelectorAll('ul li a')]
       .find(a => a.textContent.trim() === pipelineStageName)
@@ -884,9 +901,8 @@ function setDisposition(value, preReq = false) {
       .find(a => a.textContent.trim() === realtorStageName)
       ?.click();
 
-    cLog('Disposition set successfully');
+    cLog('Secondary disposition set successfully');
 }
-
 
 function getDisposition() {
     const el = document.querySelector('div[class="filter-option-inner-inner"]');
@@ -5978,7 +5994,9 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
-            autoDispoCall();
+              autoDispoCall();
+              setSecondaryDisposition();
+              
                 // execute extractNoteData once
                 // if (!hasRunExtractNoteData) {
                 //     extractNoteData();
