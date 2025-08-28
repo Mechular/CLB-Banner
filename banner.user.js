@@ -862,11 +862,18 @@ function setDisposition(value, preReq = false) {
     } else {
       select2.value = "Dead";
     }
-  
-    select2.dispatchEvent(new Event("change", { bubbles: true })); // trigger change
-
-    if ($(select2).selectpicker) {
-      $(select2).selectpicker('refresh');
+      
+    const jq = window.jQuery; // do not use $
+    if (jq && jq.fn && jq.fn.selectpicker) {
+      jq('select[name="contact.pipeline_stage_name"]')
+        .val('Contacted')                // set the value
+        .trigger('change')               // notify listeners
+        .selectpicker('refresh');        // sync the UI
+    } else {
+      // Fallback if jQuery/bootstrap-select isn't available
+      const select = document.querySelector('select[name="contact.pipeline_stage_name"]');
+      select.value = 'Contacted';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     }
   
     // Set the disposition value
