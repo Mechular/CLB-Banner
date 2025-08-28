@@ -830,8 +830,9 @@ function closeOtherMenus(currentId) {
 
 function setDisposition(value, preReq = false) {
     const select = document.querySelector('select[name="contact.call_disposal_automations"]');
-
-    if (!select) {
+    const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
+  
+    if (!select || !select2) {
         cWarn('Select element not found.');
         return;
     }
@@ -852,11 +853,23 @@ function setDisposition(value, preReq = false) {
         return;
     }
 
+    if (value === "Move to Contacted" || value === "Move to Final Contact" || value === "Move to Analyzing" || value === "Move to Hot Lead" || value === "Move to Nurture" || value === "Wholesaler") {
+      select2.value = "Contacted";
+    } else if (value === "Move to Initial Offer Made") {
+      select2.value = "Initial Offer Made";
+    } else if (value === "Move to Offer Accepted") {
+      select2.value = "Offer Accepted";
+    } else {
+      select2.value = "Dead";
+    }
+      select2.dispatchEvent(new Event("input", { bubbles: true }));
+      select2.dispatchEvent(new Event("change", { bubbles: true }));  
+  
     // Set the disposition value
     select.value = value;
     select.dispatchEvent(new Event("input", { bubbles: true }));
     select.dispatchEvent(new Event("change", { bubbles: true }));
-
+ 
     cLog('Disposition set successfully');
 }
 
