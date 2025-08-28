@@ -5842,6 +5842,8 @@ async function autoDispoCall() {
   let dispo = await getDisposition();
 
   if (!counts) return;
+
+  console.log("[autoDispoCall]");
     
   if (dispo === "" && counts.outbound.phone > 0 && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
