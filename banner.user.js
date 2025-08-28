@@ -831,6 +831,7 @@ function closeOtherMenus(currentId) {
 function setDisposition(value, preReq = false) {
     const select = document.querySelector('select[name="contact.call_disposal_automations"]');
     const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
+    const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
   
     if (!select || !select2) {
         cWarn('Select element not found.');
@@ -853,27 +854,36 @@ function setDisposition(value, preReq = false) {
         return;
     }
 
+    let pipelineStageName = '';
+    let realtorStageName = 'No';
     if (value === "Move to Contacted" || value === "Move to Final Contact" || value === "Move to Analyzing" || value === "Move to Hot Lead" || value === "Move to Nurture" || value === "Wholesaler") {
-      select2.value = "Contacted";
+      pipelineStageName = "Contacted";
     } else if (value === "Move to Initial Offer Made") {
-      select2.value = "Initial Offer Made";
+      pipelineStageName = "Initial Offer Made";
     } else if (value === "Move to Offer Accepted") {
-      select2.value = "Offer Accepted";
+      pipelineStageName = "Offer Accepted";
+    } else if (value === "Listed with Agent") {
+      realtorStageName = "Yes";
+      pipelineStageName = "Dead";
     } else {
-      select2.value = "Dead";
+      pipelineStageName = "Dead";
     }
-      
-    const wrapper = document.querySelector('.bootstrap-select.selectItem.contact\\.pipeline_stage_name');
-    wrapper.querySelector('button.dropdown-toggle')?.click();
-    [...wrapper.querySelectorAll('ul li a')]
-      .find(a => a.textContent.trim() === 'Contacted')
-      ?.click();
-  
+ 
     // Set the disposition value
     select.value = value;
     select.dispatchEvent(new Event("input", { bubbles: true }));
     select.dispatchEvent(new Event("change", { bubbles: true }));
- 
+       
+    select2.querySelector('button.dropdown-toggle')?.click();
+    [...select2.querySelectorAll('ul li a')]
+      .find(a => a.textContent.trim() === pipelineStageName)
+      ?.click();
+
+    select3.querySelector('button.dropdown-toggle')?.click();
+    [...select3.querySelectorAll('ul li a')]
+      .find(a => a.textContent.trim() === realtorStageName)
+      ?.click();
+
     cLog('Disposition set successfully');
 }
 
@@ -5842,8 +5852,6 @@ async function autoDispoCall() {
   let dispo = await getDisposition();
 
   if (!counts) return;
-
-  console.log("[autoDispoCall]");
     
   if (dispo === "" && counts.outbound.phone > 0 && counts.outbound.phone < 3) {
      setDisposition("Move to Contacted");
