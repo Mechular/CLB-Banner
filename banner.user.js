@@ -882,6 +882,10 @@ function setSecondaryDisposition() {
     if (value === "Move to Contacted" || value === "Move to Final Contact" || value === "Move to Analyzing" || value === "Move to Hot Lead" || value === "Move to Nurture" || value === "Wholesaler") {
       pipelineStageName = "Contacted";
     } else if (value === "Move to Initial Offer Made") {
+      const checkbox = document.querySelector('input[name="contact.send_offer"]');
+      if (checkbox && !checkbox.checked) {
+        checkbox.checked = true;
+      }
       pipelineStageName = "Initial Offer Made";
     } else if (value === "Move to Offer Accepted") {
       pipelineStageName = "Offer Accepted";
