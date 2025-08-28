@@ -868,10 +868,11 @@ function setSecondaryDisposition() {
     const select = document.querySelector('select[name="contact.call_disposal_automations"]');
     const select2 = document.querySelector('select[name="contact.pipeline_stage_name"]');
     const select3 = document.querySelector('select[name="contact.has_the_property_been_listed_with_a_realtor"]');
-  
-    if (!select || !select2 || !select3) {
-        cWarn('Select element not found.');
-        return;
+        
+    // Ensure we always have targets
+    if (!select2 || !select3) {
+      console.warn('Missing select2 or select3');
+      return;
     }
 
     let pipelineStageName = '';
@@ -890,18 +891,40 @@ function setSecondaryDisposition() {
     } else {
       // pipelineStageName = "Dead";
     }
-        
-    select2.querySelector('button.dropdown-toggle')?.click();
-    [...select2.querySelectorAll('ul li a')]
-      .find(a => a.textContent.trim() === pipelineStageName)
-      ?.click();
+    
+    // 1) Compute values (give pipeline a default)
+    if (!pipelineStageName) {
+      pipelineStageName = 'Dead'; // <-- set the fallback you actually want
+    }
+    
+    // 2) Vanilla helper: set by label or value and fire events
+    function setSelectByLabelOrValue(selectEl, labelOrValue) {
+      if (!selectEl || !labelOrValue) return;
+    
+      const opts = Array.from(selectEl.options);
+      const match =
+        opts.find(o => o.text.trim() === labelOrValue) ||
+        opts.find(o => o.value === labelOrValue);
+    
+      if (!match) {
+        console.warn('No matching option for', labelOrValue);
+        return;
+      }
+    
+      // Only update if needed
+      if (selectEl.value !== match.value) {
+        selectEl.value = match.value;
+    
+        // Fire the events most UIs listen for
+        selectEl.dispatchEvent(new Event('input',  { bubbles: true }));
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    
+    // 3) Apply
+    setSelectByLabelOrValue(select2, pipelineStageName);
+    setSelectByLabelOrValue(select3, realtorStageName);
 
-    select3.querySelector('button.dropdown-toggle')?.click();
-    [...select3.querySelectorAll('ul li a')]
-      .find(a => a.textContent.trim() === realtorStageName)
-      ?.click();
-
-    cLog('Secondary disposition set successfully');
 }
 
 function getDisposition() {
