@@ -892,6 +892,8 @@ function setSecondaryDisposition() {
     } else if (value === "Listed with Agent") {
       realtorStageName = "Yes";
       pipelineStageName = "Dead";
+    } else {
+      pipelineStageName = "Dead";
     }
     
     // 1) Compute values (give pipeline a default)
