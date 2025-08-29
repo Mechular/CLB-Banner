@@ -4235,6 +4235,16 @@ async function addQuickNotesMenu() {
                     autoSave: true
                 },
                 {
+                    name: 'Standard Questions',
+                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nCMV: \nOur Offer: \nTimeline: \n\nRepairs: \nRenovations: \n`,
+                    autoSave: false
+                },
+                {
+                    name: 'Post Purchase Notes',
+                    text: `Purchase price: $ \nName of seller: \nProperty address: \nLong/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \nIf tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: )`,
+                    autoSave: false
+                },
+                {
                     name: 'Made Contact',
                     text: `Call attempt #${counts.outbound.phone}\nMade contact.`,
                     autoSave: false
@@ -4250,11 +4260,6 @@ async function addQuickNotesMenu() {
                     dispo: 'Unable to reach',
                     nextAccount: true,
                     autoSave: true
-                },
-                {
-                    name: 'Standard Questions',
-                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nTimeline: \n\nRepairs: \nRenovations: `,
-                    autoSave: false
                 },
                 {
                     name: 'Rental Questions',
