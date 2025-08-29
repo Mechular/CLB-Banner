@@ -4241,7 +4241,7 @@ async function addQuickNotesMenu() {
                 },
                 {
                     name: 'Post Purchase Notes',
-                    text: `Purchase price: $ \nName of seller: \nProperty address: \nLong/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \nIf tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
+                    text: `Purchase price: $ \nName of seller: \nProperty address: \n - Long/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \n - If tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
                     autoSave: false
                 },
                 {
