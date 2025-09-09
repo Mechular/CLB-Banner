@@ -5000,7 +5000,7 @@ function notesScrollTo() {
 
 
 function autoResizeNotes() {
-    const selectors = ['.n-input__textarea-el', '.n-input-wrapper'];
+    const selectors = ['.n-input__textarea-el', '.n-input-wrapper', '#note-input'];
 
     for (const selector of selectors) {
         document.querySelectorAll(selector).forEach(el => {
