@@ -3895,7 +3895,11 @@ async function addTemplateMenu({
                                 'Last Ditch': {
                                     message: `If they try to low-ball you at the very last moment, don't feel obligated to take it.\nLet me know immediately and I will make sure you get a fair deal.`
                                 }
-
+                            },
+                            'Contract Clarification': {
+                                '$10 Earnest': {
+                                    message: `The $10 is just to open escrow and make the contract binding. The full amount will be paid at closing, but the $10 is what’s used to officially start the process.`
+                                }
                             }
                         };
                     } else if (type === 'voicemail') {
