@@ -3796,6 +3796,9 @@ async function addTemplateMenu({
                                 //     'No Contact #1 (Condition Inquiry)': {
                                 //         message: `Hi ${sellerFirstName}, I’m reaching out about ${safePropertyAddress}. I offer quick, hassle-free sales — cash offers, no fees, no cleanup, and flexible closing. What is the condition of the property?\n${myFirstName}`
                                 //     },
+                                'No Contact #0 (Generic)': {
+                                    message: `Hi, Are you still looking to sell ${safePropertyAddress}?`
+                                },
                                 'No Contact #1 (Condition Inquiry)': {
                                     message: `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}`
                                 },
