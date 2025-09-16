@@ -4001,10 +4001,6 @@ async function addTemplateMenu({
                                 cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
 
                                 handleClick = async () => {
-                                    const input = document.querySelector('#text-message');
-                                    const sendButton = document.querySelector('#send-sms');
-                                    if (!input) return;
-
                                     let activeTab = document.querySelector('.nav-link.active');
                                     const smsTab = document.querySelector('#sms-tab');
 
@@ -4012,6 +4008,10 @@ async function addTemplateMenu({
                                         smsTab.click();
                                         await new Promise(resolve => setTimeout(resolve, 250));
                                     }
+
+                                    const input = document.querySelector('#text-message');
+                                    const sendButton = document.querySelector('#send-sms');
+                                    if (!input) return;
 
                                     setInputValue(input, cleanedMessage, 'smsMsg');
 
