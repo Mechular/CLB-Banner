@@ -1315,16 +1315,8 @@ document.querySelector(".selected-number").innerText.split("+")[0].split(" - ")[
     if (dialer) {
         const flexContainer = dialer.querySelector('.flex.cursor-pointer.items-center.gap-2');
         if (flexContainer) {
-            const teleElements = flexContainer.querySelectorAll('.ui-text-sm-medium');
-            if (teleElements.length >= 1) {
-                myTele = teleElements[0].textContent.trim();
-            } else {
-                const plusOneElement = Array.from(flexContainer.querySelectorAll('div'))
-                .find(el => el.textContent.includes('+1'));
-                if (plusOneElement) {
-                    myTele = plusOneElement.textContent.split("+1")[1].trim();
-                }
-            }
+            const teleElements = flexContainer.querySelectorAll('.ui-text-sm-medium')[0];
+            myTele = teleElements.textContent.split("+"[1].trim();
 
             if (myTele) {
                 const cleanedTele = myTele.replace(/\+1|\D/g, '');
