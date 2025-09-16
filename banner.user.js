@@ -1316,7 +1316,7 @@ document.querySelector(".selected-number").innerText.split("+")[0].split(" - ")[
         const flexContainer = dialer.querySelector('.flex.cursor-pointer.items-center.gap-2');
         if (flexContainer) {
             const teleElements = flexContainer.querySelectorAll('.ui-text-sm-medium');
-            if (teleElements.length >= 3) {
+            if (teleElements.length >= 1) {
                 myTele = teleElements[0].textContent.trim();
             } else {
                 const plusOneElement = Array.from(flexContainer.querySelectorAll('div'))
