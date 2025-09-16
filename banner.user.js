@@ -1313,9 +1313,9 @@ async function getUserData() {
     // Get user phone number
     const dialer = document.querySelector('.dialer');
     if (dialer) {
-      myTele = document.querySelector('.dialer')?.querySelector('.flex.cursor-pointer.items-center.gap-2')?.querySelectorAll('.ui-text-sm-medium')[0]?.textContent.split("+")[1].trim();
+      myTele = `+`+dialer.querySelector('.flex.cursor-pointer.items-center.gap-2')?.querySelectorAll('.ui-text-sm-medium')[0]?.textContent.split("+")[1].trim();
         if (myTele) {
-            const cleanedTele = `+`+myTele.replace(/\+1|\D/g, '');
+            const cleanedTele = myTele.replace(/\+1|\D/g, '');
             if (cleanedTele.length === 10) {
                 myTele = `(${cleanedTele.slice(0, 3)}) ${cleanedTele.slice(3, 6)}-${cleanedTele.slice(6)}`;
             } else {
