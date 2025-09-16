@@ -2759,6 +2759,10 @@ async function modalBanner() {
 async function updateBanner() {
     if (!ENABLE_BANNER_UPDATE) return;
 
+    if (document.querySelector("#notification_banner-top_bar")?.innerText.includes("Your Facebook integration has expired. Please contact your admin.")) {
+      document.querySelector("#notification_banner-btn-close")?.click();
+    }
+  
     if (!document.getElementById("notes-tab")) return;
     if (!document.querySelector('[name="contact.first_name"]')) return; // ensure data is loaded
     if (bannerDismissed) return;
