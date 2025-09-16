@@ -3987,16 +3987,16 @@ async function addTemplateMenu({
                                 cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
 
                                 handleClick = async () => {
-                                    const composer = document.querySelector('#message-composer');
-                                    const subjectField = composer?.querySelector('#subject');
-                                    const editor = composer?.querySelector('.tiptap.ProseMirror');
-
                                     const activeTab = document.querySelector('.nav-link.active');
                                     const emailTab = document.querySelector('#email-tab');
                                     if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
                                         emailTab.click();
-                                        await new Promise(resolve => setTimeout(resolve, 500));
+                                        await new Promise(resolve => setTimeout(resolve, 1500));
                                     }
+
+                                    const composer = document.querySelector('#message-composer');
+                                    const subjectField = composer?.querySelector('#subject');
+                                    const editor = composer?.querySelector('.tiptap.ProseMirror');
 
                                     if (subjectField) setInputValue(subjectField, subject, 'email-template');
                                     if (editor) {
