@@ -1309,13 +1309,13 @@ async function getUserData() {
         myLastName = parts.slice(1).join(' ') || '';
         myInitials = ((myFirstName[0] || '') + (myLastName[0] || '')).toUpperCase();
     }
-
+document.querySelector(".selected-number").innerText.split("+")[0].split(" - ")[1]
     // Get user phone number
     const dialer = document.querySelector('.dialer');
     if (dialer) {
         const flexContainer = dialer.querySelector('.flex.cursor-pointer.items-center.gap-2');
         if (flexContainer) {
-            const teleElements = flexContainer.querySelectorAll('.hl-text-sm-medium');
+            const teleElements = flexContainer.querySelectorAll('.ui-text-sm-medium');
             if (teleElements.length >= 3) {
                 myTele = teleElements[0].textContent.trim();
             } else {
@@ -3731,8 +3731,7 @@ async function addTemplateMenu({
                     if (type === 'email') {
                         const signature = `
                             \n\nKind regards,
-                            <strong>${myFullName}</strong>
-                            Property Acquisition Officer<br>
+                            <strong>${myFullName}</strong> | Property Acquisition Officer<br>
                             <strong>Cash Land Buyer USA</strong><br>
                             📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
                             📞 ${myTele}<br>
