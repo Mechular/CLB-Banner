@@ -1309,7 +1309,7 @@ async function getUserData() {
         myLastName = parts.slice(1).join(' ') || '';
         myInitials = ((myFirstName[0] || '') + (myLastName[0] || '')).toUpperCase();
     }
-document.querySelector(".selected-number").innerText.split("+")[0].split(" - ")[1]
+
     // Get user phone number
     const dialer = document.querySelector('.dialer');
     if (dialer) {
