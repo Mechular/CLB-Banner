@@ -1316,7 +1316,7 @@ async function getUserData() {
         const flexContainer = dialer.querySelector('.flex.cursor-pointer.items-center.gap-2');
         if (flexContainer) {
             const teleElements = flexContainer.querySelectorAll('.ui-text-sm-medium')[0];
-            myTele = teleElements.textContent.split("+"[1].trim();
+            myTele = teleElements.textContent.split("+")[1].trim();
 
             if (myTele) {
                 const cleanedTele = myTele.replace(/\+1|\D/g, '');
