@@ -1025,7 +1025,7 @@ function tagExists(tagName) {
 
 
 function attachTooltip(el, disable = false, message = '') {
-    return;
+    // return;
     if (!el) return;
 
     // If user already manually re-enabled this element, skip future disabling
@@ -3601,7 +3601,7 @@ async function addTemplateMenu({
     try {
         const prevMenu = document.getElementById(rightOf); // document.getElementById('tb_scripts_menu') || document.getElementById('tb_voicemail_menu') || document.getElementById('tb_email_menu') || document.getElementById('tb_sms_menu') ||document.getElementById("tb_tasks");
         const notesTab = document.getElementById("notes-tab");
-        const existingMenu = document.getElementById(menuId);
+        const existingMenu = ;
 
         if (!prevMenu || !notesTab) return;
 
