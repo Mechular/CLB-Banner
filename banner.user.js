@@ -3735,7 +3735,7 @@ async function addTemplateMenu({
                                 },
                                 "Initial No Contact #2": {
                                     subject: `Following up on ${propertyAddressLine1}`,
-                                    message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.\n\nKind regards,${signature}`
+                                    message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.\n\n${signature}`
                                 },
                                 "Initial No Contact #3": {
                                     subject: `Need to speak with you about ${propertyAddressLine1}`,
