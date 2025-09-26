@@ -3193,29 +3193,44 @@ function timeRestriction() {
   
               if (typeof propertyStreetName !== 'undefined' && propertyStreetName) {
                   scriptLines.push(
-                      `Hey ${sellerFirstName}, this is ${myFirstName}, Just reaching out because I saw you submitted your info about selling your property at ${propertyStreetName}. Is now a bad time to talk?`
+                      `Hello, is this ${sellerFirstName}? Hey ${sellerFirstName}, I was reaching out about ${propertyStreetName}, are you still looking to sell that property?`,
+                      `[CALLING TOO OFTEN] I understand you get a lot of spam calls. I understand you have a property to sell. [stop]`
                   );
               } else {
                   scriptLines.push(
-                      `Hey ${sellerFirstName}, this is ${myFirstName}, Just reaching out because I saw you submitted your info about selling your property. Is now a bad time to talk?`
+                      `Hey ${sellerFirstName}, this is ${myFirstName}, Just reaching out because I saw you submitted your info about selling your property. Is now a bad time to talk?`,
+                      `Hello, is this ${sellerFirstName}? Hey ${sellerFirstName}, I was reaching out to see if you are are you still looking to sell your property?`,
+                      `[CALLING TOO OFTEN] I understand you get a lot of spam calls. I understand you have a property to sell. [stop]`
                   );
               }
   
               scriptLines.push(
-                  `Tell me how much you NEED to get for it. [repeat back]`,
-                  `How did we get to that price?`,
-                  `Tell me a little bit about what you got going on`,
-                  `So what had you thinking about selling the property? [What's the situation over there?]`,
-                  `Why are you looking to sell?`,
+                  `How much are you needing to get for that property? [repeat back]`,
+                  `[Not opening up] What is the condition of the property?`,
+                  `What do you have going on?`,
+                  `[High Price, High Motivation] What's more important to you? Speed of selling the property or return on investment?`,
+                  `So, how did you come up with the price of XYZ?`,
+                  `[Not opening up] How much do you think it would be after it's fixed up.`,
+                  `[COMP] Check Google Street View`,
+                  `[COMP] Check PropStream.com`,
+                  `[COMP] Check Land ID`,
+                  `[COMP] Check Redfin.com`,
+                  `[COMP] Check Realtor.com`,
+                  `[COMP] Check Zillow.com`,                
+                  `If I covered all of the closing costs and there are no realtor commissions, what is the best price you can do for me?`,
+
+                  `Checklist:`,
+                  // `So what had you thinking about selling the property? [What's the situation over there?]`,
+                  // `Why are you looking to sell?`,
                   `How soon are you looking to sell?`,
                   `Is it vacant, rented, or owner-occupied?`,
-                  `What condition is it in? [How are the roof, heating, and AC holding up?]`,
-                  `Are there any repairs or updates needed?`,
-                  `Honestly, I'm an investor. I need to buy this on a discount. I need some sort of exit strategy where I can make some money.`,
-                  `How much do you think it would be after it's fixed up.`,
-                  `Okay, just so we’re on the same page — we buy as-is, pay cash, no agent fees, and close on your timeline. It’s not retail pricing, but we make it simple and fast. Does that sound like what you're looking for?`,
-                  `What do you think the property’s worth?`,
-                  `What’s the lowest you’d take if everything lined up and we paid cash?`,
+                  // `What condition is it in? [How are the roof, heating, and AC holding up?]`,
+                  // `Are there any repairs or updates needed?`,
+                  // `Honestly, I'm an investor. I need to buy this on a discount. I need some sort of exit strategy where I can make some money.`,
+                  // `Okay, just so we’re on the same page — we buy as-is, pay cash, no agent fees, and close on your timeline. It’s not retail pricing, but we make it simple and fast. Does that sound like what you're looking for?`,
+                  // `What do you think the property’s worth?`,
+                  // `What’s the lowest you’d take if everything lined up and we paid cash?`,
+                  `*** CLOSING ***`,
                   `If you and I can to an agreement on price today, I'm going to send you over a simple purchase agreement
 
 Once you sign that agreement, we're going to come out, do an inspection of the property
