@@ -1191,6 +1191,37 @@
     }
   }
 
+  function parseLocalHour(localTimeStr) {
+    if (!localTimeStr) return null;
+    const s = String(localTimeStr).trim();
+  
+    // 12-hour with AM/PM anywhere in the string
+    let m = s.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i);
+    if (m) {
+      let h = parseInt(m[1], 10);
+      const period = m[3].toUpperCase();
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h;
+    }
+  
+    // 24-hour "HH:MM" or "H:MM"
+    m = s.match(/\b(\d{1,2}):(\d{2})\b/);
+    if (m) {
+      const h24 = parseInt(m[1], 10);
+      if (h24 >= 0 && h24 <= 23) return h24;
+    }
+  
+    // Lone hour token
+    m = s.match(/\b(\d{1,2})\b/);
+    if (m) {
+      const hOnly = parseInt(m[1], 10);
+      if (hOnly >= 0 && hOnly <= 23) return hOnly;
+    }
+  
+    return null; // couldn’t parse
+  }
+
   function timeRestriction() {
     if (!ENABLE_TIME_RESTRICTION) return;
   
@@ -1202,38 +1233,41 @@
     if (!Array.isArray(infoArray) || infoArray.length < 3) return;
   
     const [, , localTimeStr] = infoArray;
-    const timeMatch = localTimeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
-    if (!timeMatch) return;
+    const hour = parseLocalHour(localTimeStr);
   
-    let earliestHour = 8;
-    let latestHour = 20;
-  
-    let hour = parseInt(timeMatch[1], 10);
-    const period = timeMatch[3].toUpperCase();
-    if (period === 'PM' && hour !== 12) hour += 12;
-    if (period === 'AM' && hour === 12) hour = 0;
-  
-    const isRestricted = hour < earliestHour || hour >= latestHour;
-    const banner = document.getElementById('notification_banner-top_bar');
-  
-    // DNC / Do Not Contact tags on the phone input
-    const tags = (sellerPhoneInput.dataset.tags || '').toLowerCase();
-    const isDNC = tags.includes('dnc') || tags.includes('do not contact');
-  
-    // Resolve buttons each poll so re-renders / account switches are handled
+    // Buttons (resolve on each poll in case DOM changed)
     const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children?.[0] || null;
     const smsBtn =
       document.querySelector('#send-sms') ||
       document.querySelector('.send-message-button-group-sms-modal') ||
       null;
   
+    const banner = document.getElementById('notification_banner-top_bar');
+  
+    // DNC overrides everything
+    const tags = (sellerPhoneInput.dataset.tags || '').toLowerCase();
+    const isDNC = tags.includes('dnc') || tags.includes('do not contact');
     if (isDNC) {
       const dncMsg = 'This contact has opted out.';
       setActionState(callBtn, true, dncMsg);
       setActionState(smsBtn, true, dncMsg);
       updateBanner(banner, 'dnc');
-      return; // DNC overrides time rules
+      return;
     }
+  
+    // Fail-safe: if we can’t parse the time, treat as restricted
+    if (hour === null) {
+      const unknownMsg = 'Local time unknown (right click to re-enable)';
+      setActionState(callBtn, true, unknownMsg);
+      setActionState(smsBtn, true, unknownMsg);
+      updateBanner(banner, 'restricted');
+      return;
+    }
+  
+    // Allowed window: 08:00 <= local time < 20:00
+    const earliestHour = 8;
+    const latestHour = 20;
+    const isRestricted = hour < earliestHour || hour >= latestHour;
   
     if (isRestricted) {
       const callMsg = hour < earliestHour
@@ -1242,19 +1276,17 @@
       const smsMsg = hour < earliestHour
         ? 'Too early to text (right click to re-enable)'
         : 'Too late to text (right click to re-enable)';
-  
       setActionState(callBtn, true, callMsg);
       setActionState(smsBtn, true, smsMsg);
       updateBanner(banner, 'restricted');
     } else {
-      // Re-enable when within allowed hours
+      // Re-enable within allowed hours
       setActionState(callBtn, false, '');
       setActionState(smsBtn, false, '');
       updateBanner(banner, 'ok');
     }
   }
 
-  
   async function getUserData() {
       if (!ENABLE_GET_USER_DATA) return;
   
