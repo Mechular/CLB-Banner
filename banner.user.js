@@ -1169,123 +1169,89 @@
       }
   }
 
-  function setActionState(el, disabled, msg) {
-    if (!el) return;
-    if (typeof attachTooltip === 'function') {
-      attachTooltip(el, !!disabled, msg || '');
-    }
-    el.toggleAttribute('data-disabled-by-time', !!disabled);
-    el.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-    el.style.pointerEvents = disabled ? 'none' : '';
-    el.style.opacity = disabled ? '0.6' : '';
+function timeRestriction() {
+  if (!ENABLE_TIME_RESTRICTION) return;
+
+  const sellerPhoneInput = document.querySelector('[name="contact.phone"]');
+  const banner = document.getElementById("notification_banner-top_bar");
+
+  // Defaults
+  let earliestHour = 8;
+  let latestHour = 20;
+  let isRestricted = true; // fail-safe default
+  let isDNC = false;
+
+  // Compute isDNC (case-insensitive) without early return
+  if (sellerPhoneInput) {
+    const tags = (sellerPhoneInput.dataset.tags || '').toLowerCase();
+    isDNC = tags.includes('dnc') || tags.includes('do not contact');
   }
-  
-  function updateBanner(banner, variant) {
-    if (!banner || !ENABLE_BANNER_UPDATE) return;
-    if (variant === 'dnc' || variant === 'restricted') {
+
+  // Compute isRestricted if we can parse local time
+  const sellerPhone = sellerPhoneInput ? (sellerPhoneInput.value || '') : '';
+  const infoArray = getAreaCodeInfo(sellerPhone);
+  if (Array.isArray(infoArray) && infoArray.length >= 3) {
+    const localTimeStr = String(infoArray[2] || '').trim();
+
+    // Try 12-hour with AM/PM anywhere (e.g., "5:07 AM", "5:07 AM EDT")
+    let hour = null;
+    let m = localTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i);
+    if (m) {
+      hour = parseInt(m[1], 10);
+      const period = m[3].toUpperCase();
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+    } else {
+      // Try 24-hour "HH:MM" (e.g., "17:30")
+      m = localTimeStr.match(/\b(\d{1,2}):(\d{2})\b/);
+      if (m) {
+        const h24 = parseInt(m[1], 10);
+        if (h24 >= 0 && h24 <= 23) hour = h24;
+      }
+    }
+
+    if (hour !== null) {
+      isRestricted = hour < earliestHour || hour >= latestHour;
+    } // else keep fail-safe restricted = true
+  }
+
+  // Resolve buttons every poll (works across contact/account switches)
+  const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children?.[0] || null;
+  const smsBtn = document.querySelector('#send-sms') || document.querySelector('.send-message-button-group-sms-modal') || null;
+
+  // Apply UI (no early returns)
+  if (isDNC) {
+    const dncMsg = 'This contact has opted out.';
+    if (callBtn) attachTooltip(callBtn, true, dncMsg);
+    if (smsBtn) attachTooltip(smsBtn, true, dncMsg);
+
+    if (ENABLE_BANNER_UPDATE && banner) {
+      banner.style.backgroundColor = 'rgb(252, 164, 18)';
+      banner.style.color = 'white';
+    }
+  } else if (isRestricted) {
+    const callMsg = 'Too early/late to call (right click to re-enable)';
+    const smsMsg  = 'Too early/late to text (right click to re-enable)';
+
+    if (callBtn) attachTooltip(callBtn, true, callMsg);
+    if (smsBtn) attachTooltip(smsBtn, true, smsMsg);
+
+    if (ENABLE_BANNER_UPDATE && banner) {
       if (banner.style.backgroundColor !== 'rgb(252, 164, 18)') banner.style.backgroundColor = 'rgb(252, 164, 18)';
       if (banner.style.color !== 'white') banner.style.color = 'white';
-    } else {
+    }
+  } else {
+    // Allowed window: clear any previous disabled state/tooltips
+    if (callBtn) attachTooltip(callBtn, false, '');
+    if (smsBtn) attachTooltip(smsBtn, false, '');
+
+    if (ENABLE_BANNER_UPDATE && banner) {
       if (banner.style.backgroundColor !== 'rgb(208, 248, 171)') banner.style.backgroundColor = 'rgb(208, 248, 171)';
       if (banner.style.color !== 'black') banner.style.color = 'black';
     }
   }
+}
 
-  function parseLocalHour(localTimeStr) {
-    if (!localTimeStr) return null;
-    const s = String(localTimeStr).trim();
-  
-    // 12-hour with AM/PM anywhere in the string
-    let m = s.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i);
-    if (m) {
-      let h = parseInt(m[1], 10);
-      const period = m[3].toUpperCase();
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      return h;
-    }
-  
-    // 24-hour "HH:MM" or "H:MM"
-    m = s.match(/\b(\d{1,2}):(\d{2})\b/);
-    if (m) {
-      const h24 = parseInt(m[1], 10);
-      if (h24 >= 0 && h24 <= 23) return h24;
-    }
-  
-    // Lone hour token
-    m = s.match(/\b(\d{1,2})\b/);
-    if (m) {
-      const hOnly = parseInt(m[1], 10);
-      if (hOnly >= 0 && hOnly <= 23) return hOnly;
-    }
-  
-    return null; // couldn’t parse
-  }
-
-  function timeRestriction() {
-    if (!ENABLE_TIME_RESTRICTION) return;
-  
-    const sellerPhoneInput = document.querySelector('[name="contact.phone"]');
-    if (!sellerPhoneInput) return;
-  
-    const sellerPhone = sellerPhoneInput.value || '';
-    const infoArray = getAreaCodeInfo(sellerPhone);
-    if (!Array.isArray(infoArray) || infoArray.length < 3) return;
-  
-    const [, , localTimeStr] = infoArray;
-    const hour = parseLocalHour(localTimeStr);
-  
-    // Buttons (resolve on each poll in case DOM changed)
-    const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children?.[0] || null;
-    const smsBtn =
-      document.querySelector('#send-sms') ||
-      document.querySelector('.send-message-button-group-sms-modal') ||
-      null;
-  
-    const banner = document.getElementById('notification_banner-top_bar');
-  
-    // DNC overrides everything
-    const tags = (sellerPhoneInput.dataset.tags || '').toLowerCase();
-    const isDNC = tags.includes('dnc') || tags.includes('do not contact');
-    if (isDNC) {
-      const dncMsg = 'This contact has opted out.';
-      setActionState(callBtn, true, dncMsg);
-      setActionState(smsBtn, true, dncMsg);
-      updateBanner(banner, 'dnc');
-      return;
-    }
-  
-    // Fail-safe: if we can’t parse the time, treat as restricted
-    if (hour === null) {
-      const unknownMsg = 'Local time unknown (right click to re-enable)';
-      setActionState(callBtn, true, unknownMsg);
-      setActionState(smsBtn, true, unknownMsg);
-      updateBanner(banner, 'restricted');
-      return;
-    }
-  
-    // Allowed window: 08:00 <= local time < 20:00
-    const earliestHour = 8;
-    const latestHour = 20;
-    const isRestricted = hour < earliestHour || hour >= latestHour;
-  
-    if (isRestricted) {
-      const callMsg = hour < earliestHour
-        ? 'Too early to call (right click to re-enable)'
-        : 'Too late to call (right click to re-enable)';
-      const smsMsg = hour < earliestHour
-        ? 'Too early to text (right click to re-enable)'
-        : 'Too late to text (right click to re-enable)';
-      setActionState(callBtn, true, callMsg);
-      setActionState(smsBtn, true, smsMsg);
-      updateBanner(banner, 'restricted');
-    } else {
-      // Re-enable within allowed hours
-      setActionState(callBtn, false, '');
-      setActionState(smsBtn, false, '');
-      updateBanner(banner, 'ok');
-    }
-  }
 
   async function getUserData() {
       if (!ENABLE_GET_USER_DATA) return;
