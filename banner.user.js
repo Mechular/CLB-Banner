@@ -1168,111 +1168,104 @@
           tooltip.style.display = 'none';
       }
   }
-  
-  
-  function timeRestriction() {
-      if (!ENABLE_TIME_RESTRICTION) return;
-  
-      const sellerPhoneInput = document.querySelector('[name="contact.phone"]');
-      if (!sellerPhoneInput) return;
-  
-      const sellerPhone = sellerPhoneInput.value || '';
-      const infoArray = getAreaCodeInfo(sellerPhone);
-      if (!Array.isArray(infoArray) || infoArray.length < 3) return;
-  
-      const [, , localTimeStr] = infoArray;
-      const timeMatch = localTimeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
-      if (!timeMatch) return;
-  
-      let earliestHour = 8;
-      let latestHour = 20;
-  
-      let hour = parseInt(timeMatch[1], 10);
-      const period = timeMatch[3].toUpperCase();
-      if (period === 'PM' && hour !== 12) hour += 12;
-      if (period === 'AM' && hour === 12) hour = 0;
-  
-      const isRestricted = hour < earliestHour || hour >= latestHour;
-      const banner = document.getElementById("notification_banner-top_bar");
-  
-      // Check for "DNC" or "Do Not Contact" tags
-      const el = document.querySelector('[name="contact.phone"]');
-      const tags = el ? el.dataset.tags : ''; // Assuming tags are in a data attribute
-      const isDNC = tags && (tags.includes('dnc') || tags.includes('do not contact'));
-  
-      if (isDNC) {
-          // Display message if "DNC" or "Do Not Contact" is present
-          const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children[0];
-          const smsBtn = document.querySelector('#send-sms') || document.querySelector('.send-message-button-group-sms-modal');
-  
-          const dncMsg = 'This contact has opted out.';
-  
-          if (callBtn) {
-              // cLog('Attaching tooltip for DNC to call button');
-              attachTooltip(callBtn, true, dncMsg);
-          }
-          if (smsBtn) {
-              // cLog('Attaching tooltip for DNC to SMS button');
-              attachTooltip(smsBtn, true, dncMsg);
-          }
-  
-  
-          if (ENABLE_BANNER_UPDATE && banner) {
-              banner.style.backgroundColor = 'rgb(252, 164, 18)'; // DNC banner color
-              banner.style.color = 'white';
-          }
-      } else if (isRestricted) {
-          const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children[0];
-          const smsBtn = document.querySelector('#send-sms') || document.querySelector('.send-message-button-group-sms-modal');
-  
-          const callMsg = hour < earliestHour
-          ? 'Too early to call (right click to re-enable)'
-          : 'Too late to call (right click to re-enable)';
-          const smsMsg = hour < earliestHour
-          ? 'Too early to text (right click to re-enable)'
-          : 'Too late to text (right click to re-enable)';
-  
-          if (callBtn) {
-              // cLog('Attaching tooltip for restricted time to call button');
-              attachTooltip(callBtn, true, callMsg);
-          }
-          if (smsBtn) {
-              // cLog('Attaching tooltip for restricted time to SMS button');
-              attachTooltip(smsBtn, true, smsMsg);
-          }
-  
-          if (ENABLE_BANNER_UPDATE && banner) {
-              // Check if the banner background and color are not already the restricted ones
-              if (banner.style.backgroundColor !== 'rgb(252, 164, 18)') {
-                  banner.style.backgroundColor = 'rgb(252, 164, 18)';
-              }
-              if (banner.style.color !== 'white') {
-                  banner.style.color = 'white';
-              }
-          } else {
-              if (ENABLE_BANNER_UPDATE && banner) {
-                  // Check if the banner background and color are not already the non-restricted ones
-                  if (banner.style.backgroundColor !== 'rgb(208, 248, 171)') {
-                      banner.style.backgroundColor = 'rgb(208, 248, 171)';
-                  }
-                  if (banner.style.color !== 'black') {
-                      banner.style.color = 'black';
-                  }
-              }
-          }
-      } else {
-          if (ENABLE_BANNER_UPDATE && banner) {
-              // Check if the banner background and color are not already the non-restricted ones
-              if (banner.style.backgroundColor !== 'rgb(208, 248, 171)') {
-                  banner.style.backgroundColor = 'rgb(208, 248, 171)';
-              }
-              if (banner.style.color !== 'black') {
-                  banner.style.color = 'black';
-              }
-          }
-      }
+
+  function setActionState(el, disabled, msg) {
+    if (!el) return;
+    // Your tooltip util likely supports "enabled=false" to remove; if not, do it manually:
+    if (typeof attachTooltip === 'function') {
+      attachTooltip(el, !!disabled, msg || '');
+    }
+    el.toggleAttribute('data-disabled-by-time', !!disabled);
+    el.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    el.style.pointerEvents = disabled ? 'none' : '';
+    el.style.opacity = disabled ? '0.6' : '';
   }
   
+  function updateBanner(banner, variant) {
+    if (!banner || !ENABLE_BANNER_UPDATE) return;
+    // variants: 'dnc' | 'restricted' | 'ok'
+    if (variant === 'dnc' || variant === 'restricted') {
+      if (banner.style.backgroundColor !== 'rgb(252, 164, 18)') {
+        banner.style.backgroundColor = 'rgb(252, 164, 18)';
+      }
+      if (banner.style.color !== 'white') {
+        banner.style.color = 'white';
+      }
+    } else {
+      if (banner.style.backgroundColor !== 'rgb(208, 248, 171)') {
+        banner.style.backgroundColor = 'rgb(208, 248, 171)';
+      }
+      if (banner.style.color !== 'black') {
+        banner.style.color = 'black';
+      }
+    }
+  }
+
+  
+function timeRestriction() {
+  if (!ENABLE_TIME_RESTRICTION) return;
+
+  const sellerPhoneInput = document.querySelector('[name="contact.phone"]');
+  if (!sellerPhoneInput) return;
+
+  const sellerPhone = sellerPhoneInput.value || '';
+  const infoArray = getAreaCodeInfo(sellerPhone);
+  if (!Array.isArray(infoArray) || infoArray.length < 3) return;
+
+  const [, , localTimeStr] = infoArray;
+  const timeMatch = localTimeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  if (!timeMatch) return;
+
+  let earliestHour = 8;
+  let latestHour = 20;
+
+  let hour = parseInt(timeMatch[1], 10);
+  const period = timeMatch[3].toUpperCase();
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+
+  const isRestricted = hour < earliestHour || hour >= latestHour;
+  const banner = document.getElementById('notification_banner-top_bar');
+
+  // DNC check
+  const el = sellerPhoneInput; // same element you used earlier
+  const tags = el ? el.dataset.tags || '' : '';
+  const normTags = tags.toLowerCase();
+  const isDNC = normTags.includes('dnc') || normTags.includes('do not contact');
+
+  // Buttons (resolve each run so re-renders / account switches are handled)
+  const callBtn = document.querySelector('.message-header-actions.contact-detail-actions')?.children?.[0] || null;
+  const smsBtn =
+    document.querySelector('#send-sms') ||
+    document.querySelector('.send-message-button-group-sms-modal') ||
+    null;
+
+  if (isDNC) {
+    const dncMsg = 'This contact has opted out.';
+    setActionState(callBtn, true, dncMsg);
+    setActionState(smsBtn, true, dncMsg);
+    updateBanner(banner, 'dnc');
+    return; // DNC overrides time rules
+  }
+
+  if (isRestricted) {
+    const callMsg = hour < earliestHour
+      ? 'Too early to call (right click to re-enable)'
+      : 'Too late to call (right click to re-enable)';
+    const smsMsg = hour < earliestHour
+      ? 'Too early to text (right click to re-enable)'
+      : 'Too late to text (right click to re-enable)';
+
+    setActionState(callBtn, true, callMsg);
+    setActionState(smsBtn, true, smsMsg);
+    updateBanner(banner, 'restricted');
+  } else {
+    // Re-enable if previously disabled
+    setActionState(callBtn, false, '');
+    setActionState(smsBtn, false, '');
+    updateBanner(banner, 'ok');
+  }
+}
   
   
   async function getUserData() {
