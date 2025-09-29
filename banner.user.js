@@ -3829,15 +3829,17 @@ With that being said, if I were to cover all the closing costs, and there's no r
                                       message: `Hi ${sellerFirstName}, this is ${myFirstName} with Cash Land Buyer USA. Feel free to call or text me here, or if it’s easier, email me at ${myEmail}. Looking forward to working with you!`
                                   }
                               },
+                              'Disconnected': {
+                                  'Disconnected?': {
+                                      message: `Did we get disconnected on my end or did you mean to hang up?\n\nIf you don't want to speak with me to sell your property, that's okay. I just need to know.`
+                                  }
+                              },
                               'Follow-Up': {
                                   'Contract - Not Opened #1': {
                                       message: `Hi ${sellerFirstName}. I noticed our offer wasn't opened. Can you please confirm that you received our email?`
                                   },
                                   'Contract - Not Opened #2': {
                                       message: `Hi ${sellerFirstName}. Do you have any questions about the contract we sent over?`
-                                  },
-                                  'Disconnected?': {
-                                      message: `Did we get disconnected on my end or did you mean to hang up?`
                                   },
                                   'Sent Contract Confirm': {
                                       message: `Thanks again for taking the time to speak with me. I've sent the contract to ${sellerEmail}. Did you get it?`
