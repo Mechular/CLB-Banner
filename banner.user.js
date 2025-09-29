@@ -3194,13 +3194,14 @@ function timeRestriction() {
               if (typeof propertyStreetName !== 'undefined' && propertyStreetName) {
                   scriptLines.push(
                       `Hello, is this ${sellerFirstName}? Hey ${sellerFirstName}, I was reaching out about ${propertyStreetName}, are you still looking to sell that property?`,
-                      `[CALLING TOO OFTEN] I understand you get a lot of spam calls... You reached out because have a property to sell. 🛑`
+                      `  - [CALLING TOO OFTEN] I understand you get a lot of spam calls... You reached out because have a property to sell. 🛑`
                   );
               } else {
                   scriptLines.push(
                       `Hey ${sellerFirstName}, this is ${myFirstName}, Just reaching out because I saw you submitted your info about selling your property. Is now a bad time to talk?`,
                       `Hello, is this ${sellerFirstName}? Hey ${sellerFirstName}, I was reaching out to see if you are are you still looking to sell your property?`,
-                      `[CALLING TOO OFTEN] I understand you get a lot of spam calls... You reached out because have a property to sell. [stop]`
+                      `  - [CALLING TOO OFTEN] I understand you get a lot of spam calls... You reached out because have a property to sell. 🛑`,
+                      //`  - [CALLING TOO OFTEN] I understand you get a lot of spam calls... You reached out because have a property to sell. 🛑`
                   );
               }
   
