@@ -2831,7 +2831,16 @@ function timeRestriction() {
       if (propertyZip) addressParts.push(propertyZip);
   
       // Filter out any undefined, null, or empty string values and join with a comma
-      let storedAddress = addressParts.filter(part => part && part.trim()).join(', ');
+      // let storedAddress = addressParts.filter(part => part && part.trim()).join(', ');
+    let storedAddress = [
+  propertyAddressLine1?.trim(),
+  propertyCity?.trim(),
+  [
+    (propertyStateShort ?? '').toString().trim().slice(0,2).toUpperCase(),
+    (propertyZip ?? '').toString().trim().split('-')[0] // strip ZIP+4
+  ].filter(Boolean).join(' ').trim()
+].filter(Boolean).join(', ');
+
   
       if (storedAddress) {
           // localStorage.setItem('propertyAddress', storedAddress);
@@ -2849,9 +2858,8 @@ function timeRestriction() {
                       });
                   }, { once: true });
               }
-          }, 50);
+          }, 10);
       }
-  
   
       if (sellerUrgency) {
           bannerTextCenterLeft += ` Selling: <b>${sellerUrgency}</b>`;
