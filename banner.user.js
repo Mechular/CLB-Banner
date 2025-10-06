@@ -5939,7 +5939,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
       faSMSIcon.classList.add("fa", "fa-message");
       faSMSIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
       faSMSIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
-      faSMSIcon.style.paddingLeft = "10px";
+      faSMSIcon.style.paddingRight = "10px";
       phoneCell.prepend(faSMSIcon);
     });
   }
