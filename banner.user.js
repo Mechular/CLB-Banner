@@ -5929,11 +5929,17 @@ With that being said, if I were to cover all the closing costs, and there's no r
       const existingIcon = phoneCell.querySelector(".icon-phone-svg");
       if (existingIcon) existingIcon.remove();
   
-      const faIcon = document.createElement("i");
-      faIcon.classList.add("fa", "fa-phone");
-      faIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
-      faIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
-      phoneCell.prepend(faIcon);
+      const faPhoneIcon = document.createElement("i");
+      faPhoneIcon.classList.add("fa", "fa-phone");
+      faPhoneIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+      faPhoneIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
+      phoneCell.prepend(faPhoneIcon);
+  
+      const faSMSIcon = document.createElement("i");
+      faSMSIcon.classList.add("fa", "fa-message");
+      faSMSIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+      faSMSIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
+      phoneCell.prepend(faSMSIcon);
     });
   }
   
