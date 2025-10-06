@@ -5869,19 +5869,18 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
           // Update visuals
           upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
-          const faIconAtClick = phoneCell.querySelector(".fa.fa-phone");
-          if (faIconAtClick) {
-            faIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
-            faIconAtClick.title = allowedNow
+          const faPhoneIconAtClick = phoneCell.querySelector(".fa.fa-phone");
+          if (faPhoneIconAtClick) {
+            faPhoneIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+            faPhoneIconAtClick.title = allowedNow
               ? "Within call window"
               : (unknownTzNow ? "Timezone unknown" : "Outside call window");
           }
           
-          upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
-          const faIconAtClick = phoneCell.querySelector(".fa.fa-message");
-          if (faIconAtClick) {
-            faIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
-            faIconAtClick.title = allowedNow
+          const faMessageIconAtClick = phoneCell.querySelector(".fa.fa-message");
+          if (faMessageIconAtClick) {
+            faMessageIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+            faMessageIconAtClick.title = allowedNow
               ? "Within call window"
               : (unknownTzNow ? "Timezone unknown" : "Outside call window");
           }
