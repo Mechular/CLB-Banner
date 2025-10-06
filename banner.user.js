@@ -5876,6 +5876,15 @@ With that being said, if I were to cover all the closing costs, and there's no r
               ? "Within call window"
               : (unknownTzNow ? "Timezone unknown" : "Outside call window");
           }
+          
+          upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
+          const faIconAtClick = phoneCell.querySelector(".fa.fa-message");
+          if (faIconAtClick) {
+            faIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+            faIconAtClick.title = allowedNow
+              ? "Within call window"
+              : (unknownTzNow ? "Timezone unknown" : "Outside call window");
+          }
   
           // Enforce policy
           if (unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && !CALL_RULES.WARN_ONLY) {
