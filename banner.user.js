@@ -5936,12 +5936,12 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
     if (!counts) return;
       
-    if (dispo === "" && counts.outbound.phone > 3 && counts.outbound.phone < 31) {
+    if (dispo === "" && counts.outbound.phone > 6 && counts.outbound.phone < 9) {
        setDisposition("Move to Contacted");
        return;
     }
     
-    if (dispo === "Move to Contacted" && counts.outbound.phone > 30) {
+    if (dispo === "Move to Contacted" && counts.outbound.phone > 9) {
        setDisposition("Move to Final Contact");
        return;
     }
