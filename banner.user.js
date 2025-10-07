@@ -1408,7 +1408,7 @@ function myStatsWidget() {
       stored[todayStr] = { calls };
       localStorage.setItem("totalCallsToday", JSON.stringify(stored));
 
-      console.log("RevEx call data:", calls);
+      // console.log("RevEx call data:", calls);
     } catch (err) {
       console.error("Error fetching RevEx calls:", err);
     }
@@ -6068,7 +6068,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
                   // reduce function calls in an attempt to improve performance
                   iterationCount++;
-                  if (iterationCount >= 3) {
+                  if (iterationCount >= 5) {
                       populateFieldsWithExtractedData();
                       myStatsWidget();
                       iterationCount = 0;
