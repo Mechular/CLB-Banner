@@ -1313,62 +1313,36 @@ function timeRestriction() {
   }
   
 function myStatsWidget() {
-  if (!ENABLE_MYSTATS_WIDGET) {
-    console.log("[myStatsWidget] Widget disabled. Skipping init.");
-    return;
-  }
+  if (!ENABLE_MYSTATS_WIDGET) return;
 
   async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
-    console.log("[fetchRevexCalls] Starting fetch with:", {
-      startMs, endMs, comparisonStartMs, comparisonEndMs, timezone
-    });
-
     const parts = location.pathname.split("/");
     const locationIdIdx = parts.indexOf("location");
     if (locationIdIdx === -1 || !parts[locationIdIdx + 1]) throw new Error("Missing locationId in URL path.");
     const locationId = parts[locationIdIdx + 1];
-    console.log("[fetchRevexCalls] Detected locationId:", locationId);
 
-    // IndexedDB: open
-    console.log("[fetchRevexCalls] Opening IndexedDB...");
     const idb = await new Promise((res, rej) => {
       const r = indexedDB.open("firebaseLocalStorageDb");
-      r.onsuccess = () => {
-        console.log("[fetchRevexCalls] IndexedDB opened successfully.");
-        res(r.result);
-      };
-      r.onerror = () => {
-        console.error("[fetchRevexCalls] IndexedDB open error:", r.error);
-        rej(r.error || new Error("IndexedDB open failed."));
-      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error || new Error("IndexedDB open failed."));
     });
 
-    // IndexedDB: read firebaseLocalStorage
-    console.log("[fetchRevexCalls] Reading firebaseLocalStorage...");
     const rows = await new Promise((res, rej) => {
       const tx = idb.transaction("firebaseLocalStorage", "readonly");
       const os = tx.objectStore("firebaseLocalStorage");
       const rq = os.getAll();
-      rq.onsuccess = () => {
-        console.log("[fetchRevexCalls] IndexedDB rows read:", rq.result?.length || 0);
-        res(rq.result || []);
-      };
-      rq.onerror = () => {
-        console.error("[fetchRevexCalls] IndexedDB read error:", rq.error);
-        rej(rq.error || new Error("IndexedDB read failed."));
-      };
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
     });
 
-    // Extract Firebase token
     const row = rows.find(r => /authUser/.test(r.fbase_key));
     if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
     const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
     const idToken = val?.stsTokenManager?.accessToken;
     if (!idToken) throw new Error("Missing Firebase ID token.");
-    console.log("[fetchRevexCalls] Token extracted successfully.");
 
-    // Prepare request
     const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
+
     const body = {
       chartType: "donut",
       options: {
@@ -1380,7 +1354,6 @@ function myStatsWidget() {
       }
     };
 
-    console.log("[fetchRevexCalls] Sending request to:", url);
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -1397,39 +1370,29 @@ function myStatsWidget() {
       mode: "cors"
     });
 
-    console.log("[fetchRevexCalls] Response status:", res.status);
     if (!res.ok) {
       const errTxt = await res.text().catch(() => "");
-      console.error("[fetchRevexCalls] RevEx API failed:", res.status, errTxt);
       throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
     }
-
-    const json = await res.json();
-    console.log("[fetchRevexCalls] Response JSON:", json);
-    return json;
+    return res.json();
   }
 
   function getMsRangeForTodayInZone(timezone) {
-    console.log("[getMsRangeForTodayInZone] Calculating time range for:", timezone);
     const now = new Date();
     const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
     const [{ value: y }, , { value: m }, , { value: d }] = fmt.formatToParts(now);
     const startLocal = new Date(`${y}-${m}-${d}T00:00:00`);
     const endLocal = new Date(`${y}-${m}-${d}T23:59:59.999`);
-    console.log("[getMsRangeForTodayInZone] Range:", { start: startLocal, end: endLocal });
     return { startMs: startLocal.getTime(), endMs: endLocal.getTime() };
   }
 
   function getYYYYMMDDInZone(timezone) {
     const now = new Date();
     const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
-    const str = fmt.format(now);
-    console.log("[getYYYYMMDDInZone] Formatted date:", str);
-    return str;
+    return fmt.format(now);
   }
 
   (async () => {
-    console.log("[myStatsWidget] Starting data fetch sequence...");
     const timezone = "America/Halifax";
     const { startMs, endMs } = getMsRangeForTodayInZone(timezone);
     const oneDay = 24 * 60 * 60 * 1000;
@@ -1439,20 +1402,19 @@ function myStatsWidget() {
     try {
       const data = await fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone });
       const calls = data?.data?.[0]?.stats?.total ?? 0;
-      console.log("[myStatsWidget] Parsed total calls:", calls);
 
       const todayStr = getYYYYMMDDInZone(timezone);
       const stored = JSON.parse(localStorage.getItem("totalCallsToday") || "{}");
       stored[todayStr] = { calls };
       localStorage.setItem("totalCallsToday", JSON.stringify(stored));
 
-      console.log("[myStatsWidget] Stored in localStorage:", stored);
-      console.log("[myStatsWidget] ✅ Done. RevEx call data successfully fetched and saved.");
+      console.log("RevEx call data:", calls);
     } catch (err) {
-      console.error("[myStatsWidget] ❌ Error fetching RevEx calls:", err);
+      console.error("Error fetching RevEx calls:", err);
     }
   })();
 }
+
 
   async function hideCallSummaryNotes() {
       const container = document.getElementById("notes-list-container-contact");
