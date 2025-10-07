@@ -1312,96 +1312,108 @@ function timeRestriction() {
       };
   }
   
-  function myStatsWidget() {
-      if (!ENABLE_MYSTATS_WIDGET) return;
-  
-      if (window.myStatsAdded) return;
-      window.myStatsAdded = true;
-  
-      const offset = 0;
-      const maxWaitTime = 45000; // Max 45 seconds
-      const checkInterval = 1000; // Check every 1 second
-      let elapsedTime = 0;
-  
-      const config = window.scriptConfig || {};
-      const dashboardHref = config.dashboardHref;
-      const debugON = config.debug;
-  
-      if (!dashboardHref) return;
-      
-      const iframe = document.createElement('iframe');
-      iframe.src = dashboardHref;
-  
-      if (debugON) {
-          Object.assign(iframe.style, {
-              width: '800px',
-              height: '500px',
-              border: '2px solid red',
-              zIndex: '9999',
-              position: 'fixed',
-              bottom: '20px',
-              right: '20px',
-              background: 'white'
-          });
-      } else {
-          Object.assign(iframe.style, {
-              width: '0',
-              height: '0',
-              border: 'none',
-              position: 'absolute',
-              opacity: '0',
-              pointerEvents: 'none'
-          });
+function myStatsWidget() {
+  if (!ENABLE_MYSTATS_WIDGET) return;
+
+  async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
+    const parts = location.pathname.split("/");
+    const locationIdIdx = parts.indexOf("location");
+    if (locationIdIdx === -1 || !parts[locationIdIdx + 1]) throw new Error("Missing locationId in URL path.");
+    const locationId = parts[locationIdIdx + 1];
+
+    const idb = await new Promise((res, rej) => {
+      const r = indexedDB.open("firebaseLocalStorageDb");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error || new Error("IndexedDB open failed."));
+    });
+
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
+    });
+
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
+    const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    const idToken = val?.stsTokenManager?.accessToken;
+    if (!idToken) throw new Error("Missing Firebase ID token.");
+
+    const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
+
+    const body = {
+      chartType: "donut",
+      options: {
+        aggregations: [{ operator: "count", field: "_id", i18nKey: "common.widget.metricCountOfCall", numberFormatType: "none", metricKey: "count::_id" }],
+        groupBy: { fields: [{ field: "callStatus", type: "field" }], limit: 10, orderBy: "desc" },
+        filters: [{ group: "AND", filters: [{ field: "dateAdded", operator: "time_series", value: [startMs, endMs] }, { group: "OR", filters: [] }]}],
+        comparisonDate: { field: "dateAdded", operator: "time_series", value: [comparisonStartMs, comparisonEndMs] },
+        timezone
       }
-  
-      document.body.appendChild(iframe);
-  
-      iframe.onload = () => {
-          const pollForSVGs = () => {
-              try {
-                  const svgDoc = iframe.contentDocument || iframe.contentWindow.document;
-                  const svgs = svgDoc.querySelectorAll('svg[aria-label="Total Calls Placed by Call Attendee"]');
-  
-                  if (debugON) cLog(`[poll ${elapsedTime / 1000}s] SVGs found:`, svgs.length);
-  
-                  if (svgs.length > 1) {
-                      const callsText = svgs[0].querySelector('text');
-                      const durationText = svgs[1].querySelector('text');
-  
-                      const calls = callsText ? callsText.textContent.trim() : 'N/A';
-                      const duration = durationText ? durationText.textContent.trim() : 'N/A';
-  
-                      const today = new Date();
-                      today.setDate(today.getDate() - offset);
-                      const todayStr = today.toISOString().split('T')[0];
-  
-                      const stored = JSON.parse(localStorage.getItem('totalCallsToday') || '{}');
-                      stored[todayStr] = { calls, duration };
-                      localStorage.setItem('totalCallsToday', JSON.stringify(stored));
-  
-                      if (debugON) {
-                          cLog(`✅ Saved for ${todayStr}:`, stored[todayStr]);
-                      }
-  
-                      if (calls && duration) {
-                          iframe.remove();
-                      }
-                  } else if (elapsedTime < maxWaitTime) {
-                      elapsedTime += checkInterval;
-                      setTimeout(pollForSVGs, checkInterval);
-                  } else {
-                      cWarn('⚠️ SVGs not found within max wait time.');
-                      iframe.remove();
-                  }
-              } catch (err) {
-                  cErr('Error accessing iframe SVGs: ' + err);
-                  iframe.remove();
-              }
-          };
-  
-          pollForSVGs();
-      };
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/plain, */*",
+        "content-type": "application/json",
+        channel: "APP",
+        source: "WEB_USER",
+        version: "2021-04-15",
+        "x-reporting-api-version": "3",
+        "token-id": idToken
+      },
+      body: JSON.stringify(body),
+      credentials: "omit",
+      mode: "cors"
+    });
+
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => "");
+      throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
+    }
+    return res.json();
   }
+
+  function getMsRangeForTodayInZone(timezone) {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+    const [{ value: y }, , { value: m }, , { value: d }] = fmt.formatToParts(now);
+    const startLocal = new Date(`${y}-${m}-${d}T00:00:00`);
+    const endLocal = new Date(`${y}-${m}-${d}T23:59:59.999`);
+    return { startMs: startLocal.getTime(), endMs: endLocal.getTime() };
+  }
+
+  function getYYYYMMDDInZone(timezone) {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+    return fmt.format(now);
+  }
+
+  (async () => {
+    const timezone = "America/Halifax";
+    const { startMs, endMs } = getMsRangeForTodayInZone(timezone);
+    const oneDay = 24 * 60 * 60 * 1000;
+    const comparisonStartMs = startMs - oneDay;
+    const comparisonEndMs = endMs - oneDay;
+
+    try {
+      const data = await fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone });
+      const calls = data?.data?.[0]?.stats?.total ?? 0;
+
+      const todayStr = getYYYYMMDDInZone(timezone);
+      const stored = JSON.parse(localStorage.getItem("totalCallsToday") || "{}");
+      stored[todayStr] = { calls };
+      localStorage.setItem("totalCallsToday", JSON.stringify(stored));
+
+      console.log("RevEx call data:", calls);
+    } catch (err) {
+      console.error("Error fetching RevEx calls:", err);
+    }
+  })();
+}
   
   async function hideCallSummaryNotes() {
       const container = document.getElementById("notes-list-container-contact");
@@ -2900,7 +2912,7 @@ function timeRestriction() {
       if (todaysData) {
           const { calls, duration } = todaysData;
           // Use calls and duration in your banner
-          bannerTextRight = `Calls: ${calls}<br>Duration: ${duration}`;
+          // bannerTextRight = `Calls: ${calls}<br>Duration: ${duration}`;
       } else {
           bannerTextRight = 'No data available for today.';
       }
