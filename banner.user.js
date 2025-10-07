@@ -2951,7 +2951,8 @@ function myStatsWidget() {
       if (todaysData) {
           const { calls, duration } = todaysData;
           // Use calls and duration in your banner
-          // bannerTextRight = `Calls: ${calls}<br>Duration: ${duration}`;
+          bannerTextRight = `Calls: ${calls}`;
+          // <br>Duration: ${duration}`;
       } else {
           bannerTextRight = 'No data available for today.';
       }
