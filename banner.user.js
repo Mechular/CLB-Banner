@@ -1291,11 +1291,43 @@ function timeRestriction() {
       };
   }
   
-function myStatsWidget() {
+async function myStatsWidget({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" } = {}) {
   if (!ENABLE_MYSTATS_WIDGET) return;
-  // if (!window.myStatsAdded) return;
 
-  async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
+  // Prevent duplicate runs
+  if (window.myStatsRunning) return;
+  window.myStatsRunning = true;
+
+  const containerId = "my-stats-widget";
+  let container = document.getElementById(containerId);
+  if (!container) {
+    container = document.createElement("div");
+    container.id = containerId;
+    container.style.cssText = `
+      position: relative;
+      padding: 12px;
+      margin: 10px;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      font-family: sans-serif;
+    `;
+    document.body.appendChild(container);
+  } else {
+    container.textContent = "";
+  }
+
+  try {
+    const data = await fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone });
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(data, null, 2);
+    container.appendChild(pre);
+  } catch (err) {
+    console.error("myStatsWidget error:", err);
+  } finally {
+    window.myStatsRunning = false;
+  }
+
+  async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone }) {
     const parts = location.pathname.split("/");
     const locationIdIdx = parts.indexOf("location");
     if (locationIdIdx === -1 || !parts[locationIdIdx + 1]) throw new Error("Missing locationId in URL path.");
@@ -1307,55 +1339,65 @@ function myStatsWidget() {
       r.onerror = () => rej(r.error || new Error("IndexedDB open failed."));
     });
 
-    const rows = await new Promise((res, rej) => {
-      const tx = idb.transaction("firebaseLocalStorage", "readonly");
-      const os = tx.objectStore("firebaseLocalStorage");
-      const rq = os.getAll();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
-    });
+    try {
+      const rows = await new Promise((res, rej) => {
+        const tx = idb.transaction("firebaseLocalStorage", "readonly");
+        const os = tx.objectStore("firebaseLocalStorage");
+        const rq = os.getAll();
+        rq.onsuccess = () => res(rq.result || []);
+        rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
+      });
 
-    const row = rows.find(r => /authUser/.test(r.fbase_key));
-    if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
-    const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
-    const idToken = val?.stsTokenManager?.accessToken;
-    if (!idToken) throw new Error("Missing Firebase ID token.");
+      const row = rows.find(r => /authUser/.test(r.fbase_key));
+      if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
+      const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+      const idToken = val?.stsTokenManager?.accessToken;
+      if (!idToken) throw new Error("Missing Firebase ID token.");
 
-    const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
+      const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
+      const body = {
+        chartType: "donut",
+        options: {
+          aggregations: [
+            { operator: "count", field: "_id", i18nKey: "common.widget.metricCountOfCall", numberFormatType: "none", metricKey: "count::_id" }
+          ],
+          groupBy: { fields: [{ field: "callStatus", type: "field" }], limit: 10, orderBy: "desc" },
+          filters: [
+            { group: "AND", filters: [{ field: "dateAdded", operator: "time_series", value: [startMs, endMs] }, { group: "OR", filters: [] }] }
+          ],
+          comparisonDate: { field: "dateAdded", operator: "time_series", value: [comparisonStartMs, comparisonEndMs] },
+          timezone
+        }
+      };
 
-    const body = {
-      chartType: "donut",
-      options: {
-        aggregations: [{ operator: "count", field: "_id", i18nKey: "common.widget.metricCountOfCall", numberFormatType: "none", metricKey: "count::_id" }],
-        groupBy: { fields: [{ field: "callStatus", type: "field" }], limit: 10, orderBy: "desc" },
-        filters: [{ group: "AND", filters: [{ field: "dateAdded", operator: "time_series", value: [startMs, endMs] }, { group: "OR", filters: [] }]}],
-        comparisonDate: { field: "dateAdded", operator: "time_series", value: [comparisonStartMs, comparisonEndMs] },
-        timezone
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/plain, */*",
+          "content-type": "application/json",
+          channel: "APP",
+          source: "WEB_USER",
+          version: "2021-04-15",
+          "x-reporting-api-version": "3",
+          "token-id": idToken
+        },
+        body: JSON.stringify(body),
+        credentials: "omit",
+        mode: "cors"
+      });
+
+      if (!res.ok) {
+        const errTxt = await res.text().catch(() => "");
+        throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
       }
-    };
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        accept: "application/json, text/plain, */*",
-        "content-type": "application/json",
-        channel: "APP",
-        source: "WEB_USER",
-        version: "2021-04-15",
-        "x-reporting-api-version": "3",
-        "token-id": idToken
-      },
-      body: JSON.stringify(body),
-      credentials: "omit",
-      mode: "cors"
-    });
-
-    if (!res.ok) {
-      const errTxt = await res.text().catch(() => "");
-      throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
+      return res.json();
+    } finally {
+      try { idb.close(); } catch {}
     }
-    return res.json();
   }
+}
+
 
   function getMsRangeForTodayInZone(timezone) {
     const now = new Date();
@@ -4748,55 +4790,53 @@ async function extractContactData() {
       }
   }
   
-  async function checkUrlChange() {
-      if (!ENABLE_MONITOR_URL_CHANGES) return;
-  
-      const currentUrl = location.href;
-      const currentBaseUrl = getBaseContactUrl(currentUrl);
-  
-      if (currentBaseUrl !== lastBaseUrl) {
-          cLog(`URL changed from ${lastBaseUrl} to ${currentBaseUrl}`);
-          lastBaseUrl = currentBaseUrl;
-  
-          const onContactPage = isOnContactPage(currentBaseUrl);
-          storedAddress = '';
-          initialized = false;
-          wasOnContactPage = false;
-          hasClickedNotesTab = false;
-          bannerDismissed = false;
-          myStatsAdded = false;
-          jsonData = [];
-          noteBlock = null;
-          notesScrollInitialized = false;
-          window.myStatsAdded = false;
-          iterationCount = 0;
-          hasRunExtractNoteData = false;
-  
-          removeIfExists("tb_voicemail_menu");
-          removeIfExists("tb_addnote_menu");
-          removeIfExists("tb_email_menu");
-          removeIfExists("tb_textmessage_menu");
-          removeIfExists("tb_script_menu");
-          removeIfExists("notification_banner-top_bar");
-          removeIfExists("notification_banner-top_bar_conversations");
-  
-          removeIfExists("myStatsWidget");
-  
-          const userInfo = await getUserData();
-  
-          if (!onContactPage && wasOnContactPage && ENABLE_PAGE_LEAVE_CLEAR) {
-              return false;
-          }
-  
-          if (onContactPage && !wasOnContactPage) wasOnContactPage = true;
-  
-          return true;
-      }
-  
+async function checkUrlChange() {
+  if (!ENABLE_MONITOR_URL_CHANGES) return;
+  const currentUrl = location.href;
+  const currentBaseUrl = getBaseContactUrl(currentUrl);
+
+  if (currentBaseUrl !== lastBaseUrl) {
+    cLog(`URL changed from ${lastBaseUrl} to ${currentBaseUrl}`);
+    lastBaseUrl = currentBaseUrl;
+
+    const onContactPage = isOnContactPage(currentBaseUrl);
+    storedAddress = '';
+    initialized = false;
+    wasOnContactPage = false;
+    hasClickedNotesTab = false;
+    bannerDismissed = false;
+    myStatsAdded = false;
+    jsonData = [];
+    noteBlock = null;
+    notesScrollInitialized = false;
+    window.myStatsAdded = false;
+    iterationCount = 0;
+    hasRunExtractNoteData = false;
+
+    removeIfExists("tb_voicemail_menu");
+    removeIfExists("tb_addnote_menu");
+    removeIfExists("tb_email_menu");
+    removeIfExists("tb_textmessage_menu");
+    removeIfExists("tb_script_menu");
+    removeIfExists("notification_banner-top_bar");
+    removeIfExists("notification_banner-top_bar_conversations");
+
+    removeIfExists("my-stats-widget");
+
+    const userInfo = await getUserData();
+
+    if (!onContactPage && wasOnContactPage && ENABLE_PAGE_LEAVE_CLEAR) {
       return false;
+    }
+
+    if (onContactPage && !wasOnContactPage) wasOnContactPage = true;
+
+    return true;
   }
-  
-  
+
+  return false;
+}
+
   function cleanupDetachedDOMNodes() {
       return;
       const sidebar = document.getElementById('sidebar-v2');
@@ -5884,138 +5924,139 @@ async function extractContactData() {
   }
   
   
-  (function() {
-      'use strict';
-  
-      const config = window.scriptConfig || {};
-      const showBanner = config.showBanner || false;    
-      if (showBanner) {
-          const bannerMsg = config.bannerMsg || 'Default message';
-          const bannerBGColor = config.bannerBGColor || '#333';
-      
-          const banner = document.createElement('div');
-          banner.textContent = bannerMsg;
-          banner.style.cssText = `
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              background: ${bannerBGColor};
-              color: white;
-              padding: 8px;
-              font-size: 14px;
-              z-index: 99999;
-              text-align: center;
-          `;
-          document.body.appendChild(banner);
+(function() {
+  'use strict';
+
+  const TB_STATE = window.__TB_STATE__ || (window.__TB_STATE__ = {
+    myStats: { inflight: null, lastRun: 0, cooldownMs: 3000 }
+  });
+
+  function runMyStats() {
+    const now = Date.now();
+    if (TB_STATE.myStats.inflight) return TB_STATE.myStats.inflight;
+    if (now - TB_STATE.myStats.lastRun < TB_STATE.myStats.cooldownMs) return;
+    TB_STATE.myStats.lastRun = now;
+    TB_STATE.myStats.inflight = Promise.resolve()
+      .then(() => myStatsWidget())
+      .catch(() => {})
+      .finally(() => { TB_STATE.myStats.inflight = null; });
+    return TB_STATE.myStats.inflight;
+  }
+
+  const config = window.scriptConfig || {};
+  const showBanner = config.showBanner || false;
+  if (showBanner) {
+    const bannerMsg = config.bannerMsg || 'Default message';
+    const bannerBGColor = config.bannerBGColor || '#333';
+    const banner = document.createElement('div');
+    banner.textContent = bannerMsg;
+    banner.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: ${bannerBGColor};
+      color: white;
+      padding: 8px;
+      font-size: 14px;
+      z-index: 99999;
+      text-align: center;
+    `;
+    document.body.appendChild(banner);
+  }
+
+  setInterval(() => {
+    (async () => {
+      const urlChanged = await checkUrlChange();
+      const url = location.href;
+      const onContactPage = isOnContactPage(url);
+
+      cLog("-----------------------------------------------1----------------------------------------------");
+
+      if (onContactPage) {
+        if (!initialized && document.querySelector('div[class="filter-option-inner-inner"]')) initialized = true;
+
+        updateBanner();
+        cLog("-----------------------------------------------2----------------------------------------------");
+        cLog("-----------------------------------------------3----------------------------------------------");
+
+        if (!hasClickedNotesTab && document.querySelector(".hl_contact-details-new--wrap")) {
+          clickTab('notes');
+          const notesContainer = document.getElementById("notes-list-container-contact");
+          if (notesContainer) {
+            hasClickedNotesTab = true;
+          }
+        }
+
+        addScriptChecklistMenu();
+
+        addTemplateMenu({
+          menuId: 'tb_sms_menu',
+          menuLabel: 'Text',
+          type: 'sms',
+          rightOf: 'tb_script_menu'
+        });
+
+        addTemplateMenu({
+          menuId: 'tb_email_menu',
+          menuLabel: 'Email',
+          type: 'email',
+          rightOf: 'tb_sms_menu'
+        });
+
+        addTemplateMenu({
+          menuId: 'tb_voicemail_menu',
+          menuLabel: 'Voicemail',
+          type: 'voicemail',
+          rightOf: 'tb_email_menu'
+        });
+
+        addQuickNotesMenu();
+
+        removePostDialModal();
+        shrinkCenterPanelHeight();
+
+        timeRestriction();
+        hideWhatsAppTab();
+        autoDispositionOfferMade();
+        autoResizeNotes();
+        monMonFreeFloat();
+        hideCallSummaryNotes();
+        await extractNoteData();
+
+        moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
+        moveFieldByLabel('Asking Price');
+        moveFieldByLabel('Our Offer Price');
+        moveFieldByLabel('Acreage');
+        moveFieldByLabel('APN');
+
+        iterationCount++;
+        if (iterationCount >= 5) {
+          populateFieldsWithExtractedData();
+          iterationCount = 0;
+        }
+
+        if (onContactPage && urlChanged) {
+          runMyStats();
+        }
+
+        autoDispoCall();
+        setSecondaryDisposition();
       }
-      
-      // Main interval loop every 1 second
-      setInterval(() => {
-          (async () => {
-              const urlChanged = await checkUrlChange();
-              const url = location.href;
-              const onContactPage = isOnContactPage(url);
-  
-              cLog("-----------------------------------------------1----------------------------------------------");
-  
-              if (onContactPage) {
-  
-                  if (!initialized && document.querySelector('div[class="filter-option-inner-inner"]')) initialized = true;
-  
-                  updateBanner();
-                  cLog("-----------------------------------------------2----------------------------------------------");
-                  cLog("-----------------------------------------------3----------------------------------------------");
-  
-                  // open notes tab immediatey upon entering contact
-                  if (!hasClickedNotesTab && document.querySelector(".hl_contact-details-new--wrap")) {
-                      clickTab('notes');
-  
-                      // confirm notes tab has been opened
-                      const notesContainer = document.getElementById("notes-list-container-contact");
-                      if (notesContainer) {
-                          hasClickedNotesTab = true;
-                      }
-                  }
-  
-                  // add menus
-                  addScriptChecklistMenu();
-                  // addTextMessageMenu();
-  
-                  addTemplateMenu({
-                      menuId: 'tb_sms_menu',
-                      menuLabel: 'Text',
-                      type: 'sms',
-                      rightOf: 'tb_script_menu'
-                  });
-  
-                  addTemplateMenu({
-                      menuId: 'tb_email_menu',
-                      menuLabel: 'Email',
-                      type: 'email',
-                      rightOf: 'tb_sms_menu'
-                  });
-  
-                  addTemplateMenu({
-                      menuId: 'tb_voicemail_menu',
-                      menuLabel: 'Voicemail',
-                      type: 'voicemail',
-                      rightOf: 'tb_email_menu'
-                  });
-  
-                  addQuickNotesMenu();
-  
-                  removePostDialModal();
-                  shrinkCenterPanelHeight();
-  
-                  timeRestriction();
-                  hideWhatsAppTab();
-                  autoDispositionOfferMade();
-                  autoResizeNotes();
-                  monMonFreeFloat();
-                  hideCallSummaryNotes();
-                  await extractNoteData();
-  
-                  moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
-                  moveFieldByLabel('Asking Price');
-                  moveFieldByLabel('Our Offer Price');
-                  moveFieldByLabel('Acreage');
-                  moveFieldByLabel('APN');
-  
-                  // reduce function calls in an attempt to improve performance
-                  iterationCount++;
-                  if (iterationCount >= 5) {
-                      populateFieldsWithExtractedData();
-                      iterationCount = 0;
-                  }
-  
-                myStatsWidget();
-                autoDispoCall();
-                setSecondaryDisposition();
-                
-                  // execute extractNoteData once
-                  // if (!hasRunExtractNoteData) {
-                  //     extractNoteData();
-                  //     hasRunExtractNoteData = true;
-                  // }
-  
-              } else {
-              }
-  
-              modalBanner();
-              avatarHref();
-              attachPhoneDialHandlers();
-              populateCallQueue();
-              moveCallBtn();
-              showDateInTimestamps();
-              cleanupSidebarAndWidgets();
-              updateContactsToCustomURLs();
-              updateBannerSlideElements();
-              updateDocuSealIframeSrc();
-              openConversationSameWindow();
-              conversationsBanner();
-  
-              // cleanupDetachedDOMNodes();
-          })();
-      }, 1000);
-  })();
+
+      modalBanner();
+      avatarHref();
+      attachPhoneDialHandlers();
+      populateCallQueue();
+      moveCallBtn();
+      showDateInTimestamps();
+      cleanupSidebarAndWidgets();
+      updateContactsToCustomURLs();
+      updateBannerSlideElements();
+      updateDocuSealIframeSrc();
+      openConversationSameWindow();
+      conversationsBanner();
+    })();
+  }, 1000);
+})();
+
