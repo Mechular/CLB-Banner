@@ -5921,7 +5921,7 @@ function attachMessageHandlers() {
 
   const qs = (s, r=document) => r.querySelector(s);
 
-  async function sendSmsRequest({ message, fromNumber, toNumber }) {
+  async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
     const idb = await new Promise((res, rej) => {
       const r = indexedDB.open("firebaseLocalStorageDb");
       r.onsuccess = () => res(r.result);
@@ -5940,7 +5940,6 @@ function attachMessageHandlers() {
 
     const parts = location.pathname.split("/");
     const locationId = parts[parts.indexOf("location") + 1];
-    const contactId  = parts[parts.indexOf("contacts") + 2];
 
     const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
       method: "POST",
@@ -5952,7 +5951,7 @@ function attachMessageHandlers() {
         "source": "WEB_USER",
       },
       body: JSON.stringify({
-        contactId,
+        contactId,            // now using the rowId passed in
         locationId,
         type: "SMS",
         channel: "sms",
@@ -6015,16 +6014,19 @@ function attachMessageHandlers() {
       const toNumber   = qs("#sms-to", overlay).value.trim();
       const message    = qs("#sms-body", overlay).value.trim();
       const err = qs("#sms-error", overlay);
+      const contactId  = overlay.dataset.contactId || "";
       err.style.display = "none"; err.textContent = "";
-      if (!fromNumber || !toNumber || !message) {
-        err.textContent = "From, To, and Message are required.";
+      if (!fromNumber || !toNumber || !message || !contactId) {
+        err.textContent = !contactId
+          ? "Missing contact id for this row."
+          : "From, To, and Message are required.";
         err.style.display = "block";
         return;
       }
       qs("#sms-send", overlay).disabled = true;
       qs("#sms-send", overlay).textContent = "Sending…";
       try {
-        await sendSmsRequest({ message, fromNumber, toNumber });
+        await sendSmsRequest({ contactId, message, fromNumber, toNumber });
         hide();
       } catch (e) {
         err.textContent = String(e.message || e);
@@ -6078,6 +6080,8 @@ function attachMessageHandlers() {
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
 
+      overlay.dataset.contactId = rowId || "";
+
       const metaEl = qs("#sms-title-meta", overlay);
       if (metaEl) {
         const metaText = clientName && rowId
@@ -6092,7 +6096,6 @@ function attachMessageHandlers() {
     msgIcon.dataset.msgListenerAttached = "1";
   });
 }
-
 
   async function autoDispoCall() {
     if (!location.href.includes('/contacts/detail/')) return;
