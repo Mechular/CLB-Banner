@@ -5994,110 +5994,102 @@ function attachMessageHandlers() {
     return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
   }
 
-function renderSmsHistory(overlay, messages) {
-  const box = overlay.querySelector("#sms-history");
-  const list = overlay.querySelector("#sms-history-list");
-  const empty = overlay.querySelector("#sms-history-empty");
-  const loading = overlay.querySelector("#sms-history-loading");
-  const err = overlay.querySelector("#sms-history-error");
+  function renderSmsHistory(overlay, messages) {
+    const box = overlay.querySelector("#sms-history");
+    const list = overlay.querySelector("#sms-history-list");
+    const empty = overlay.querySelector("#sms-history-empty");
+    const loading = overlay.querySelector("#sms-history-loading");
+    const err = overlay.querySelector("#sms-history-error");
 
-  loading.style.display = "none";
-  err.style.display = "none";
-  list.innerHTML = "";
-
-  const smsOnly = (messages || []).filter(m => (m.type === 2) || m.channel === "sms" || m.contentType === "text/plain");
-  if (!smsOnly.length) {
-    empty.style.display = "block";
-    return;
-  }
-  empty.style.display = "none";
-
-  const frag = document.createDocumentFragment();
-  smsOnly
-    .slice()
-    .sort((a, b) => new Date(a.createdAt || a.createdTime || a.createdOn || a.dateAdded || 0) - new Date(b.createdAt || b.createdTime || b.createdOn || b.dateAdded || 0))
-    .forEach(m => {
-      const isOutbound = m.direction === "outbound" || m.fromMe === true || m.isMe === true;
-      const text = m.text || m.body || m.message || "";
-      const ts = new Date(m.createdAt || m.createdTime || m.createdOn || m.dateAdded || Date.now());
-
-      const row = document.createElement("div");
-      row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
-
-      const bubble = document.createElement("div");
-      bubble.style.cssText =
-        "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
-        (isOutbound
-          ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
-          : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
-      bubble.textContent = text || "[empty]";
-      row.appendChild(bubble);
-
-      const meta = document.createElement("div");
-      meta.textContent = ts.toLocaleString();
-      meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
-      if (isOutbound) {
-        meta.style.order = "-1";
-        meta.style.marginRight = "0";
-      } else {
-        meta.style.marginLeft = "0";
-      }
-
-      const wrap = document.createElement("div");
-      wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
-      wrap.appendChild(row);
-      wrap.appendChild(meta);
-
-      frag.appendChild(wrap);
-    });
-
-  list.appendChild(frag);
-  box.scrollTop = box.scrollHeight;
-}
-
-async function loadSmsHistory(overlay, prefetchedNotes) {
-  const loading = overlay.querySelector("#sms-history-loading");
-  const err = overlay.querySelector("#sms-history-error");
-  const empty = overlay.querySelector("#sms-history-empty");
-  const list = overlay.querySelector("#sms-history-list");
-  loading.style.display = "block";
-  err.style.display = "none";
-  empty.style.display = "none";
-  list.innerHTML = "";
-
-  const contactId = overlay.dataset.contactId || "";
-  if (!contactId) {
     loading.style.display = "none";
-    err.textContent = "Missing contact id.";
-    err.style.display = "block";
-    return;
+    err.style.display = "none";
+    list.innerHTML = "";
+
+    if (!messages?.length) {
+      empty.style.display = "block";
+      return;
+    }
+    empty.style.display = "none";
+
+    const frag = document.createDocumentFragment();
+    messages
+      .slice()
+      .sort((a, b) => new Date(a.createdAt || a.createdTime || a.createdOn || 0) - new Date(b.createdAt || b.createdTime || b.createdOn || 0))
+      .forEach(m => {
+        const isOutbound =
+          m.direction === "outbound" ||
+          m.messageDirection === "outbound" ||
+          m.fromMe === true ||
+          m.isMe === true;
+        const text = m.text || m.body || m.message || "";
+        const ts = new Date(m.createdAt || m.createdTime || m.createdOn || Date.now());
+
+        const row = document.createElement("div");
+        row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
+
+        const bubble = document.createElement("div");
+        bubble.style.cssText =
+          "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+          (isOutbound
+            ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
+            : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
+        bubble.textContent = text || "[unsupported message]";
+        row.appendChild(bubble);
+
+        const meta = document.createElement("div");
+        meta.textContent = ts.toLocaleString();
+        meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
+        if (isOutbound) {
+          meta.style.order = "-1";
+          meta.style.marginRight = "0";
+        } else {
+          meta.style.marginLeft = "0";
+        }
+
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
+        wrap.appendChild(row);
+        wrap.appendChild(meta);
+
+        frag.appendChild(wrap);
+      });
+
+    list.appendChild(frag);
+    box.scrollTop = box.scrollHeight;
   }
 
-  try {
-    let messages = [];
+  async function loadSmsHistory(overlay) {
+    const loading = overlay.querySelector("#sms-history-loading");
+    const err = overlay.querySelector("#sms-history-error");
+    const empty = overlay.querySelector("#sms-history-empty");
+    const list = overlay.querySelector("#sms-history-list");
+    loading.style.display = "block";
+    err.style.display = "none";
+    empty.style.display = "none";
+    list.innerHTML = "";
 
-    if (prefetchedNotes?.sms?.total?.messages) {
-      messages = prefetchedNotes.sms.total.messages;
-    } else {
-      let conversationId = prefetchedNotes?.lastConversationId || "";
-      if (!conversationId) {
-        conversationId = await fetchConversationId({ contactId });
-      }
+    const contactId = overlay.dataset.contactId || "";
+    if (!contactId) {
+      loading.style.display = "none";
+      err.textContent = "Missing contact id.";
+      err.style.display = "block";
+      return;
+    }
+    try {
+      const conversationId = await fetchConversationId({ contactId });
       if (!conversationId) {
         loading.style.display = "none";
         empty.style.display = "block";
         return;
       }
-      messages = await fetchMessages({ conversationId, limit: 50 });
+      const messages = await fetchMessages({ conversationId, limit: 50 });
+      renderSmsHistory(overlay, messages);
+    } catch (e) {
+      loading.style.display = "none";
+      err.textContent = String(e.message || e);
+      err.style.display = "block";
     }
-
-    renderSmsHistory(overlay, messages);
-  } catch (e) {
-    loading.style.display = "none";
-    err.textContent = String(e.message || e);
-    err.style.display = "block";
   }
-}
 
   async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
     const { idToken, locationId } = await getAuthTokenAndLocationId();
@@ -6291,75 +6283,6 @@ async function loadSmsHistory(overlay, prefetchedNotes) {
 
       overlay.style.display = "block";
       loadSmsHistory(overlay);
-    }, true);
-
-    msgIcon.dataset.msgListenerAttached = "1";
-  });
-}
-
-
-  const overlay = buildSmsModal();
-
-  document.querySelectorAll('td[data-title="Phone"]').forEach((cell) => {
-    const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
-    if (!phoneDiv) return;
-
-    let actions = cell.querySelector(".call-actions");
-    if (!actions) {
-      actions = document.createElement("div");
-      actions.className = "call-actions";
-      actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
-      cell.appendChild(actions);
-    }
-
-    let msgIcon = cell.querySelector(".fa-solid.fa-message");
-    if (!msgIcon) {
-      msgIcon = document.createElement("i");
-      msgIcon.className = "fa-solid fa-message";
-    }
-    msgIcon.style.color = "rgba(59,130,246,.7)";
-    msgIcon.style.cursor = "pointer";
-
-    if (msgIcon.parentElement !== actions) actions.appendChild(msgIcon);
-
-    if (msgIcon.dataset.msgListenerAttached === "1") return;
-
-    msgIcon.addEventListener("click", (e) => {
-      block(e);
-
-      const tr = cell.closest("tr");
-      const rowId = tr && tr.id ? tr.id.trim() : "";
-
-      let nameCell =
-        (tr && tr.querySelector('td[data-title="Name"]')) ||
-        (tr && tr.querySelector('td[data-title="Client"]')) ||
-        (tr && tr.querySelector("td .name")) ||
-        (tr && tr.querySelector("td a"));
-
-      const clientName = nameCell ? nameCell.textContent.trim() : "";
-
-      const rawPhone = phoneDiv.innerText.trim();
-      let toNumber = rawPhone.replace(/[^\d+]/g, "");
-      if (!toNumber.startsWith("+1")) {
-        toNumber = `+1${toNumber.replace(/^1/, "")}`;
-      }
-
-      qs("#sms-to", overlay).value = toNumber;
-      qs("#sms-from", overlay).value = "+13025877490";
-      qs("#sms-body", overlay).value = "";
-      qs("#sms-error", overlay).style.display = "none";
-
-      overlay.dataset.contactId = rowId || "";
-
-      const metaEl = qs("#sms-title-meta", overlay);
-      if (metaEl) {
-        const metaText = clientName && rowId
-          ? `${clientName} (${rowId})`
-          : (clientName || rowId || "");
-        metaEl.textContent = metaText;
-      }
-
-      overlay.style.display = "block";
     }, true);
 
     msgIcon.dataset.msgListenerAttached = "1";
