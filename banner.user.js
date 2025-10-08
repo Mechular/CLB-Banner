@@ -5977,7 +5977,10 @@ function attachMessageHandlers() {
     modal.style.cssText = "width:520px;max-width:90vw;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
     modal.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <h3 style="margin:0;font-size:16px;">Send SMS</h3>
+        <h3 style="margin:0;font-size:16px;">
+          <span id="sms-title-prefix">Send SMS</span>
+          <span id="sms-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
+        </h3>
         <button id="sms-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
@@ -6055,18 +6058,42 @@ function attachMessageHandlers() {
 
     msgIcon.addEventListener("click", (e) => {
       block(e);
+
+      const tr = cell.closest("tr");
+      const rowId = tr && tr.id ? tr.id.trim() : "";
+
+      let nameCell =
+        (tr && tr.querySelector('td[data-title="Name"]')) ||
+        (tr && tr.querySelector('td[data-title="Client"]')) ||
+        (tr && tr.querySelector("td .name")) ||
+        (tr && tr.querySelector("td a"));
+
+      const clientName = nameCell ? nameCell.textContent.trim() : "";
+
       const rawPhone = phoneDiv.innerText.trim();
       const toNumber = rawPhone.replace(/[^\d+]/g, "").replace(/^1(?=\d{10}$)/, "+1");
+
       qs("#sms-to", overlay).value = toNumber || "";
       qs("#sms-from", overlay).value = "";
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
+
+      const metaEl = qs("#sms-title-meta", overlay);
+      if (metaEl) {
+        const metaText = clientName && rowId
+          ? `${clientName} (${rowId})`
+          : (clientName || rowId || "");
+        metaEl.textContent = metaText;
+      }
+
       overlay.style.display = "block";
     }, true);
 
     msgIcon.dataset.msgListenerAttached = "1";
   });
 }
+
+
   async function autoDispoCall() {
     if (!location.href.includes('/contacts/detail/')) return;
     const counts = await extractContactData();
