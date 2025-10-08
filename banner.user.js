@@ -6250,7 +6250,8 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     return res.json();
   }
 
-      let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText || "";
+      let fromMyNumber = String(document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText || "");
+
   
   function buildSmsModal() {
     if (qs("#sms-modal-overlay")) return qs("#sms-modal-overlay");
