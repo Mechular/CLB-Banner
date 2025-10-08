@@ -112,8 +112,7 @@
   let ENABLE_SHOW_TIMESTAMPS = true;
   let ENABLE_SIDEBAR_URL_CHANGE = true;
   let ENABLE_MONITOR_URL_CHANGES = true; // core function. do not disable!
-  let extractContactDataRunOnce = false;
-
+  
   // === State variables ===
   let initialized = false;
   let notesScrollInitialized = false;
@@ -1294,7 +1293,6 @@ function timeRestriction() {
   
 function myStatsWidget() {
   if (!ENABLE_MYSTATS_WIDGET) return;
-  // if (!window.myStatsAdded) return;
 
   async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
     const parts = location.pathname.split("/");
@@ -1358,7 +1356,6 @@ function myStatsWidget() {
     return res.json();
   }
 
-
   function getMsRangeForTodayInZone(timezone) {
     const now = new Date();
     const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -1389,7 +1386,6 @@ function myStatsWidget() {
       const stored = JSON.parse(localStorage.getItem("totalCallsToday") || "{}");
       stored[todayStr] = { calls };
       localStorage.setItem("totalCallsToday", JSON.stringify(stored));
-      window.myStatsAdded = true;
 
       // console.log("RevEx call data:", calls);
     } catch (err) {
@@ -1397,6 +1393,7 @@ function myStatsWidget() {
     }
   })();
 }
+
 
   async function hideCallSummaryNotes() {
       const container = document.getElementById("notes-list-container-contact");
@@ -4487,9 +4484,6 @@ async function loadMessages() {
 }
 
 async function extractContactData() {
-  // if (extractContactDataRunOnce) return;
-  // if (!document.getElementById('notification_banner-top_bar')) return;
-  
   try {
     const data = await loadMessages();
 
@@ -4575,7 +4569,7 @@ async function extractContactData() {
       email: buildBucket(email),
       voicemail: buildBucket(voicemail)
     };
-    extractContactDataRunOnce = true;
+
     return result;
   } catch (err) {
     console.error("extractContactData error:", err);
@@ -4752,54 +4746,55 @@ async function extractContactData() {
       }
   }
   
-async function checkUrlChange() {
-  if (!ENABLE_MONITOR_URL_CHANGES) return;
-  const currentUrl = location.href;
-  const currentBaseUrl = getBaseContactUrl(currentUrl);
-
-  if (currentBaseUrl !== lastBaseUrl) {
-    cLog(`URL changed from ${lastBaseUrl} to ${currentBaseUrl}`);
-    lastBaseUrl = currentBaseUrl;
-
-    const onContactPage = isOnContactPage(currentBaseUrl);
-    storedAddress = '';
-    initialized = false;
-    wasOnContactPage = false;
-    hasClickedNotesTab = false;
-    bannerDismissed = false;
-    myStatsAdded = false;
-    jsonData = [];
-    noteBlock = null;
-    notesScrollInitialized = false;
-    window.myStatsAdded = false;
-    iterationCount = 0;
-    hasRunExtractNoteData = false;
-    extractContactDataRunOnce = false;
-
-    removeIfExists("tb_voicemail_menu");
-    removeIfExists("tb_addnote_menu");
-    removeIfExists("tb_email_menu");
-    removeIfExists("tb_textmessage_menu");
-    removeIfExists("tb_script_menu");
-    removeIfExists("notification_banner-top_bar");
-    removeIfExists("notification_banner-top_bar_conversations");
-
-    removeIfExists("my-stats-widget");
-
-    const userInfo = await getUserData();
-
-    if (!onContactPage && wasOnContactPage && ENABLE_PAGE_LEAVE_CLEAR) {
+  async function checkUrlChange() {
+      if (!ENABLE_MONITOR_URL_CHANGES) return;
+  
+      const currentUrl = location.href;
+      const currentBaseUrl = getBaseContactUrl(currentUrl);
+  
+      if (currentBaseUrl !== lastBaseUrl) {
+          cLog(`URL changed from ${lastBaseUrl} to ${currentBaseUrl}`);
+          lastBaseUrl = currentBaseUrl;
+  
+          const onContactPage = isOnContactPage(currentBaseUrl);
+          storedAddress = '';
+          initialized = false;
+          wasOnContactPage = false;
+          hasClickedNotesTab = false;
+          bannerDismissed = false;
+          myStatsAdded = false;
+          jsonData = [];
+          noteBlock = null;
+          notesScrollInitialized = false;
+          window.myStatsAdded = false;
+          iterationCount = 0;
+          hasRunExtractNoteData = false;
+  
+          removeIfExists("tb_voicemail_menu");
+          removeIfExists("tb_addnote_menu");
+          removeIfExists("tb_email_menu");
+          removeIfExists("tb_textmessage_menu");
+          removeIfExists("tb_script_menu");
+          removeIfExists("notification_banner-top_bar");
+          removeIfExists("notification_banner-top_bar_conversations");
+  
+          removeIfExists("myStatsWidget");
+  
+          const userInfo = await getUserData();
+  
+          if (!onContactPage && wasOnContactPage && ENABLE_PAGE_LEAVE_CLEAR) {
+              return false;
+          }
+  
+          if (onContactPage && !wasOnContactPage) wasOnContactPage = true;
+  
+          return true;
+      }
+  
       return false;
-    }
-
-    if (onContactPage && !wasOnContactPage) wasOnContactPage = true;
-
-    return true;
   }
-
-  return false;
-}
-
+  
+  
   function cleanupDetachedDOMNodes() {
       return;
       const sidebar = document.getElementById('sidebar-v2');
@@ -5887,139 +5882,138 @@ async function checkUrlChange() {
   }
   
   
-(function() {
-  'use strict';
-
-  const TB_STATE = window.__TB_STATE__ || (window.__TB_STATE__ = {
-    myStats: { inflight: null, lastRun: 0, cooldownMs: 3000 }
-  });
-
-  function runMyStats() {
-    const now = Date.now();
-    if (TB_STATE.myStats.inflight) return TB_STATE.myStats.inflight;
-    if (now - TB_STATE.myStats.lastRun < TB_STATE.myStats.cooldownMs) return;
-    TB_STATE.myStats.lastRun = now;
-    TB_STATE.myStats.inflight = Promise.resolve()
-      .then(() => myStatsWidget())
-      .catch(() => {})
-      .finally(() => { TB_STATE.myStats.inflight = null; });
-    return TB_STATE.myStats.inflight;
-  }
-
-  const config = window.scriptConfig || {};
-  const showBanner = config.showBanner || false;
-  if (showBanner) {
-    const bannerMsg = config.bannerMsg || 'Default message';
-    const bannerBGColor = config.bannerBGColor || '#333';
-    const banner = document.createElement('div');
-    banner.textContent = bannerMsg;
-    banner.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: ${bannerBGColor};
-      color: white;
-      padding: 8px;
-      font-size: 14px;
-      z-index: 99999;
-      text-align: center;
-    `;
-    document.body.appendChild(banner);
-  }
-
-  setInterval(() => {
-    (async () => {
-      const urlChanged = await checkUrlChange();
-      const url = location.href;
-      const onContactPage = isOnContactPage(url);
-
-      cLog("-----------------------------------------------1----------------------------------------------");
-
-      if (onContactPage) {
-        if (!initialized && document.querySelector('div[class="filter-option-inner-inner"]')) initialized = true;
-
-        updateBanner();
-        cLog("-----------------------------------------------2----------------------------------------------");
-        cLog("-----------------------------------------------3----------------------------------------------");
-
-        if (!hasClickedNotesTab && document.querySelector(".hl_contact-details-new--wrap")) {
-          clickTab('notes');
-          const notesContainer = document.getElementById("notes-list-container-contact");
-          if (notesContainer) {
-            hasClickedNotesTab = true;
-          }
-        }
-
-        addScriptChecklistMenu();
-
-        addTemplateMenu({
-          menuId: 'tb_sms_menu',
-          menuLabel: 'Text',
-          type: 'sms',
-          rightOf: 'tb_script_menu'
-        });
-
-        addTemplateMenu({
-          menuId: 'tb_email_menu',
-          menuLabel: 'Email',
-          type: 'email',
-          rightOf: 'tb_sms_menu'
-        });
-
-        addTemplateMenu({
-          menuId: 'tb_voicemail_menu',
-          menuLabel: 'Voicemail',
-          type: 'voicemail',
-          rightOf: 'tb_email_menu'
-        });
-
-        addQuickNotesMenu();
-
-        removePostDialModal();
-        shrinkCenterPanelHeight();
-
-        timeRestriction();
-        hideWhatsAppTab();
-        autoDispositionOfferMade();
-        autoResizeNotes();
-        monMonFreeFloat();
-        hideCallSummaryNotes();
-        await extractNoteData();
-
-        moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
-        moveFieldByLabel('Asking Price');
-        moveFieldByLabel('Our Offer Price');
-        moveFieldByLabel('Acreage');
-        moveFieldByLabel('APN');
-
-        iterationCount++;
-        if (iterationCount >= 5) {
-          populateFieldsWithExtractedData();
-          iterationCount = 0;
-        }
-
-        if (onContactPage && urlChanged) {
-          runMyStats();
-        }
-
-        autoDispoCall();
-        setSecondaryDisposition();
+  (function() {
+      'use strict';
+  
+      const config = window.scriptConfig || {};
+      const showBanner = config.showBanner || false;    
+      if (showBanner) {
+          const bannerMsg = config.bannerMsg || 'Default message';
+          const bannerBGColor = config.bannerBGColor || '#333';
+      
+          const banner = document.createElement('div');
+          banner.textContent = bannerMsg;
+          banner.style.cssText = `
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              background: ${bannerBGColor};
+              color: white;
+              padding: 8px;
+              font-size: 14px;
+              z-index: 99999;
+              text-align: center;
+          `;
+          document.body.appendChild(banner);
       }
-
-      modalBanner();
-      avatarHref();
-      attachPhoneDialHandlers();
-      populateCallQueue();
-      moveCallBtn();
-      showDateInTimestamps();
-      cleanupSidebarAndWidgets();
-      updateContactsToCustomURLs();
-      updateBannerSlideElements();
-      updateDocuSealIframeSrc();
-      openConversationSameWindow();
-      conversationsBanner();
-    })();
-  }, 1000);
-})();
-
+      
+      // Main interval loop every 1 second
+      setInterval(() => {
+          (async () => {
+              const urlChanged = await checkUrlChange();
+              const url = location.href;
+              const onContactPage = isOnContactPage(url);
+  
+              cLog("-----------------------------------------------1----------------------------------------------");
+  
+              if (onContactPage) {
+  
+                  if (!initialized && document.querySelector('div[class="filter-option-inner-inner"]')) initialized = true;
+  
+                  updateBanner();
+                  cLog("-----------------------------------------------2----------------------------------------------");
+                  cLog("-----------------------------------------------3----------------------------------------------");
+  
+                  // open notes tab immediatey upon entering contact
+                  if (!hasClickedNotesTab && document.querySelector(".hl_contact-details-new--wrap")) {
+                      clickTab('notes');
+  
+                      // confirm notes tab has been opened
+                      const notesContainer = document.getElementById("notes-list-container-contact");
+                      if (notesContainer) {
+                          hasClickedNotesTab = true;
+                      }
+                  }
+  
+                  // add menus
+                  addScriptChecklistMenu();
+                  // addTextMessageMenu();
+  
+                  addTemplateMenu({
+                      menuId: 'tb_sms_menu',
+                      menuLabel: 'Text',
+                      type: 'sms',
+                      rightOf: 'tb_script_menu'
+                  });
+  
+                  addTemplateMenu({
+                      menuId: 'tb_email_menu',
+                      menuLabel: 'Email',
+                      type: 'email',
+                      rightOf: 'tb_sms_menu'
+                  });
+  
+                  addTemplateMenu({
+                      menuId: 'tb_voicemail_menu',
+                      menuLabel: 'Voicemail',
+                      type: 'voicemail',
+                      rightOf: 'tb_email_menu'
+                  });
+  
+                  addQuickNotesMenu();
+  
+                  removePostDialModal();
+                  shrinkCenterPanelHeight();
+  
+                  timeRestriction();
+                  hideWhatsAppTab();
+                  autoDispositionOfferMade();
+                  autoResizeNotes();
+                  monMonFreeFloat();
+                  hideCallSummaryNotes();
+                  await extractNoteData();
+  
+                  moveFieldByLabel('Call Result (Choose carefully, as automations are triggered when you select)');
+                  moveFieldByLabel('Asking Price');
+                  moveFieldByLabel('Our Offer Price');
+                  moveFieldByLabel('Acreage');
+                  moveFieldByLabel('APN');
+  
+                  // reduce function calls in an attempt to improve performance
+                  iterationCount++;
+                  if (iterationCount >= 5) {
+                      populateFieldsWithExtractedData();
+                      myStatsWidget();
+                      iterationCount = 0;
+                  }
+  
+                autoDispoCall();
+                setSecondaryDisposition();
+                
+                  // execute extractNoteData once
+                  // if (!hasRunExtractNoteData) {
+                  //     extractNoteData();
+                  //     hasRunExtractNoteData = true;
+                  // }
+  
+              } else {
+              }
+  
+              modalBanner();
+              avatarHref();
+              attachPhoneDialHandlers();
+              populateCallQueue();
+              moveCallBtn();
+              showDateInTimestamps();
+              cleanupSidebarAndWidgets();
+              updateContactsToCustomURLs();
+              updateBannerSlideElements();
+              updateDocuSealIframeSrc();
+              openConversationSameWindow();
+              conversationsBanner();
+  
+              // cleanupDetachedDOMNodes();
+          })();
+      }, 1000);
+  })();
