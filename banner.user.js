@@ -4487,8 +4487,8 @@ async function loadMessages() {
 }
 
 async function extractContactData() {
-  if (extractContactDataRunOnce) return;
-  if (!document.getElementById('notification_banner-top_bar')) return;
+  // if (extractContactDataRunOnce) return;
+  // if (!document.getElementById('notification_banner-top_bar')) return;
   
   try {
     const data = await loadMessages();
