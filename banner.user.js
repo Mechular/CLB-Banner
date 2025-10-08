@@ -5839,11 +5839,18 @@ function attachPhoneDialHandlers() {
     const existingIcon = phoneCell.querySelector(".icon-phone-svg");
     if (existingIcon) existingIcon.remove();
 
+    let actions = phoneCell.querySelector(".call-actions");
+    if (!actions) {
+      actions = document.createElement("div");
+      actions.className = "call-actions";
+      actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
+      phoneCell.appendChild(actions);
+    }
+
     let faPhoneIcon = phoneCell.querySelector(".fa.fa-phone");
     if (!faPhoneIcon) {
       faPhoneIcon = document.createElement("i");
       faPhoneIcon.classList.add("fa", "fa-phone");
-      phoneCell.prepend(faPhoneIcon);
     }
     faPhoneIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
     faPhoneIcon.title = callableNow
@@ -5851,6 +5858,10 @@ function attachPhoneDialHandlers() {
       : (unknownTz ? "Timezone unknown" : "Outside call window");
     faPhoneIcon.style.cursor = "pointer";
 
+    if (faPhoneIcon.parentElement !== actions) actions.appendChild(faPhoneIcon);
+
+    phoneCell.style.paddingTop = "8px";
+    phoneCell.style.paddingBottom = "8px";
     phoneCell.dataset.callListenerAttached = "1";
 
     if (faPhoneIcon.dataset.iconDialBound === "1") return;
@@ -6017,7 +6028,6 @@ function attachMessageHandlers() {
       const err = qs("#sms-error", overlay);
       err.style.display = "none"; err.textContent = "";
 
-      // Ensure +1 prefix on toNumber if missing
       if (toNumber && !toNumber.startsWith("+")) {
         toNumber = `+1${toNumber.replace(/\D/g, "")}`;
         qs("#sms-to", overlay).value = toNumber;
@@ -6057,15 +6067,23 @@ function attachMessageHandlers() {
     const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
     if (!phoneDiv) return;
 
+    let actions = cell.querySelector(".call-actions");
+    if (!actions) {
+      actions = document.createElement("div");
+      actions.className = "call-actions";
+      actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
+      cell.appendChild(actions);
+    }
+
     let msgIcon = cell.querySelector(".fa-solid.fa-message");
     if (!msgIcon) {
       msgIcon = document.createElement("i");
       msgIcon.className = "fa-solid fa-message";
-      msgIcon.style.color = "rgba(59,130,246,.5)";
-      msgIcon.style.marginLeft = "8px";
-      msgIcon.style.cursor = "pointer";
-      phoneDiv.insertAdjacentElement("afterend", msgIcon);
     }
+    msgIcon.style.color = "rgba(59,130,246,.7)";
+    msgIcon.style.cursor = "pointer";
+
+    if (msgIcon.parentElement !== actions) actions.appendChild(msgIcon);
 
     if (msgIcon.dataset.msgListenerAttached === "1") return;
 
@@ -6085,8 +6103,6 @@ function attachMessageHandlers() {
 
       const rawPhone = phoneDiv.innerText.trim();
       let toNumber = rawPhone.replace(/[^\d+]/g, "");
-
-      // If it doesn't start with +1, add it
       if (!toNumber.startsWith("+1")) {
         toNumber = `+1${toNumber.replace(/^1/, "")}`;
       }
