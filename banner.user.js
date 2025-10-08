@@ -6382,7 +6382,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       const clientName = nameCell ? nameCell.textContent.trim() : "";
 
       const rawPhone = phoneDiv.innerText.trim();
-      let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
+      let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText || "";
       let toNumber = rawPhone.replace(/[^\d+]/g, "");
       if (!toNumber.startsWith("+1")) {
         toNumber = `+1${toNumber.replace(/^1/, "")}`;
