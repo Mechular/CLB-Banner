@@ -2964,32 +2964,32 @@ function myStatsWidget() {
                   <tbody>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Inbound</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.calls.inbound.count}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.sms.inbound.count}</td>
+                          <td style="padding: 0 6px; text-align: center;" id="inboundCallCount">${counts.calls.inbound.count}</td>
+                          <td style="padding: 0 6px; text-align: center;" id="inboundSMSCount">${counts.sms.inbound.count}</td>
                           <td style="padding: 0 6px; text-align: center;">—</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.email.inbound.count}</td>
+                          <td style="padding: 0 6px; text-align: center;" id="inboundEmailCount">${counts.email.inbound.count}</td>
                       </tr>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Outbound</td>
-                          <td style="padding: 0 6px; text-align: center;">
+                          <td id="outboundCallCount" style="padding: 0 6px; text-align: center;">
                               ${counts.calls.outbound.count}
                           </td>
-                          <td style="padding: 0 6px; text-align: center;">
+                          <td id="outboundSMSCount" style="padding: 0 6px; text-align: center;">
                               ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                           </td>
-                          <td style="padding: 0 6px; text-align: center;">
+                          <td id="outboundVMCount" style="padding: 0 6px; text-align: center;">
                               ${counts.voicemail.outbound.count}
                           </td>
-                          <td style="padding: 0 6px; text-align: center;">
+                          <td id="outboundEmailCount" style="padding: 0 6px; text-align: center;">
                               ${counts.email.outbound.count}
                           </td>
                       </tr>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Today</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
+                          <td id="outboundCallCountToday" style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
+                          <td id="outboundSMSCountToday" style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
+                          <td id="outboundVoicemailCountToday" style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
+                          <td id="outboundEmailCountToday" style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
                       </tr>
                   </tbody>
               </table>
