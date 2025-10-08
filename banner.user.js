@@ -1293,6 +1293,7 @@ function timeRestriction() {
   
 async function myStatsWidget({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" } = {}) {
   if (!ENABLE_MYSTATS_WIDGET) return;
+  if (!document.getElementById('notification_banner-top_bar')) return;
 
   // Prevent duplicate runs
   if (window.myStatsRunning) return;
