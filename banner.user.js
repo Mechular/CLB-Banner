@@ -2952,8 +2952,8 @@ function myStatsWidget() {
                               <td style="padding: 0 6px; text-align: center; ${counts.sms.outbound.count === 'DND' ? 'color: red;' : (counts.sms.outbound.count > 2 ? 'color: red; font-weight: bold;' : '')}" id="outboundSMSCount">
                                   ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.outbound.voicemail > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundVMCount">
-                                  ${counts.outbound.voicemail}
+                              <td style="padding: 0 6px; text-align: center; ${counts.voicemail.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundVMCount">
+                                  ${counts.voicemail.outbound.count}
                               </td>
                               <td style="padding: 0 6px; text-align: center; ${counts.email.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundEmailCount">
                                   ${counts.email.outbound.count}
@@ -2963,7 +2963,7 @@ function myStatsWidget() {
                               <td style="padding: 0 6px; text-align: right;">Today</td>
                                 <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
                                 <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
                                 <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
                           </tr>
                       </tbody>
@@ -2999,7 +2999,7 @@ function myStatsWidget() {
                               ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                           </td>
                           <td style="padding: 0 6px; text-align: center;">
-                              ${counts.outbound.voicemail}
+                              ${counts.voicemail.outbound.count}
                           </td>
                           <td style="padding: 0 6px; text-align: center;">
                               ${counts.email.outbound.count}
@@ -3009,7 +3009,7 @@ function myStatsWidget() {
                           <td style="padding: 0 6px; text-align: right;">Today</td>
                           <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
                           <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
                           <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
                       </tr>
                   </tbody>
@@ -4237,7 +4237,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
                 if (counts.calls.outbound.count >= 5) {
                       noteOptions.push({
                           name: 'Move to Unable to Reach',
-                          text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.outbound.voicemail}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
+                          text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.voicemail.outbound.count}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
                           dispo: 'Unable to reach',
                           nextAccount: true,
                           autoSave: true
@@ -4245,7 +4245,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
                   }
               }
   
-              if (counts.outbound.voicemail === 0) {
+              if (counts.voicemail.outbound.count === 0) {
                   noteOptions.push({
                       name: 'Left Voicemail',
                       text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
@@ -4256,7 +4256,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
               } else {
                   noteOptions.push({
                       name: 'Left Voicemail',
-                      text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
@@ -4266,14 +4266,14 @@ With that being said, if I were to cover all the closing costs, and there's no r
               noteOptions.push(
                   {
                       name: 'No Voicemail Left',
-                      text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
                   },
                   {
                       name: 'Could Not Leave Voicemail',
-                      text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
@@ -4447,63 +4447,69 @@ With that being said, if I were to cover all the closing costs, and there's no r
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
   
-(async function extractContactData() {
-  try {
-    const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages?limit=10";
+const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages";
 
-    // getFirebaseIdToken
-    const idToken = await new Promise((resolve, reject) => {
-      const req = indexedDB.open("firebaseLocalStorageDb");
-      req.onerror = () => reject(req.error);
-      req.onsuccess = () => {
-        const db = req.result;
-        const tx = db.transaction("firebaseLocalStorage", "readonly");
-        const store = tx.objectStore("firebaseLocalStorage");
-        const all = store.getAll();
-        all.onerror = () => reject(all.error);
-        all.onsuccess = () => {
-          const rows = all.result || [];
-          const row = rows.find(r => /authUser/.test(r.fbase_key));
-          if (!row) return reject(new Error("authUser not found in IndexedDB"));
-          const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
-          const token = val?.stsTokenManager?.accessToken;
-          if (!token) return reject(new Error("accessToken missing"));
-          resolve(token);
-        };
+function getFirebaseIdToken() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("firebaseLocalStorageDb");
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction("firebaseLocalStorage", "readonly");
+      const store = tx.objectStore("firebaseLocalStorage");
+      const all = store.getAll();
+      all.onerror = () => reject(all.error);
+      all.onsuccess = () => {
+        const rows = all.result || [];
+        const row = rows.find(r => /authUser/.test(r.fbase_key));
+        if (!row) return reject(new Error("authUser not found in IndexedDB"));
+        const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+        const token = val?.stsTokenManager?.accessToken;
+        if (!token) return reject(new Error("accessToken missing"));
+        resolve(token);
       };
-    });
+    };
+  });
+}
 
-    // loadMessages
-    const res = await fetch(API_URL, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "token-id": idToken,
-        channel: "APP",
-        source: "WEB_USER",
-        version: "2021-04-15"
-      },
-      mode: "cors",
-      credentials: "omit",
-      cache: "no-store"
-    });
+async function loadMessages() {
+  const idToken = await getFirebaseIdToken();
 
-    if (res.status === 304) return console.log({ messages: [], note: "Not modified" });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
-    }
+  const res = await fetch(API_URL, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "token-id": idToken,
+      channel: "APP",
+      source: "WEB_USER",
+      version: "2021-04-15"
+    },
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-store"
+  });
 
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) {
-      const text = await res.text();
-      throw new Error(`Expected JSON, got ${ct}: ${text.slice(0, 200)}`);
-    }
+  if (res.status === 304) return { messages: [], note: "Not modified" };
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
+  }
 
-    const data = await res.json();
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(`Expected JSON, got ${ct}: ${text.slice(0, 200)}`);
+  }
 
-    // process
+  return res.json();
+}
+
+async function extractContactData() {
+  try {
+    const data = await loadMessages();
+
     let list = Array.isArray(data?.messages?.messages) ? data.messages.messages : [];
+
     list = list.sort((a, b) => {
       const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
       const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
@@ -4513,7 +4519,6 @@ With that being said, if I were to cover all the closing costs, and there's no r
     const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
     const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
     const email = { messages: [], inbound_messages: [], outbound_messages: [] };
-    const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
 
     for (const m of list) {
       const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
@@ -4528,60 +4533,55 @@ With that being said, if I were to cover all the closing costs, and there's no r
       else if (dir === "outbound") bucket.outbound_messages.push(m);
     }
 
-    // calculate voicemails from all calls (inbound + outbound)
-    const callCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
-    for (const c of callCandidates) {
-      const added = new Date(c.dateAdded || 0).getTime();
-      const updated = new Date(c.dateUpdated || 0).getTime();
-      const duration = (updated - added) / 1000;
-      if (duration >= 20 && duration <= 80) {
-        voicemail.messages.push(c);
-        const dir = String(c?.direction ?? "").toLowerCase();
-        if (dir === "inbound") voicemail.inbound_messages.push(c);
-        else if (dir === "outbound") voicemail.outbound_messages.push(c);
-      }
-    }
-
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    const todaySubset = msgs => {
-      const todayMsgs = msgs.filter(m => {
+    function countToday(msgs) {
+      let count = 0;
+      const todayMsgs = [];
+      for (const m of msgs) {
         const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
-        return t >= start && t < end;
-      });
-      return { count: todayMsgs.length, messages: todayMsgs };
-    };
+        if (t >= start && t < end) {
+          count++;
+          todayMsgs.push(m);
+        }
+      }
+      return { count, messages: todayMsgs };
+    }
 
-    const buildBucket = bucket => ({
-      inbound: {
+    function buildBucket(bucket) {
+      const inbound = {
         count: bucket.inbound_messages.length,
         messages: bucket.inbound_messages,
-        today: todaySubset(bucket.inbound_messages)
-      },
-      outbound: {
+        today: countToday(bucket.inbound_messages)
+      };
+
+      const outbound = {
         count: bucket.outbound_messages.length,
         messages: bucket.outbound_messages,
-        today: todaySubset(bucket.outbound_messages)
-      },
-      total: {
+        today: countToday(bucket.outbound_messages)
+      };
+
+      const total = {
         count: bucket.messages.length,
         messages: bucket.messages,
-        today: todaySubset(bucket.messages)
-      }
-    });
+        today: countToday(bucket.messages)
+      };
+
+      return { inbound, outbound, total };
+    }
 
     const result = {
       sms: buildBucket(sms),
       calls: buildBucket(calls),
-      email: buildBucket(email),
-      voicemail: buildBucket(voicemail)
+      email: buildBucket(email)
     };
 
-    console.log("Extracted contact data:", result);
+    return result;
   } catch (err) {
     console.error("extractContactData error:", err);
+    return null;
   }
 }
   
