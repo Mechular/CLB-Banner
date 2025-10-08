@@ -793,27 +793,6 @@
       }
   }
   
-  async function expandAllNotesAndContactData() {
-      const notesContainer = document.getElementById("notes-list-container-contact");
-      if (!notesContainer) return;
-  
-      // Expand all "Show more" spans
-      const showMoreSpans = Array.from(notesContainer.querySelectorAll('span.leading-5'))
-      .filter(span => span.textContent.trim() === 'Show more');
-  
-      for (const span of showMoreSpans) {
-          await clickAndWaitForChange(span, notesContainer);
-      }
-  
-      // Expand all "Fetch older messages" links
-      const olderMessageLinks = Array.from(document.querySelectorAll('.old-message-link'))
-      .filter(link => link.textContent.trim() === 'Fetch older messages');
-  
-      for (const link of olderMessageLinks) {
-          link.children[0].click();
-      }
-  }
-  
   function toProperCase(str) {
       return str.replace(/\w\S*/g, word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
   }
@@ -5956,8 +5935,6 @@ async function extractContactData() {
                           hasClickedNotesTab = true;
                       }
                   }
-  
-                  expandAllNotesAndContactData();
   
                   // add menus
                   addScriptChecklistMenu();
