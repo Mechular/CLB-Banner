@@ -4453,24 +4453,25 @@ function parseContextFromUrl(href = String(location.href)) {
   try {
     const u = new URL(href);
     const parts = u.pathname.split("/").filter(Boolean);
-    // .../v2/location/{locationId}/contacts/detail/{contactId}
     const locIdx = parts.findIndex(p => p === "location");
     const contactsIdx = parts.findIndex(p => p === "contacts");
-    const hasDetail = parts[contactsIdx + 1] === "detail";
+    const hasDetail = parts.includes("detail");
 
     const locationId = locIdx >= 0 ? parts[locIdx + 1] : null;
     const contactId = contactsIdx >= 0 && hasDetail ? parts[contactsIdx + 2] : null;
 
-    // Fallbacks (query params) if path parsing fails
     const qpLocation = u.searchParams.get("locationId");
     const qpContact = u.searchParams.get("contactId");
 
+    const useContactId = href.includes("/location/") && href.includes("/detail/");
+
     return {
       locationId: locationId || qpLocation || null,
-      contactId: contactId || qpContact || null
+      contactId: contactId || qpContact || null,
+      idToUse: useContactId ? (contactId || qpContact) : (locationId || qpLocation)
     };
   } catch {
-    return { locationId: null, contactId: null };
+    return { locationId: null, contactId: null, idToUse: null };
   }
 }
 
