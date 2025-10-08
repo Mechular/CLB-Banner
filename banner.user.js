@@ -5956,6 +5956,137 @@ function attachMessageHandlers() {
     return { idToken, locationId };
   }
 
+  function getContactIdFromModalHeader(overlay) {
+  const meta = overlay.querySelector("#sms-title-meta");
+  if (!meta) return "";
+  const txt = meta.textContent.trim();
+  const m = txt.match(/\(([A-Za-z0-9_-]+)\)\s*$/);
+  return m ? m[1] : "";
+}
+
+async function searchNotesByContact(locationId, contactId) {
+  const idToken = await getFirebaseIdToken();
+  const body = {
+    relations: [{ objectKey: "contact", recordId: contactId }],
+    limit: 10,
+    skip: 0,
+    locationId,
+    includeRelationRecords: true,
+    sortBy: "dateAdded",
+    sortOrder: "desc"
+  };
+  const res = await fetch("https://services.leadconnectorhq.com/notes/search", {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "token-id": idToken,
+      channel: "APP",
+      source: "WEB_USER",
+      version: "2021-07-28"
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const json = await res.json().catch(() => ({}));
+  const rawArray = Array.isArray(json) ? json : (json.notes ?? json.items ?? json.results ?? json.data ?? []);
+  const notes = (rawArray || []).map(n => {
+    const rel = Array.isArray(n.relations) ? n.relations.find(r => r.objectKey === "contact") : null;
+    const contactRecord = rel && rel.record ? rel.record : null;
+    const lastConversationId = contactRecord?.lastConversationId;
+    return { ...n, lastConversationId };
+  });
+  const lastConversationId = notes.find(n => n.lastConversationId)?.lastConversationId || null;
+  return { notes, lastConversationId };
+}
+
+async function loadSmsHistoryFromModalHeader(overlay) {
+  const listBox   = overlay.querySelector("#sms-history-list");
+  const loadingEl = overlay.querySelector("#sms-history-loading");
+  const emptyEl   = overlay.querySelector("#sms-history-empty");
+  const errEl     = overlay.querySelector("#sms-history-error");
+  const scrollBox = overlay.querySelector("#sms-history");
+
+  loadingEl.style.display = "block";
+  emptyEl.style.display   = "none";
+  errEl.style.display     = "none";
+  listBox.innerHTML       = "";
+
+  try {
+    const { locationId } = parseContextFromUrl();
+    const contactId = getContactIdFromModalHeader(overlay);
+    if (!contactId) throw new Error("contactId missing in modal header");
+    if (!locationId) throw new Error("locationId missing in URL");
+
+    const { lastConversationId } = await searchNotesByContact(locationId, contactId);
+    if (!lastConversationId) {
+      loadingEl.style.display = "none";
+      emptyEl.style.display = "block";
+      return;
+    }
+
+    const data = await loadMessages(lastConversationId);
+    const arr =
+      Array.isArray(data?.messages?.messages) ? data.messages.messages
+      : [];
+
+    const smsOnly = arr.filter(m => m.type === 2 || m.channel === "sms" || m.contentType === "text/plain");
+    if (!smsOnly.length) {
+      loadingEl.style.display = "none";
+      emptyEl.style.display = "block";
+      return;
+    }
+
+    const ordered = smsOnly.slice().sort((a,b) =>
+      new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0) - new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0)
+    );
+
+    const frag = document.createDocumentFragment();
+    for (const m of ordered) {
+      const isOutbound = (m.direction || "").toLowerCase() === "outbound";
+      const text = m.body || m.text || "";
+      const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
+
+      const row = document.createElement("div");
+      row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
+
+      const bubble = document.createElement("div");
+      bubble.style.cssText =
+        "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+        (isOutbound
+          ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
+          : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
+      bubble.textContent = text || "[empty]";
+      row.appendChild(bubble);
+
+      const meta = document.createElement("div");
+      meta.textContent = ts.toLocaleString();
+      meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
+      if (isOutbound) {
+        meta.style.order = "-1";
+        meta.style.marginRight = "0";
+      } else {
+        meta.style.marginLeft = "0";
+      }
+
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
+      wrap.appendChild(row);
+      wrap.appendChild(meta);
+
+      frag.appendChild(wrap);
+    }
+
+    listBox.appendChild(frag);
+    loadingEl.style.display = "none";
+    scrollBox.scrollTop = scrollBox.scrollHeight;
+  } catch (e) {
+    loadingEl.style.display = "none";
+    errEl.textContent = String(e.message || e);
+    errEl.style.display = "block";
+  }
+}
+
   async function fetchConversationId({ contactId }) {
     const { idToken, locationId } = await getAuthTokenAndLocationId();
     const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
@@ -6199,7 +6330,7 @@ function attachMessageHandlers() {
       try {
         await sendSmsRequest({ contactId, message, fromNumber, toNumber });
         qs("#sms-body", overlay).value = "";
-        await loadSmsHistory(overlay);
+        await loadSmsHistoryFromModalHeader(overlay);
       } catch (e) {
         err.textContent = String(e.message || e);
         err.style.display = "block";
@@ -6282,7 +6413,7 @@ function attachMessageHandlers() {
       histList.innerHTML = "";
 
       overlay.style.display = "block";
-      loadSmsHistory(overlay);
+      loadSmsHistoryFromModalHeader(overlay);
     }, true);
 
     msgIcon.dataset.msgListenerAttached = "1";
