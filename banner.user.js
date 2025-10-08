@@ -4450,6 +4450,7 @@ function getFirebaseIdToken() {
 }
 
 async function loadMessages() {
+  return;
   const idToken = await getFirebaseIdToken();
 
   const url = window.location.href;
