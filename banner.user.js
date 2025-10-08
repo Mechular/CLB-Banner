@@ -5024,34 +5024,6 @@ async function extractContactData() {
       }
   }
   
-  function correspondenceScrollTo() {
-      const container = document.querySelector(".central-panel-messages");
-      if (!container) return;
-  
-      // Step 1: Scroll to the top (which is visually the bottom in reverse layouts)
-      container.scrollTop = 0;
-  
-      // Step 2: Start scrolling upward (visually up) to find the text
-      setTimeout(() => {
-          const checkForText = () => {
-              const content = container.innerText.toLowerCase();
-  
-              if (content.includes("opportunity created")) {
-                  // Found the target text — stop
-                  return;
-              }
-  
-              // Scroll up (visually up in reverse flow)
-              container.scrollTop = container.scrollTop + 50; // Adjust scroll step as needed
-  
-              // Continue checking
-              requestAnimationFrame(checkForText);
-          };
-  
-          checkForText();
-      }, 100); // Small delay to let scrollTop = 0 settle
-  }
-  
   function monMonIputUpdate() {
       const element = document.querySelector('div[id^="menu-contact-"]');
       if (!element) return;
