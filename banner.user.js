@@ -6250,7 +6250,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     return res.json();
   }
 
-      let fromMyNumber = String(document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText || "");
+      let fromMyNumber = "+13025877490";
 
   
   function buildSmsModal() {
