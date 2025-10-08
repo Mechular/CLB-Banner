@@ -4447,69 +4447,63 @@ With that being said, if I were to cover all the closing costs, and there's no r
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
   
-const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages";
-
-function getFirebaseIdToken() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open("firebaseLocalStorageDb");
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction("firebaseLocalStorage", "readonly");
-      const store = tx.objectStore("firebaseLocalStorage");
-      const all = store.getAll();
-      all.onerror = () => reject(all.error);
-      all.onsuccess = () => {
-        const rows = all.result || [];
-        const row = rows.find(r => /authUser/.test(r.fbase_key));
-        if (!row) return reject(new Error("authUser not found in IndexedDB"));
-        const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
-        const token = val?.stsTokenManager?.accessToken;
-        if (!token) return reject(new Error("accessToken missing"));
-        resolve(token);
-      };
-    };
-  });
-}
-
-async function loadMessages() {
-  const idToken = await getFirebaseIdToken();
-
-  const res = await fetch(API_URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "token-id": idToken,
-      channel: "APP",
-      source: "WEB_USER",
-      version: "2021-04-15"
-    },
-    mode: "cors",
-    credentials: "omit",
-    cache: "no-store"
-  });
-
-  if (res.status === 304) return { messages: [], note: "Not modified" };
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
-  }
-
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("application/json")) {
-    const text = await res.text();
-    throw new Error(`Expected JSON, got ${ct}: ${text.slice(0, 200)}`);
-  }
-
-  return res.json();
-}
-
-async function extractContactData() {
+(async function extractContactData() {
   try {
-    const data = await loadMessages();
+    const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages?limit=10";
 
+    // getFirebaseIdToken
+    const idToken = await new Promise((resolve, reject) => {
+      const req = indexedDB.open("firebaseLocalStorageDb");
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction("firebaseLocalStorage", "readonly");
+        const store = tx.objectStore("firebaseLocalStorage");
+        const all = store.getAll();
+        all.onerror = () => reject(all.error);
+        all.onsuccess = () => {
+          const rows = all.result || [];
+          const row = rows.find(r => /authUser/.test(r.fbase_key));
+          if (!row) return reject(new Error("authUser not found in IndexedDB"));
+          const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+          const token = val?.stsTokenManager?.accessToken;
+          if (!token) return reject(new Error("accessToken missing"));
+          resolve(token);
+        };
+      };
+    });
+
+    // loadMessages
+    const res = await fetch(API_URL, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "token-id": idToken,
+        channel: "APP",
+        source: "WEB_USER",
+        version: "2021-04-15"
+      },
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store"
+    });
+
+    if (res.status === 304) return console.log({ messages: [], note: "Not modified" });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
+    }
+
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      const text = await res.text();
+      throw new Error(`Expected JSON, got ${ct}: ${text.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+
+    // process
     let list = Array.isArray(data?.messages?.messages) ? data.messages.messages : [];
-
     list = list.sort((a, b) => {
       const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
       const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
@@ -4519,6 +4513,7 @@ async function extractContactData() {
     const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
     const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
     const email = { messages: [], inbound_messages: [], outbound_messages: [] };
+    const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
 
     for (const m of list) {
       const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
@@ -4533,55 +4528,60 @@ async function extractContactData() {
       else if (dir === "outbound") bucket.outbound_messages.push(m);
     }
 
+    // calculate voicemails from all calls (inbound + outbound)
+    const callCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
+    for (const c of callCandidates) {
+      const added = new Date(c.dateAdded || 0).getTime();
+      const updated = new Date(c.dateUpdated || 0).getTime();
+      const duration = (updated - added) / 1000;
+      if (duration >= 20 && duration <= 80) {
+        voicemail.messages.push(c);
+        const dir = String(c?.direction ?? "").toLowerCase();
+        if (dir === "inbound") voicemail.inbound_messages.push(c);
+        else if (dir === "outbound") voicemail.outbound_messages.push(c);
+      }
+    }
+
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    function countToday(msgs) {
-      let count = 0;
-      const todayMsgs = [];
-      for (const m of msgs) {
+    const todaySubset = msgs => {
+      const todayMsgs = msgs.filter(m => {
         const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
-        if (t >= start && t < end) {
-          count++;
-          todayMsgs.push(m);
-        }
-      }
-      return { count, messages: todayMsgs };
-    }
+        return t >= start && t < end;
+      });
+      return { count: todayMsgs.length, messages: todayMsgs };
+    };
 
-    function buildBucket(bucket) {
-      const inbound = {
+    const buildBucket = bucket => ({
+      inbound: {
         count: bucket.inbound_messages.length,
         messages: bucket.inbound_messages,
-        today: countToday(bucket.inbound_messages)
-      };
-
-      const outbound = {
+        today: todaySubset(bucket.inbound_messages)
+      },
+      outbound: {
         count: bucket.outbound_messages.length,
         messages: bucket.outbound_messages,
-        today: countToday(bucket.outbound_messages)
-      };
-
-      const total = {
+        today: todaySubset(bucket.outbound_messages)
+      },
+      total: {
         count: bucket.messages.length,
         messages: bucket.messages,
-        today: countToday(bucket.messages)
-      };
-
-      return { inbound, outbound, total };
-    }
+        today: todaySubset(bucket.messages)
+      }
+    });
 
     const result = {
       sms: buildBucket(sms),
       calls: buildBucket(calls),
-      email: buildBucket(email)
+      email: buildBucket(email),
+      voicemail: buildBucket(voicemail)
     };
 
-    return result;
+    console.log("Extracted contact data:", result);
   } catch (err) {
     console.error("extractContactData error:", err);
-    return null;
   }
 }
   
