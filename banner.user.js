@@ -4452,7 +4452,10 @@ function getFirebaseIdToken() {
 async function loadMessages() {
   const idToken = await getFirebaseIdToken();
 
-  const res = await fetch("https://services.leadconnectorhq.com/conversations/QivnC3LJ9gJdPSWbRS48/messages", {
+  const url = window.location.href;
+  const [, locationId, contactId] = url.match(/location\/([^/]+)\/contacts\/detail\/([^/?]+)/);
+  
+  const res = await fetch(`https://services.leadconnectorhq.com/conversations/${contactId}/messages`, {
     method: "GET",
     headers: {
       Accept: "application/json",
