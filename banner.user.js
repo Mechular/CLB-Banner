@@ -119,7 +119,7 @@
   let hasClickedNotesTab = false;
   let storedAddress = '';
   let wasOnContactPage = true;
-  let myStatsAdded = false;
+  let window.myStatsAdded = false;
   let bannerDismissed = false;
   let tooltip;
   let voicemailLink;
