@@ -6257,7 +6257,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     overlay.id = "sms-modal-overlay";
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
     const modal = document.createElement("div");
-    modal.style.cssText = "width:560px;max-width:90vw;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+    modal.style.cssText = "width:75%;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
     modal.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <h3 style="margin:0;font-size:16px;">
