@@ -4425,8 +4425,6 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
-  
-const NOTES_API_URL = "https://services.leadconnectorhq.com/notes/search";
 
 function getFirebaseIdToken() {
   return new Promise((resolve, reject) => {
@@ -4493,7 +4491,7 @@ async function searchNotesFromUrl() {
     sortOrder: "desc"
   };
 
-  const res = await fetch(NOTES_API_URL, {
+  const res = await fetch("https://services.leadconnectorhq.com/notes/search", {
     method: "POST",
     headers: {
       Accept: "application/json, text/plain, */*",
@@ -5804,148 +5802,113 @@ async function extractContactData() {
       }
   }
   
-  function attachPhoneDialHandlers() {
-    if (!location.href.includes("/contacts/smart_list/")) return;
-    
-    function blockRowNav(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+function attachPhoneDialHandlers() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
+
+  function block(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+
+  document.querySelectorAll('td[data-title="Phone"]').forEach((phoneCell) => {
+    const phoneSpan = phoneCell.querySelector("span");
+    const dialerInput = document.querySelector("input#dialer-input");
+    if (!(dialerInput instanceof HTMLInputElement)) return;
+
+    const freshSpan = phoneSpan;
+    const freshPhone = (freshSpan?.textContent || "").replace(/\D/g, "").trim();
+    if (!freshPhone) return;
+
+    phoneCell.dataset.callPhone = freshPhone;
+
+    const area = getAreaFromPhone(freshPhone);
+    const [loc, tzLabel, localTime, localDate] = getAreaCodeInfoWithDate(area);
+    const unknownTz = !tzLabel || tzLabel === "Unknown" || !localDate;
+    const callableNow = !unknownTz && isCallableByPolicy(localTime, localDate);
+
+    if (phoneSpan) phoneSpan.style.display = "inline";
+    phoneCell.style.whiteSpace = "nowrap";
+
+    upsertTimeBadge(phoneCell, tzLabel, localTime, callableNow, unknownTz);
+    phoneCell.dataset.calleeTzLabel = tzLabel || "";
+    phoneCell.dataset.calleeLocalTime = localTime || "Unknown time";
+    phoneCell.dataset.calleeUnknownTz = String(unknownTz);
+    phoneCell.dataset.calleeCallable = String(callableNow);
+
+    const existingIcon = phoneCell.querySelector(".icon-phone-svg");
+    if (existingIcon) existingIcon.remove();
+
+    let faPhoneIcon = phoneCell.querySelector(".fa.fa-phone");
+    if (!faPhoneIcon) {
+      faPhoneIcon = document.createElement("i");
+      faPhoneIcon.classList.add("fa", "fa-phone");
+      phoneCell.prepend(faPhoneIcon);
     }
-  
-    document.querySelectorAll('td[data-title="Phone"]').forEach((phoneCell) => {
-      // If already attached, just refresh the phone number, badge, and icon then exit
-      if (phoneCell.dataset.callListenerAttached === "1") {
-        const freshSpan = phoneCell.querySelector("span");
-        const freshPhone = (freshSpan?.textContent || "").replace(/\D/g, "").trim();
-        phoneCell.dataset.callPhone = freshPhone || "";
-  
-        if (freshPhone) {
-          const area = getAreaFromPhone(freshPhone);
-          const [loc, tzLabel, localTime, localDate] = getAreaCodeInfoWithDate(area);
-          const unknownTz = !tzLabel || tzLabel === "Unknown" || !localDate;
-          const callableNow = !unknownTz && isCallableByPolicy(localTime, localDate);
-  
-          upsertTimeBadge(phoneCell, tzLabel, localTime, callableNow, unknownTz);
-  
-          phoneCell.dataset.calleeTzLabel = tzLabel || "";
-          phoneCell.dataset.calleeLocalTime = localTime || "Unknown time";
-          phoneCell.dataset.calleeUnknownTz = String(unknownTz);
-          phoneCell.dataset.calleeCallable = String(callableNow);
-  
-          const faIconExisting = phoneCell.querySelector(".fa.fa-phone");
-          if (faIconExisting) {
-            faIconExisting.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
-            faIconExisting.title = callableNow
-              ? "Within call window"
-              : (unknownTz ? "Timezone unknown" : "Outside call window");
-          }
-        }
+    faPhoneIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
+    faPhoneIcon.title = callableNow
+      ? "Within call window"
+      : (unknownTz ? "Timezone unknown" : "Outside call window");
+    faPhoneIcon.style.cursor = "pointer";
+
+    phoneCell.dataset.callListenerAttached = "1";
+
+    if (faPhoneIcon.dataset.iconDialBound === "1") return;
+
+    faPhoneIcon.addEventListener("click", async (e) => {
+      block(e);
+
+      const currentPhone = (phoneCell.dataset.callPhone || "").trim();
+      if (!currentPhone) return;
+
+      const areaNow = getAreaFromPhone(currentPhone);
+      const [locNow, tzNow, timeNow, dateNow] = getAreaCodeInfoWithDate(areaNow);
+      const unknownTzNow = !tzNow || tzNow === "Unknown" || !dateNow;
+      const allowedNow = !unknownTzNow && isCallableByPolicy(timeNow, dateNow);
+
+      upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
+      const faAtClick = phoneCell.querySelector(".fa.fa-phone");
+      if (faAtClick) {
+        faAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
+        faAtClick.title = allowedNow
+          ? "Within call window"
+          : (unknownTzNow ? "Timezone unknown" : "Outside call window");
+      }
+
+      if (unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && !CALL_RULES.WARN_ONLY) {
+        alert(`Cannot dial. Timezone unknown for area ${areaNow}.`);
         return;
       }
-  
-      const phoneSpan = phoneCell.querySelector("span");
-      let phone = (phoneSpan?.textContent || "").trim();
-  
-      if (phoneSpan) phoneSpan.style.display = "inline";
-      phoneCell.style.whiteSpace = "nowrap";
-      
-      const dialerInput = document.querySelector("input#dialer-input");
-      if (!(dialerInput instanceof HTMLInputElement)) return;
-  
-      phone = phone.replace(/\D/g, "");
-      if (!phone) return;
-  
-      phoneCell.dataset.callPhone = phone;
-  
-      // Compute + badge on first attach
-      const area = getAreaFromPhone(phone);
-      const [loc, tzLabel, localTime, localDate] = getAreaCodeInfoWithDate(area);
-      const unknownTz = !tzLabel || tzLabel === "Unknown" || !localDate;
-      const callableNow = !unknownTz && isCallableByPolicy(localTime, localDate);
-  
-      upsertTimeBadge(phoneCell, tzLabel, localTime, callableNow, unknownTz);
-  
-      phoneCell.dataset.calleeTzLabel = tzLabel || "";
-      phoneCell.dataset.calleeLocalTime = localTime || "Unknown time";
-      phoneCell.dataset.calleeUnknownTz = String(unknownTz);
-      phoneCell.dataset.calleeCallable = String(callableNow);
-  
-      phoneCell.addEventListener(
-        "click",
-        async (e) => {
-          blockRowNav(e);
-  
-          const currentPhone = (phoneCell.dataset.callPhone || "").trim();
-          if (!currentPhone) return;
-  
-          // Re-evaluate time at click moment
-          const areaNow = getAreaFromPhone(currentPhone);
-          const [locNow, tzNow, timeNow, dateNow] = getAreaCodeInfoWithDate(areaNow);
-          const unknownTzNow = !tzNow || tzNow === "Unknown" || !dateNow;
-          const allowedNow = !unknownTzNow && isCallableByPolicy(timeNow, dateNow);
-  
-          // Update visuals
-          upsertTimeBadge(phoneCell, tzNow, timeNow, allowedNow, unknownTzNow);
-          const faPhoneIconAtClick = phoneCell.querySelector(".fa.fa-phone");
-          if (faPhoneIconAtClick) {
-            faPhoneIconAtClick.style.color = allowedNow ? CALL_UI.okColor : CALL_UI.blockColor;
-            faPhoneIconAtClick.title = allowedNow
-              ? "Within call window"
-              : (unknownTzNow ? "Timezone unknown" : "Outside call window");
-          }
-  
-          // Enforce policy
-          if (unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && !CALL_RULES.WARN_ONLY) {
-            alert(`Cannot dial. Timezone unknown for area ${areaNow}.`);
-            return;
-          }
-          if (!allowedNow && !CALL_RULES.WARN_ONLY) {
-            alert(`Cannot dial. Local time for area ${areaNow} (${tzNow || "TZ?"}) is ${timeNow || "unknown"}, outside your call window (${CALL_RULES.CALL_START_HOUR}:00–${CALL_RULES.CALL_END_HOUR}:00${CALL_RULES.BLOCK_WEEKENDS ? ", no weekends" : ""}).`);
-            return;
-          }
-          if ((unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && CALL_RULES.WARN_ONLY) ||
-              (!allowedNow && CALL_RULES.WARN_ONLY)) {
-            const ok = confirm(
-              `Outside policy:\n\n` +
-              `Area ${areaNow} ${tzNow || ""} local time is ${timeNow || "unknown"}.\n\n` +
-              `Proceed anyway?`
-            );
-            if (!ok) return;
-          }
-  
-          // Proceed with dialing
-          document.querySelector("#end-call-button")?.click();
-          document.querySelector(".end-call-btn")?.click();
-  
-          setInputValueSecurely(dialerInput, "");
-          await simulateSecureTyping(dialerInput, currentPhone);
-  
-          const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
-          if (dialBtn) {
-            phoneCell.dataset.callMade = true;
-            console.log('phoneCell.parentNode', phoneCell.parentNode);
-            document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
-            await dialBtn.click();
-            phoneCell.parentNode.style.backgroundColor = "lightgray";
-          }
-        },
-        true
-      );
-  
-      phoneCell.dataset.callListenerAttached = "1";
-  
-      // Replace existing icon with Font Awesome phone icon
-      const existingIcon = phoneCell.querySelector(".icon-phone-svg");
-      if (existingIcon) existingIcon.remove();
-  
-      const faPhoneIcon = document.createElement("i");
-      faPhoneIcon.classList.add("fa", "fa-phone");
-      faPhoneIcon.style.color = callableNow ? CALL_UI.okColor : CALL_UI.blockColor;
-      faPhoneIcon.title = callableNow ? "Within call window" : (unknownTz ? "Timezone unknown" : "Outside call window");
-      phoneCell.prepend(faPhoneIcon);
-    });
-  }
+      if (!allowedNow && !CALL_RULES.WARN_ONLY) {
+        alert(`Cannot dial. Local time for area ${areaNow} (${tzNow || "TZ?"}) is ${timeNow || "unknown"}, outside your call window (${CALL_RULES.CALL_START_HOUR}:00–${CALL_RULES.CALL_END_HOUR}:00${CALL_RULES.BLOCK_WEEKENDS ? ", no weekends" : ""}).`);
+        return;
+      }
+      if ((unknownTzNow && !CALL_RULES.ALLOW_UNKNOWN_TZ && CALL_RULES.WARN_ONLY) ||
+          (!allowedNow && CALL_RULES.WARN_ONLY)) {
+        const ok = confirm(
+          `Outside policy:\n\nArea ${areaNow} ${tzNow || ""} local time is ${timeNow || "unknown"}.\n\nProceed anyway?`
+        );
+        if (!ok) return;
+      }
+
+      document.querySelector("#end-call-button")?.click();
+      document.querySelector(".end-call-btn")?.click();
+
+      setInputValueSecurely(dialerInput, "");
+      await simulateSecureTyping(dialerInput, currentPhone);
+
+      const dialBtn = document.querySelector(".dial-item.dial-btn.dial-btn-enabled");
+      if (dialBtn) {
+        phoneCell.dataset.callMade = true;
+        document.querySelector('[aria-label="Toggle Power Dialer"]')?.click();
+        await dialBtn.click();
+        if (phoneCell.parentNode) phoneCell.parentNode.style.backgroundColor = "lightgray";
+      }
+    }, true);
+
+    faPhoneIcon.dataset.iconDialBound = "1";
+  });
+}
   
   async function autoDispoCall() {
     if (!location.href.includes('/contacts/detail/')) return;
@@ -5955,7 +5918,7 @@ async function extractContactData() {
     if (!counts) return;
       
     if (dispo === "" && counts.calls.outbound.count > 6 && counts.calls.outbound.count < 9) {
-       setDisposition("Move to Contacted");
+       // setDisposition("Move to Contacted");
        return;
     }
     
