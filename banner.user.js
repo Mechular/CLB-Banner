@@ -5925,8 +5925,6 @@ function attachPhoneDialHandlers() {
 function attachMessageHandlers() {
   if (!location.href.includes("/contacts/smart_list/")) return;
 
-  let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
-  
   function block(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -6046,21 +6044,21 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     const frag = document.createDocumentFragment();
     for (const m of ordered) {
       const isOutbound = (m.direction || "").toLowerCase() === "outbound";
-      
-
+      const text = m.body || m.text || "";
+      const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
 
       const row = document.createElement("div");
       row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
-      
+
       const bubble = document.createElement("div");
       bubble.style.cssText =
         "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
         (isOutbound
-          ? "background:#155EEF; color:#fff; border-top-right-radius:4px;"   // outbound: blue, right
-          : "background:#f2f4f7; color:#111827; border-top-left-radius:4px;"); // inbound: grey, left
+          ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
+          : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
       bubble.textContent = text || "[empty]";
       row.appendChild(bubble);
-      
+
       const meta = document.createElement("div");
       meta.textContent = ts.toLocaleString();
       meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
@@ -6279,7 +6277,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           From
-          <input id="sms-from" type="text" value="${fromMyNumber}" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+          <input id="sms-from" type="text" value="+13025877490" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
         </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           To
@@ -6385,14 +6383,13 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       const clientName = nameCell ? nameCell.textContent.trim() : "";
 
       const rawPhone = phoneDiv.innerText.trim();
-      let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
       let toNumber = rawPhone.replace(/[^\d+]/g, "");
       if (!toNumber.startsWith("+1")) {
         toNumber = `+1${toNumber.replace(/^1/, "")}`;
       }
 
       qs("#sms-to", overlay).value = toNumber;
-      qs("#sms-from", overlay).value = fromMyNumber;
+      qs("#sms-from", overlay).value = "+13025877490";
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
 
