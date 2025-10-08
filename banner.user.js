@@ -4426,8 +4426,6 @@ With that being said, if I were to cover all the closing costs, and there's no r
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
   
-const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages?limit=10";
-
 function getFirebaseIdToken() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open("firebaseLocalStorageDb");
@@ -4454,7 +4452,7 @@ function getFirebaseIdToken() {
 async function loadMessages() {
   const idToken = await getFirebaseIdToken();
 
-  const res = await fetch(API_URL, {
+  const res = await fetch("https://services.leadconnectorhq.com/conversations/QivnC3LJ9gJdPSWbRS48/messages", {
     method: "GET",
     headers: {
       Accept: "application/json",
