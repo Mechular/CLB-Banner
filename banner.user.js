@@ -6043,7 +6043,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
 
     const frag = document.createDocumentFragment();
     for (const m of ordered) {
-      const isOutbound = (m.direction || "").toLowerCase() === "outbound";
+     const isOutbound = (m.direction || "").toLowerCase() === "outbound";
       const text = m.body || m.text || "";
       const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
 
