@@ -6010,12 +6010,21 @@ function attachMessageHandlers() {
     qs("#sms-cancel", overlay).onclick = hide;
 
     qs("#sms-send", overlay).onclick = async () => {
-      const fromNumber = qs("#sms-from", overlay).value.trim();
-      const toNumber   = qs("#sms-to", overlay).value.trim();
-      const message    = qs("#sms-body", overlay).value.trim();
+      let fromNumber = qs("#sms-from", overlay).value.trim();
+      let toNumber   = qs("#sms-to", overlay).value.trim();
+      const message  = qs("#sms-body", overlay).value.trim();
       const contactId  = overlay.dataset.contactId || "";
       const err = qs("#sms-error", overlay);
       err.style.display = "none"; err.textContent = "";
+
+      // Ensure +1 prefix on toNumber if missing
+      if (toNumber && !toNumber.startsWith("+")) {
+        toNumber = `+1${toNumber.replace(/\D/g, "")}`;
+        qs("#sms-to", overlay).value = toNumber;
+      } else if (toNumber && !toNumber.startsWith("+1")) {
+        toNumber = `+1${toNumber.replace(/^\+?/, "").replace(/\D/g, "")}`;
+        qs("#sms-to", overlay).value = toNumber;
+      }
 
       if (!fromNumber || !toNumber || !message || !contactId) {
         err.textContent = !contactId
@@ -6075,9 +6084,14 @@ function attachMessageHandlers() {
       const clientName = nameCell ? nameCell.textContent.trim() : "";
 
       const rawPhone = phoneDiv.innerText.trim();
-      const toNumber = rawPhone.replace(/[^\d+]/g, "").replace(/^1(?=\d{10}$)/, "+1");
+      let toNumber = rawPhone.replace(/[^\d+]/g, "");
 
-      qs("#sms-to", overlay).value = toNumber || "";
+      // If it doesn't start with +1, add it
+      if (!toNumber.startsWith("+1")) {
+        toNumber = `+1${toNumber.replace(/^1/, "")}`;
+      }
+
+      qs("#sms-to", overlay).value = toNumber;
       qs("#sms-from", overlay).value = "+13025877490";
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
