@@ -1293,6 +1293,7 @@ function timeRestriction() {
   
 function myStatsWidget() {
   if (!ENABLE_MYSTATS_WIDGET) return;
+  if (!window.myStatsAdded) return;
 
   async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
     const parts = location.pathname.split("/");
@@ -1386,6 +1387,7 @@ function myStatsWidget() {
       const stored = JSON.parse(localStorage.getItem("totalCallsToday") || "{}");
       stored[todayStr] = { calls };
       localStorage.setItem("totalCallsToday", JSON.stringify(stored));
+      window.myStatsAdded = true;
 
       // console.log("RevEx call data:", calls);
     } catch (err) {
@@ -5984,10 +5986,10 @@ async function extractContactData() {
                   iterationCount++;
                   if (iterationCount >= 5) {
                       populateFieldsWithExtractedData();
-                      myStatsWidget();
                       iterationCount = 0;
                   }
   
+                myStatsWidget();
                 autoDispoCall();
                 setSecondaryDisposition();
                 
