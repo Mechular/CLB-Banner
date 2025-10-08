@@ -53,7 +53,7 @@
       badge = document.createElement("span");
       badge.className = "call-time-badge";
       badge.style.cssText = `
-        display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;
+        display:inline-block;;padding:1px 6px;border-radius:10px;
         font-size:11px;line-height:16px;background:${CALL_UI.badgeBg};
         color:${CALL_UI.badgeText};vertical-align:middle;
       `;
