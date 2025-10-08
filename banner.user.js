@@ -6043,19 +6043,19 @@ async function loadSmsHistoryFromModalHeader(overlay) {
 
     const frag = document.createDocumentFragment();
     for (const m of ordered) {
-     const isOutbound = (m.direction || "").toLowerCase() === "outbound";
-      const text = m.body || m.text || "";
-      const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
+      const isOutbound = (m.direction || "").toLowerCase() === "outbound";
+      
+
 
       const row = document.createElement("div");
       row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
-
+      
       const bubble = document.createElement("div");
       bubble.style.cssText =
         "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
         (isOutbound
-          ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
-          : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
+          ? "background:#155EEF; color:#fff; border-top-right-radius:4px;"   // outbound: blue, right
+          : "background:#f2f4f7; color:#111827; border-top-left-radius:4px;"); // inbound: grey, left
       bubble.textContent = text || "[empty]";
       row.appendChild(bubble);
       
