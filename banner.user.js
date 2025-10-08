@@ -2961,10 +2961,10 @@ function myStatsWidget() {
                           </tr>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Today</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
                                 <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
                           </tr>
                       </tbody>
                   </table>
@@ -3007,10 +3007,10 @@ function myStatsWidget() {
                       </tr>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Today</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
                           <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
                       </tr>
                   </tbody>
               </table>
@@ -4207,12 +4207,12 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
               const smsText = counts.sms.outbound.count === "DND"
               ? "SMS (DND)"
-              : counts.sms.today.count
+              : counts.sms.outbound.today.count
               ? `Sent SMS (Total: ${counts.sms.outbound.count})`
               : `No SMS sent (Total: ${counts.sms.outbound.count})`;
   
               const emailText = sellerEmail
-              ? (counts.email.today.count
+              ? (counts.email.outbound.today.count
                  ? `Sent email (Total: ${counts.email.outbound.count})`
                  : `No email sent (Total: ${counts.email.outbound.count})`)
               : "Cannot email (no email address)";
