@@ -2925,25 +2925,25 @@ function myStatsWidget() {
                           </tr>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Outbound</td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.calls.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundCallCount">
+                              <td id="outboundCallCount" style="padding: 0 6px; text-align: center; ${counts.calls.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}">
                                   ${counts.calls.outbound.count}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.sms.outbound.count === 'DND' ? 'color: red;' : (counts.sms.outbound.count > 2 ? 'color: red; font-weight: bold;' : '')}" id="outboundSMSCount">
+                              <td id="outboundSMSCount" style="padding: 0 6px; text-align: center; ${counts.sms.outbound.count === 'DND' ? 'color: red;' : (counts.sms.outbound.count > 2 ? 'color: red; font-weight: bold;' : '')}">
                                   ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.voicemail.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundVMCount">
+                              <td id="outboundVMCount" style="padding: 0 6px; text-align: center; ${counts.voicemail.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}">
                                   ${counts.voicemail.outbound.count}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.email.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundEmailCount">
+                              <td id="outboundEmailCount" style="padding: 0 6px; text-align: center; ${counts.email.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}">
                                   ${counts.email.outbound.count}
                               </td>
                           </tr>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Today</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
+                                <td id="outboundCallCountToday" style="padding: 0 6px; text-align: center;">${counts.calls.outbound.today.count || '—'}</td>
+                                <td id="outboundSMSCountToday" style="padding: 0 6px; text-align: center;">${counts.sms.outbound.today.count || '—'}</td>
+                                <td id="outboundVoicemailCountToday" style="padding: 0 6px; text-align: center;">${counts.voicemail.outbound.today.count || '—'}</td>
+                                <td id="outboundEmailCountToday" style="padding: 0 6px; text-align: center;">${counts.email.outbound.today.count || '—'}</td>
                           </tr>
                       </tbody>
                   </table>
@@ -4181,6 +4181,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
               if (!userInfo) return;
   
               let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
+              let outboundCallCount = document.querySelector("#outboundCallCount").innerText;
               const counts = await extractContactData();
               console.log('counts', counts);
   
