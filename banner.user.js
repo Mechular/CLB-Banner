@@ -5909,7 +5909,164 @@ function attachPhoneDialHandlers() {
     faPhoneIcon.dataset.iconDialBound = "1";
   });
 }
-  
+
+function attachMessageHandlers() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
+
+  function block(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+
+  const qs = (s, r=document) => r.querySelector(s);
+
+  async function sendSmsRequest({ message, fromNumber, toNumber }) {
+    const idb = await new Promise((res, rej) => {
+      const r = indexedDB.open("firebaseLocalStorageDb");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror   = () => rej(rq.error);
+    });
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    const idToken = val?.stsTokenManager?.accessToken || "";
+
+    const parts = location.pathname.split("/");
+    const locationId = parts[parts.indexOf("location") + 1];
+    const contactId  = parts[parts.indexOf("contacts") + 2];
+
+    const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER",
+      },
+      body: JSON.stringify({
+        contactId,
+        locationId,
+        type: "SMS",
+        channel: "sms",
+        message,
+        attachments: [],
+        fromOneToOneConversation: true,
+        fromNumber,
+        toNumber
+      })
+    });
+
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  function buildSmsModal() {
+    if (qs("#sms-modal-overlay")) return qs("#sms-modal-overlay");
+    const overlay = document.createElement("div");
+    overlay.id = "sms-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
+    const modal = document.createElement("div");
+    modal.style.cssText = "width:520px;max-width:90vw;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;font-size:16px;">Send SMS</h3>
+        <button id="sms-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          From
+          <input id="sms-from" type="text" placeholder="+1 302-587-7490" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          To
+          <input id="sms-to" type="text" placeholder="+1 512-545-4307" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+      </div>
+      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+        Message
+        <textarea id="sms-body" rows="5" placeholder="Type a message" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;resize:vertical;"></textarea>
+      </label>
+      <div id="sms-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+        <button id="sms-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
+        <button id="sms-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const hide = () => { overlay.style.display = "none"; };
+    qs("#sms-close", overlay).onclick = hide;
+    qs("#sms-cancel", overlay).onclick = hide;
+
+    qs("#sms-send", overlay).onclick = async () => {
+      const fromNumber = qs("#sms-from", overlay).value.trim();
+      const toNumber   = qs("#sms-to", overlay).value.trim();
+      const message    = qs("#sms-body", overlay).value.trim();
+      const err = qs("#sms-error", overlay);
+      err.style.display = "none"; err.textContent = "";
+      if (!fromNumber || !toNumber || !message) {
+        err.textContent = "From, To, and Message are required.";
+        err.style.display = "block";
+        return;
+      }
+      qs("#sms-send", overlay).disabled = true;
+      qs("#sms-send", overlay).textContent = "Sending…";
+      try {
+        await sendSmsRequest({ message, fromNumber, toNumber });
+        hide();
+      } catch (e) {
+        err.textContent = String(e.message || e);
+        err.style.display = "block";
+      } finally {
+        qs("#sms-send", overlay).disabled = false;
+        qs("#sms-send", overlay).textContent = "Send";
+      }
+    };
+
+    return overlay;
+  }
+
+  const overlay = buildSmsModal();
+
+  document.querySelectorAll('td[data-title="Phone"]').forEach((cell) => {
+    const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
+    if (!phoneDiv) return;
+
+    let msgIcon = cell.querySelector(".fa-solid.fa-message");
+    if (!msgIcon) {
+      msgIcon = document.createElement("i");
+      msgIcon.className = "fa-solid fa-message";
+      msgIcon.style.color = "rgba(59,130,246,.5)";
+      msgIcon.style.marginLeft = "8px";
+      msgIcon.style.cursor = "pointer";
+      phoneDiv.insertAdjacentElement("afterend", msgIcon);
+    }
+
+    if (msgIcon.dataset.msgListenerAttached === "1") return;
+
+    msgIcon.addEventListener("click", (e) => {
+      block(e);
+      const rawPhone = phoneDiv.innerText.trim();
+      const toNumber = rawPhone.replace(/[^\d+]/g, "").replace(/^1(?=\d{10}$)/, "+1");
+      qs("#sms-to", overlay).value = toNumber || "";
+      qs("#sms-from", overlay).value = "";
+      qs("#sms-body", overlay).value = "";
+      qs("#sms-error", overlay).style.display = "none";
+      overlay.style.display = "block";
+    }, true);
+
+    msgIcon.dataset.msgListenerAttached = "1";
+  });
+}
   async function autoDispoCall() {
     if (!location.href.includes('/contacts/detail/')) return;
     const counts = await extractContactData();
@@ -6055,6 +6212,8 @@ function attachPhoneDialHandlers() {
               modalBanner();
               avatarHref();
               attachPhoneDialHandlers();
+              attachMessageHandlers();
+            
               populateCallQueue();
               moveCallBtn();
               showDateInTimestamps();
