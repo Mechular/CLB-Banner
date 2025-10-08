@@ -5925,6 +5925,8 @@ function attachPhoneDialHandlers() {
 function attachMessageHandlers() {
   if (!location.href.includes("/contacts/smart_list/")) return;
 
+  let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
+  
   function block(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -6277,7 +6279,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           From
-          <input id="sms-from" type="text" value="+13025877490" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+          <input id="sms-from" type="text" value="${fromMyNumber}" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
         </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           To
@@ -6389,7 +6391,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       }
 
       qs("#sms-to", overlay).value = toNumber;
-      qs("#sms-from", overlay).value = "+13025877490";
+      qs("#sms-from", overlay).value = fromMyNumber;
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
 
