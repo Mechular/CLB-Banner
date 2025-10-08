@@ -6374,11 +6374,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
       const tr = cell.closest("tr");
       const rowId = tr && tr.id ? tr.id.trim() : "";
 
-      let nameCell =
-        (tr && tr.querySelector('td[data-title="Name"]')) ||
-        (tr && tr.querySelector('td[data-title="Client"]')) ||
-        (tr && tr.querySelector("td .name")) ||
-        (tr && tr.querySelector("td a"));
+      let nameCell = (tr && tr.querySelector("td a.title"));
 
       const clientName = nameCell ? nameCell.textContent.trim() : "";
 
