@@ -119,7 +119,7 @@
   let hasClickedNotesTab = false;
   let storedAddress = '';
   let wasOnContactPage = true;
-  let window.myStatsAdded = false;
+  let myStatsAdded = false;
   let bannerDismissed = false;
   let tooltip;
   let voicemailLink;
@@ -1293,7 +1293,7 @@ function timeRestriction() {
   
 function myStatsWidget() {
   if (!ENABLE_MYSTATS_WIDGET) return;
-  if (!window.myStatsAdded) return;
+  // if (!window.myStatsAdded) return;
 
   async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
     const parts = location.pathname.split("/");
