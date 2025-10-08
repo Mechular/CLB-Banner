@@ -5925,6 +5925,8 @@ function attachPhoneDialHandlers() {
 function attachMessageHandlers() {
   if (!location.href.includes("/contacts/smart_list/")) return;
 
+  let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
+  
   function block(e) {
     e.preventDefault();
     e.stopPropagation();
