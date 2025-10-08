@@ -5931,9 +5931,9 @@ function attachMessageHandlers() {
     e.stopImmediatePropagation();
   }
 
-  const qs = (s, r=document) => r.querySelector(s);
+  const qs = (s, r = document) => r.querySelector(s);
 
-  async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
+  async function getAuthTokenAndLocationId() {
     const idb = await new Promise((res, rej) => {
       const r = indexedDB.open("firebaseLocalStorageDb");
       r.onsuccess = () => res(r.result);
@@ -5944,14 +5944,163 @@ function attachMessageHandlers() {
       const os = tx.objectStore("firebaseLocalStorage");
       const rq = os.getAll();
       rq.onsuccess = () => res(rq.result || []);
-      rq.onerror   = () => rej(rq.error);
+      rq.onerror = () => rej(rq.error);
     });
     const row = rows.find(r => /authUser/.test(r.fbase_key));
-    const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
     const idToken = val?.stsTokenManager?.accessToken || "";
 
     const parts = location.pathname.split("/");
     const locationId = parts[parts.indexOf("location") + 1];
+
+    return { idToken, locationId };
+  }
+
+  async function fetchConversationId({ contactId }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    const conv = Array.isArray(data?.conversations)
+      ? data.conversations[0]
+      : data?.items?.[0] || data?.[0];
+    return conv?.id || conv?._id || "";
+  }
+
+  async function fetchMessages({ conversationId, limit = 50 }) {
+    const { idToken } = await getAuthTokenAndLocationId();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+  }
+
+function renderSmsHistory(overlay, messages) {
+  const box = overlay.querySelector("#sms-history");
+  const list = overlay.querySelector("#sms-history-list");
+  const empty = overlay.querySelector("#sms-history-empty");
+  const loading = overlay.querySelector("#sms-history-loading");
+  const err = overlay.querySelector("#sms-history-error");
+
+  loading.style.display = "none";
+  err.style.display = "none";
+  list.innerHTML = "";
+
+  const smsOnly = (messages || []).filter(m => (m.type === 2) || m.channel === "sms" || m.contentType === "text/plain");
+  if (!smsOnly.length) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  const frag = document.createDocumentFragment();
+  smsOnly
+    .slice()
+    .sort((a, b) => new Date(a.createdAt || a.createdTime || a.createdOn || a.dateAdded || 0) - new Date(b.createdAt || b.createdTime || b.createdOn || b.dateAdded || 0))
+    .forEach(m => {
+      const isOutbound = m.direction === "outbound" || m.fromMe === true || m.isMe === true;
+      const text = m.text || m.body || m.message || "";
+      const ts = new Date(m.createdAt || m.createdTime || m.createdOn || m.dateAdded || Date.now());
+
+      const row = document.createElement("div");
+      row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
+
+      const bubble = document.createElement("div");
+      bubble.style.cssText =
+        "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+        (isOutbound
+          ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
+          : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
+      bubble.textContent = text || "[empty]";
+      row.appendChild(bubble);
+
+      const meta = document.createElement("div");
+      meta.textContent = ts.toLocaleString();
+      meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
+      if (isOutbound) {
+        meta.style.order = "-1";
+        meta.style.marginRight = "0";
+      } else {
+        meta.style.marginLeft = "0";
+      }
+
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
+      wrap.appendChild(row);
+      wrap.appendChild(meta);
+
+      frag.appendChild(wrap);
+    });
+
+  list.appendChild(frag);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadSmsHistory(overlay, prefetchedNotes) {
+  const loading = overlay.querySelector("#sms-history-loading");
+  const err = overlay.querySelector("#sms-history-error");
+  const empty = overlay.querySelector("#sms-history-empty");
+  const list = overlay.querySelector("#sms-history-list");
+  loading.style.display = "block";
+  err.style.display = "none";
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  const contactId = overlay.dataset.contactId || "";
+  if (!contactId) {
+    loading.style.display = "none";
+    err.textContent = "Missing contact id.";
+    err.style.display = "block";
+    return;
+  }
+
+  try {
+    let messages = [];
+
+    if (prefetchedNotes?.sms?.total?.messages) {
+      messages = prefetchedNotes.sms.total.messages;
+    } else {
+      let conversationId = prefetchedNotes?.lastConversationId || "";
+      if (!conversationId) {
+        conversationId = await fetchConversationId({ contactId });
+      }
+      if (!conversationId) {
+        loading.style.display = "none";
+        empty.style.display = "block";
+        return;
+      }
+      messages = await fetchMessages({ conversationId, limit: 50 });
+    }
+
+    renderSmsHistory(overlay, messages);
+  } catch (e) {
+    loading.style.display = "none";
+    err.textContent = String(e.message || e);
+    err.style.display = "block";
+  }
+}
+
+  async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
 
     const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
       method: "POST",
@@ -5960,7 +6109,7 @@ function attachMessageHandlers() {
         "token-id": idToken,
         "version": "2021-07-28",
         "channel": "APP",
-        "source": "WEB_USER",
+        "source": "WEB_USER"
       },
       body: JSON.stringify({
         contactId,
@@ -5985,15 +6134,23 @@ function attachMessageHandlers() {
     overlay.id = "sms-modal-overlay";
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
     const modal = document.createElement("div");
-    modal.style.cssText = "width:520px;max-width:90vw;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+    modal.style.cssText = "width:560px;max-width:90vw;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
     modal.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <h3 style="margin:0;font-size:16px;">
-          <span id="sms-title-prefix">Send SMS</span>
+          <span id="sms-title-prefix">Conversation</span>
           <span id="sms-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
         </h3>
         <button id="sms-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
       </div>
+
+      <div id="sms-history" style="border:1px solid #e5e7eb;border-radius:8px;height:260px;overflow:auto;padding:8px;margin-bottom:10px;background:#fafafa;">
+        <div id="sms-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
+        <div id="sms-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
+        <div id="sms-history-empty" style="display:none;font-size:12px;color:#667085;">No messages yet.</div>
+        <div id="sms-history-list"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           From
@@ -6006,7 +6163,7 @@ function attachMessageHandlers() {
       </div>
       <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
         Message
-        <textarea id="sms-body" rows="5" placeholder="Type a message" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;resize:vertical;"></textarea>
+        <textarea id="sms-body" rows="4" placeholder="Type a message" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;resize:vertical;"></textarea>
       </label>
       <div id="sms-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
@@ -6049,7 +6206,8 @@ function attachMessageHandlers() {
       qs("#sms-send", overlay).textContent = "Sending…";
       try {
         await sendSmsRequest({ contactId, message, fromNumber, toNumber });
-        hide();
+        qs("#sms-body", overlay).value = "";
+        await loadSmsHistory(overlay);
       } catch (e) {
         err.textContent = String(e.message || e);
         err.style.display = "block";
@@ -6061,6 +6219,84 @@ function attachMessageHandlers() {
 
     return overlay;
   }
+
+  const overlay = buildSmsModal();
+
+  document.querySelectorAll('td[data-title="Phone"]').forEach((cell) => {
+    const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
+    if (!phoneDiv) return;
+
+    let actions = cell.querySelector(".call-actions");
+    if (!actions) {
+      actions = document.createElement("div");
+      actions.className = "call-actions";
+      actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
+      cell.appendChild(actions);
+    }
+
+    let msgIcon = cell.querySelector(".fa-solid.fa-message");
+    if (!msgIcon) {
+      msgIcon = document.createElement("i");
+      msgIcon.className = "fa-solid fa-message";
+    }
+    msgIcon.style.color = "rgba(59,130,246,.7)";
+    msgIcon.style.cursor = "pointer";
+
+    if (msgIcon.parentElement !== actions) actions.appendChild(msgIcon);
+    if (msgIcon.dataset.msgListenerAttached === "1") return;
+
+    msgIcon.addEventListener("click", (e) => {
+      block(e);
+
+      const tr = cell.closest("tr");
+      const rowId = tr && tr.id ? tr.id.trim() : "";
+
+      let nameCell =
+        (tr && tr.querySelector('td[data-title="Name"]')) ||
+        (tr && tr.querySelector('td[data-title="Client"]')) ||
+        (tr && tr.querySelector("td .name")) ||
+        (tr && tr.querySelector("td a"));
+
+      const clientName = nameCell ? nameCell.textContent.trim() : "";
+
+      const rawPhone = phoneDiv.innerText.trim();
+      let toNumber = rawPhone.replace(/[^\d+]/g, "");
+      if (!toNumber.startsWith("+1")) {
+        toNumber = `+1${toNumber.replace(/^1/, "")}`;
+      }
+
+      qs("#sms-to", overlay).value = toNumber;
+      qs("#sms-from", overlay).value = "+13025877490";
+      qs("#sms-body", overlay).value = "";
+      qs("#sms-error", overlay).style.display = "none";
+
+      overlay.dataset.contactId = rowId || "";
+
+      const metaEl = qs("#sms-title-meta", overlay);
+      if (metaEl) {
+        const metaText = clientName && rowId
+          ? `${clientName} (${rowId})`
+          : (clientName || rowId || "");
+        metaEl.textContent = metaText;
+      }
+
+      const histLoading = qs("#sms-history-loading", overlay);
+      const histErr = qs("#sms-history-error", overlay);
+      const histEmpty = qs("#sms-history-empty", overlay);
+      const histList = qs("#sms-history-list", overlay);
+      histLoading.style.display = "block";
+      histErr.style.display = "none";
+      histEmpty.style.display = "none";
+      histList.innerHTML = "";
+
+      overlay.style.display = "block";
+      loadSmsHistory(overlay);
+    }, true);
+
+    msgIcon.dataset.msgListenerAttached = "1";
+  });
+}
+
 
   const overlay = buildSmsModal();
 
