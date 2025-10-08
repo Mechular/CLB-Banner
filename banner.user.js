@@ -1291,44 +1291,11 @@ function timeRestriction() {
       };
   }
   
-async function myStatsWidget({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" } = {}) {
+function myStatsWidget() {
   if (!ENABLE_MYSTATS_WIDGET) return;
-  if (!document.getElementById('notification_banner-top_bar')) return;
+  // if (!window.myStatsAdded) return;
 
-  // Prevent duplicate runs
-  if (window.myStatsRunning) return;
-  window.myStatsRunning = true;
-
-  const containerId = "my-stats-widget";
-  let container = document.getElementById(containerId);
-  if (!container) {
-    container = document.createElement("div");
-    container.id = containerId;
-    container.style.cssText = `
-      position: relative;
-      padding: 12px;
-      margin: 10px;
-      background: #fafafa;
-      border: 1px solid #ddd;
-      font-family: sans-serif;
-    `;
-    document.body.appendChild(container);
-  } else {
-    container.textContent = "";
-  }
-
-  try {
-    const data = await fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone });
-    const pre = document.createElement("pre");
-    pre.textContent = JSON.stringify(data, null, 2);
-    container.appendChild(pre);
-  } catch (err) {
-    console.error("myStatsWidget error:", err);
-  } finally {
-    window.myStatsRunning = false;
-  }
-
-  async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone }) {
+  async function fetchRevexCalls({ startMs, endMs, comparisonStartMs, comparisonEndMs, timezone = "America/Halifax" }) {
     const parts = location.pathname.split("/");
     const locationIdIdx = parts.indexOf("location");
     if (locationIdIdx === -1 || !parts[locationIdIdx + 1]) throw new Error("Missing locationId in URL path.");
@@ -1340,64 +1307,55 @@ async function myStatsWidget({ startMs, endMs, comparisonStartMs, comparisonEndM
       r.onerror = () => rej(r.error || new Error("IndexedDB open failed."));
     });
 
-    try {
-      const rows = await new Promise((res, rej) => {
-        const tx = idb.transaction("firebaseLocalStorage", "readonly");
-        const os = tx.objectStore("firebaseLocalStorage");
-        const rq = os.getAll();
-        rq.onsuccess = () => res(rq.result || []);
-        rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
-      });
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error || new Error("IndexedDB read failed."));
+    });
 
-      const row = rows.find(r => /authUser/.test(r.fbase_key));
-      if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
-      const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
-      const idToken = val?.stsTokenManager?.accessToken;
-      if (!idToken) throw new Error("Missing Firebase ID token.");
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    if (!row || !row.value) throw new Error("Auth user not found in IndexedDB.");
+    const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    const idToken = val?.stsTokenManager?.accessToken;
+    if (!idToken) throw new Error("Missing Firebase ID token.");
 
-      const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
-      const body = {
-        chartType: "donut",
-        options: {
-          aggregations: [
-            { operator: "count", field: "_id", i18nKey: "common.widget.metricCountOfCall", numberFormatType: "none", metricKey: "count::_id" }
-          ],
-          groupBy: { fields: [{ field: "callStatus", type: "field" }], limit: 10, orderBy: "desc" },
-          filters: [
-            { group: "AND", filters: [{ field: "dateAdded", operator: "time_series", value: [startMs, endMs] }, { group: "OR", filters: [] }] }
-          ],
-          comparisonDate: { field: "dateAdded", operator: "time_series", value: [comparisonStartMs, comparisonEndMs] },
-          timezone
-        }
-      };
+    const url = `https://backend.leadconnectorhq.com/reporting/dashboards/revex/calls?locationId=${encodeURIComponent(locationId)}`;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          accept: "application/json, text/plain, */*",
-          "content-type": "application/json",
-          channel: "APP",
-          source: "WEB_USER",
-          version: "2021-04-15",
-          "x-reporting-api-version": "3",
-          "token-id": idToken
-        },
-        body: JSON.stringify(body),
-        credentials: "omit",
-        mode: "cors"
-      });
-
-      if (!res.ok) {
-        const errTxt = await res.text().catch(() => "");
-        throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
+    const body = {
+      chartType: "donut",
+      options: {
+        aggregations: [{ operator: "count", field: "_id", i18nKey: "common.widget.metricCountOfCall", numberFormatType: "none", metricKey: "count::_id" }],
+        groupBy: { fields: [{ field: "callStatus", type: "field" }], limit: 10, orderBy: "desc" },
+        filters: [{ group: "AND", filters: [{ field: "dateAdded", operator: "time_series", value: [startMs, endMs] }, { group: "OR", filters: [] }]}],
+        comparisonDate: { field: "dateAdded", operator: "time_series", value: [comparisonStartMs, comparisonEndMs] },
+        timezone
       }
+    };
 
-      return res.json();
-    } finally {
-      try { idb.close(); } catch {}
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/plain, */*",
+        "content-type": "application/json",
+        channel: "APP",
+        source: "WEB_USER",
+        version: "2021-04-15",
+        "x-reporting-api-version": "3",
+        "token-id": idToken
+      },
+      body: JSON.stringify(body),
+      credentials: "omit",
+      mode: "cors"
+    });
+
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => "");
+      throw new Error(`RevEx calls failed: ${res.status} ${errTxt}`);
     }
+    return res.json();
   }
-}
 
 
   function getMsRangeForTodayInZone(timezone) {
@@ -1438,7 +1396,6 @@ async function myStatsWidget({ startMs, endMs, comparisonStartMs, comparisonEndM
     }
   })();
 }
-
 
   async function hideCallSummaryNotes() {
       const container = document.getElementById("notes-list-container-contact");
