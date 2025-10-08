@@ -2919,7 +2919,7 @@ function myStatsWidget() {
       }
   
       const counts = await extractContactData();
-      // console.log('counts', counts);
+      // console.log('', counts);
       let dispo = await getDisposition();
   
       // Check if dispo is empty or "Move to Contacted"
@@ -2939,32 +2939,32 @@ function myStatsWidget() {
                       <tbody>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Inbound</td>
-                              <td style="padding: 0 6px; text-align: center;" id="inboundCallCount">${counts.inbound.phone}</td>
-                              <td style="padding: 0 6px; text-align: center;" id="inboundSMSCount">${counts.inbound.sms}</td>
+                              <td style="padding: 0 6px; text-align: center;" id="inboundCallCount">${counts.calls.inbound.count}</td>
+                              <td style="padding: 0 6px; text-align: center;" id="inboundSMSCount">${counts.sms.inbound.count}</td>
                               <td style="padding: 0 6px; text-align: center;">—</td>
-                              <td style="padding: 0 6px; text-align: center;" id="inboundEmailCount">${counts.inbound.email}</td>
+                              <td style="padding: 0 6px; text-align: center;" id="inboundEmailCount">${counts.email.inbound.count}</td>
                           </tr>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Outbound</td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.outbound.phone > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundCallCount">
-                                  ${counts.outbound.phone}
+                              <td style="padding: 0 6px; text-align: center; ${counts.calls.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundCallCount">
+                                  ${counts.calls.outbound.count}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.outbound.sms === 'DND' ? 'color: red;' : (counts.outbound.sms > 2 ? 'color: red; font-weight: bold;' : '')}" id="outboundSMSCount">
-                                  ${counts.outbound.sms === 'DND' ? 'DND' : counts.outbound.sms}
+                              <td style="padding: 0 6px; text-align: center; ${counts.sms.outbound.count === 'DND' ? 'color: red;' : (counts.sms.outbound.count > 2 ? 'color: red; font-weight: bold;' : '')}" id="outboundSMSCount">
+                                  ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                               </td>
                               <td style="padding: 0 6px; text-align: center; ${counts.outbound.voicemail > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundVMCount">
                                   ${counts.outbound.voicemail}
                               </td>
-                              <td style="padding: 0 6px; text-align: center; ${counts.outbound.email > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundEmailCount">
-                                  ${counts.outbound.email}
+                              <td style="padding: 0 6px; text-align: center; ${counts.email.outbound.count > 2 ? 'color: red; font-weight: bold;' : ''}" id="outboundEmailCount">
+                                  ${counts.email.outbound.count}
                               </td>
                           </tr>
                           <tr>
                               <td style="padding: 0 6px; text-align: right;">Today</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.today.phone || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.today.sms || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
                                 <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
-                                <td style="padding: 0 6px; text-align: center;">${counts.today.email || '—'}</td>
+                                <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
                           </tr>
                       </tbody>
                   </table>
@@ -2985,32 +2985,32 @@ function myStatsWidget() {
                   <tbody>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Inbound</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.inbound.phone}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.inbound.sms}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.calls.inbound.count}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.sms.inbound.count}</td>
                           <td style="padding: 0 6px; text-align: center;">—</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.inbound.email}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.email.inbound.count}</td>
                       </tr>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Outbound</td>
                           <td style="padding: 0 6px; text-align: center;">
-                              ${counts.outbound.phone}
+                              ${counts.calls.outbound.count}
                           </td>
                           <td style="padding: 0 6px; text-align: center;">
-                              ${counts.outbound.sms === 'DND' ? 'DND' : counts.outbound.sms}
+                              ${counts.sms.outbound.count === 'DND' ? 'DND' : counts.sms.outbound.count}
                           </td>
                           <td style="padding: 0 6px; text-align: center;">
                               ${counts.outbound.voicemail}
                           </td>
                           <td style="padding: 0 6px; text-align: center;">
-                              ${counts.outbound.email}
+                              ${counts.email.outbound.count}
                           </td>
                       </tr>
                       <tr>
                           <td style="padding: 0 6px; text-align: right;">Today</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.today.phone || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.today.sms || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.calls.today.count || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.sms.today.count || '—'}</td>
                           <td style="padding: 0 6px; text-align: center;">${counts.today.voicemail || '—'}</td>
-                          <td style="padding: 0 6px; text-align: center;">${counts.today.email || '—'}</td>
+                          <td style="padding: 0 6px; text-align: center;">${counts.email.today.count || '—'}</td>
                       </tr>
                   </tbody>
               </table>
@@ -4205,16 +4205,16 @@ With that being said, if I were to cover all the closing costs, and there's no r
               const counts = await extractContactData();
               console.log('counts', counts);
   
-              const smsText = counts.outbound.sms === "DND"
+              const smsText = counts.sms.outbound.count === "DND"
               ? "SMS (DND)"
-              : counts.today.sms
-              ? `Sent SMS (Total: ${counts.outbound.sms})`
-              : `No SMS sent (Total: ${counts.outbound.sms})`;
+              : counts.sms.today.count
+              ? `Sent SMS (Total: ${counts.sms.outbound.count})`
+              : `No SMS sent (Total: ${counts.sms.outbound.count})`;
   
               const emailText = sellerEmail
-              ? (counts.today.email
-                 ? `Sent email (Total: ${counts.outbound.email})`
-                 : `No email sent (Total: ${counts.outbound.email})`)
+              ? (counts.email.today.count
+                 ? `Sent email (Total: ${counts.email.outbound.count})`
+                 : `No email sent (Total: ${counts.email.outbound.count})`)
               : "Cannot email (no email address)";
   
               const noteOptions = [];
@@ -4233,11 +4233,11 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
   
               if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
-                  //if (counts.outbound.phone >= 2 && (counts.outbound.sms >= 2 || counts.outbound.sms === "DND")) {
-                if (counts.outbound.phone >= 5) {
+                  //if (counts.calls.outbound.count >= 2 && (counts.sms.outbound.count >= 2 || counts.sms.outbound.count === "DND")) {
+                if (counts.calls.outbound.count >= 5) {
                       noteOptions.push({
                           name: 'Move to Unable to Reach',
-                          text: `Call attempt #${counts.outbound.phone} - Unable to reach.\nTotal Voicemail: ${counts.outbound.voicemail}\nTotal SMS: ${counts.outbound.sms}\nTotal Email: ${counts.outbound.email} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
+                          text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.outbound.voicemail}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
                           dispo: 'Unable to reach',
                           nextAccount: true,
                           autoSave: true
@@ -4248,7 +4248,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
               if (counts.outbound.voicemail === 0) {
                   noteOptions.push({
                       name: 'Left Voicemail',
-                      text: `Call attempt #${counts.outbound.phone}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
@@ -4256,7 +4256,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
               } else {
                   noteOptions.push({
                       name: 'Left Voicemail',
-                      text: `Call attempt #${counts.outbound.phone}\nLeft voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
@@ -4266,14 +4266,14 @@ With that being said, if I were to cover all the closing costs, and there's no r
               noteOptions.push(
                   {
                       name: 'No Voicemail Left',
-                      text: `Call attempt #${counts.outbound.phone}\nNo voicemail left (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
                   },
                   {
                       name: 'Could Not Leave Voicemail',
-                      text: `Call attempt #${counts.outbound.phone}\nCould not leave voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.outbound.voicemail})\n${smsText}\n${emailText}`,
                       dispo: 'Move to Contacted',
                       nextAccount: true,
                       autoSave: true
@@ -4290,7 +4290,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
                   },
                   {
                       name: 'Made Contact',
-                      text: `Call attempt #${counts.outbound.phone}\nMade contact.`,
+                      text: `Call attempt #${counts.calls.outbound.count}\nMade contact.`,
                       autoSave: false
                   },
                   {
@@ -4447,191 +4447,143 @@ With that being said, if I were to cover all the closing costs, and there's no r
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
   
-  async function extractContactData() {
-      if (!ENABLE_EXTRACT_CONTACT_DATA) return;
-  
-      const userInfo = await getUserData();
-      if (!userInfo) return;
-  
-      let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-  
-      let myFullName = '';
-      let myFirstName = '';
-      let myLastName = '';
-      let myInitials = '';
-      let myEmail = '';
-      let myTele = '';
-  
-      if (userInfo && userInfo.myFirstName) {
-          myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
-          myFirstName = userInfo.myFirstName;
-          myLastName = userInfo.myLastName;
-          myInitials = userInfo.myInitials;
-          myEmail = userInfo.myEmail;
-          myTele = userInfo.myTele;
-      }
-  
-      let counts = {
-          outbound: { phone: 0, sms: 0, email: 0, voicemail: 0 },
-          inbound: { phone: 0, sms: 0, email: 0 },
-          // today: { phone: false, voicemail: false, sms: false, email: false }
-          today: { phone: 0, voicemail: 0, sms: 0, email: 0 }
+const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages";
+
+function getFirebaseIdToken() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("firebaseLocalStorageDb");
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction("firebaseLocalStorage", "readonly");
+      const store = tx.objectStore("firebaseLocalStorage");
+      const all = store.getAll();
+      all.onerror = () => reject(all.error);
+      all.onsuccess = () => {
+        const rows = all.result || [];
+        const row = rows.find(r => /authUser/.test(r.fbase_key));
+        if (!row) return reject(new Error("authUser not found in IndexedDB"));
+        const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+        const token = val?.stsTokenManager?.accessToken;
+        if (!token) return reject(new Error("accessToken missing"));
+        resolve(token);
       };
-  
-      let isDND = false;
-      const today = new Date();
-  
-      // DND detection
-      if ((document.querySelector('.activity-body-contact')?.innerText || "")
-            .toLowerCase()
-            .includes("dnd enabled") ) {
-  
-  
-          let el = document.getElementById("tb_textmessage_menu");
-  
-          if (el && !el.dataset.smsChecked) {
-              attachTooltip(el, true, "SMS is set to DND");
-              el.dataset.smsChecked = "true";
-          } else {
-              // detachTooltip(el);
-          }
-  
-          isDND = true;
-      }
-  
-      const allMessages = document.querySelectorAll('.messages-single');
-      if (allMessages.length === 0) {
-          return { ...counts, isDND };
-      }
-  
-      allMessages.forEach(message => {
-          const isOutbound = message.classList.contains('--own-message');
-          const isInbound = message.classList.contains('--external-message') || message.classList.contains('--internal-comment-wrapper');
-  
-          let isToday = false;
-          const dateSpan = message.querySelector('p.time-date > span[title]');
-          if (dateSpan) {
-              const msgDate = new Date(dateSpan.getAttribute('title'));
-              isToday = msgDate.toDateString() === today.toDateString();
-          }
-  
-          const phoneCall = message.querySelector('.phone-call');
-          const smsBubble = message.querySelector('.message-bubble.cnv-message-bubble');
-          const isSmsIcon = message.querySelector('.icon-sms2');
-  
-          if (phoneCall) {
-              const playerTime = message.querySelector('.player-time-total');
-              let isVoicemail = false;
-  
-              if (playerTime) {
-                  const [min, sec] = playerTime.innerText.trim().split(':').map(n => parseInt(n, 10));
-                  const totalSec = (min || 0) * 60 + (sec || 0);
-  
-                  // short call, suspected voicemail
-                  if (totalSec > 20 && totalSec < 80) {
-                      isVoicemail = true;
-                  } else {
-                      // longer call, connected
-                      // let dispo = getDisposition();
-  
-                      // if (dispo === "" || dispo === "Move to Contacted") {
-                      // setDisposition('Move to Hot Lead');
-                      // }
-                  }
-              }
-  
-              if (isOutbound) {
-                  counts.outbound.phone++;
-                  if (isVoicemail) {
-                      counts.outbound.voicemail++;
-                      if (isToday) {
-                        // counts.today.voicemail = true;
-                        counts.today.voicemail++;
-                      }
-                  }
-              } else if (isInbound) {
-                  counts.inbound.phone++;
-              }
-  
-              if (isToday) {
-                // counts.today.phone = true;
-                counts.today.phone++;
-              }
-  
-          } else if (smsBubble || isSmsIcon) {
-              if (isOutbound && !isDND) {
-                  counts.outbound.sms++;
-                  if (isToday) {
-                    // counts.today.sms = true;
-                    counts.today.sms++;
-                  }
-              } else if (isInbound) {
-                  counts.inbound.sms++;
-  
-                  let dispo = getDisposition();
-                  // let assignedDate = ''
-  
-                  // if (dispo === "" || dispo === "Move to Contacted") {
-                  //     setDisposition('Move to Hot Lead');
-                  // }
-              }
-          }
-      });
-  
-      // Email tracking
-      if (sellerEmail && sellerEmail.trim() !== '') {
-          // console.log('works');
-  
-          const activityItems = document.querySelectorAll('.new-email-thread-view');
-          const today = new Date();
-  
-          activityItems.forEach(item => {
-              const container = item.querySelector('.email-view-container');
-              if (!container) return;
-  
-              // const messageText = container.innerText.toLowerCase();
-              // if (!messageText.includes('email')) return;
-  
-              // Extract timestamp
-              const timestampEl = item.querySelector('.timestamp-style');
-              const title = timestampEl?.innerText?.trim();
-              if (!title) return;
-  
-              const date = new Date(title);
-              const isTodayEmail = date.toDateString() === today.toDateString();
-  
-              // Determine if it's own message
-              const initialsEl = item.querySelector('.avatar-container .text-xs');
-              const initialsTxt = initialsEl?.innerText?.trim() || "";
-              const isOwnMessage = myInitials
-                ? initialsTxt === myInitials
-                : !!item.querySelector('.avatar-container [data-initials]'); // fallback: presence of own avatar marker if available
-  
-              if (isOwnMessage) {
-                  counts.outbound.email++;
-                  if (isTodayEmail) {
-                    // counts.today.email = true;
-                    counts.today.email++;
-                  }
-              } else {
-                  counts.inbound.email++;
-              }
-          });
-      } else {
-          counts.outbound.email = 'N/A';
-      }
-  
-  
-      if (isDND) {
-          counts.outbound.sms = 'DND';
-      }
-  
-      return {
-          ...counts,
-          isDND
-      };
+    };
+  });
+}
+
+async function loadMessages() {
+  const idToken = await getFirebaseIdToken();
+
+  const res = await fetch(API_URL, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "token-id": idToken,
+      channel: "APP",
+      source: "WEB_USER",
+      version: "2021-04-15"
+    },
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-store"
+  });
+
+  if (res.status === 304) return { messages: [], note: "Not modified" };
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
   }
-  
+
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(`Expected JSON, got ${ct}: ${text.slice(0, 200)}`);
+  }
+
+  return res.json();
+}
+
+async function extractContactData() {
+  try {
+    const data = await loadMessages();
+
+    let list = Array.isArray(data?.messages?.messages) ? data.messages.messages : [];
+
+    list = list.sort((a, b) => {
+      const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
+      const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
+      return tb - ta;
+    });
+
+    const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
+    const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
+    const email = { messages: [], inbound_messages: [], outbound_messages: [] };
+
+    for (const m of list) {
+      const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
+      const isSms = !isEmail && Object.prototype.hasOwnProperty.call(m, "body");
+      const bucket = isEmail ? email : isSms ? sms : calls;
+
+      const dirRaw = m?.direction ?? m?.meta?.email?.direction ?? "";
+      const dir = String(dirRaw).toLowerCase();
+
+      bucket.messages.push(m);
+      if (dir === "inbound") bucket.inbound_messages.push(m);
+      else if (dir === "outbound") bucket.outbound_messages.push(m);
+    }
+
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    function countToday(msgs) {
+      let count = 0;
+      const todayMsgs = [];
+      for (const m of msgs) {
+        const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
+        if (t >= start && t < end) {
+          count++;
+          todayMsgs.push(m);
+        }
+      }
+      return { count, messages: todayMsgs };
+    }
+
+    function buildBucket(bucket) {
+      const inbound = {
+        count: bucket.inbound_messages.length,
+        messages: bucket.inbound_messages,
+        today: countToday(bucket.inbound_messages)
+      };
+
+      const outbound = {
+        count: bucket.outbound_messages.length,
+        messages: bucket.outbound_messages,
+        today: countToday(bucket.outbound_messages)
+      };
+
+      const total = {
+        count: bucket.messages.length,
+        messages: bucket.messages,
+        today: countToday(bucket.messages)
+      };
+
+      return { inbound, outbound, total };
+    }
+
+    const result = {
+      sms: buildBucket(sms),
+      calls: buildBucket(calls),
+      email: buildBucket(email)
+    };
+
+    return result;
+  } catch (err) {
+    console.error("extractContactData error:", err);
+    return null;
+  }
+}
   
   function removePostDialModal() {
       if (!ENABLE_AUTOHIDE_DIAL_SUMMARY) return;
@@ -5949,17 +5901,17 @@ With that being said, if I were to cover all the closing costs, and there's no r
   
     if (!counts) return;
       
-    if (dispo === "" && counts.outbound.phone > 6 && counts.outbound.phone < 9) {
+    if (dispo === "" && counts.calls.outbound.count > 6 && counts.calls.outbound.count < 9) {
        setDisposition("Move to Contacted");
        return;
     }
     
-    if (dispo === "Move to Contacted" && counts.outbound.phone > 9) {
+    if (dispo === "Move to Contacted" && counts.calls.outbound.count > 9) {
        setDisposition("Move to Final Contact");
        return;
     }
     
-    if (dispo === "Move to Final Contact" && counts.outbound.phone > 4) {
+    if (dispo === "Move to Final Contact" && counts.calls.outbound.count > 4) {
        // setDisposition("Unable to reach");
        return;
     }
