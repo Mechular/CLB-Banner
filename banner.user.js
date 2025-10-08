@@ -4447,7 +4447,7 @@ With that being said, if I were to cover all the closing costs, and there's no r
       voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
   }
   
-const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages";
+const API_URL = "https://services.leadconnectorhq.com/conversations/9Z5iIrAKTf1Bi7fNPgTp/messages?limit=10";
 
 function getFirebaseIdToken() {
   return new Promise((resolve, reject) => {
@@ -4519,6 +4519,7 @@ async function extractContactData() {
     const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
     const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
     const email = { messages: [], inbound_messages: [], outbound_messages: [] };
+    const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
 
     for (const m of list) {
       const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
@@ -4533,11 +4534,25 @@ async function extractContactData() {
       else if (dir === "outbound") bucket.outbound_messages.push(m);
     }
 
+    // Use inbound + outbound calls to find voicemails
+    const allCallCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
+    for (const c of allCallCandidates) {
+      const added = new Date(c.dateAdded || 0).getTime();
+      const updated = new Date(c.dateUpdated || 0).getTime();
+      const duration = (updated - added) / 1000;
+      if (duration >= 20 && duration <= 80) {
+        voicemail.messages.push(c);
+        const dir = String(c?.direction ?? "").toLowerCase();
+        if (dir === "inbound") voicemail.inbound_messages.push(c);
+        else if (dir === "outbound") voicemail.outbound_messages.push(c);
+      }
+    }
+
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    function countToday(msgs) {
+    function todaySubset(msgs) {
       let count = 0;
       const todayMsgs = [];
       for (const m of msgs) {
@@ -4554,28 +4569,26 @@ async function extractContactData() {
       const inbound = {
         count: bucket.inbound_messages.length,
         messages: bucket.inbound_messages,
-        today: countToday(bucket.inbound_messages)
+        today: todaySubset(bucket.inbound_messages)
       };
-
       const outbound = {
         count: bucket.outbound_messages.length,
         messages: bucket.outbound_messages,
-        today: countToday(bucket.outbound_messages)
+        today: todaySubset(bucket.outbound_messages)
       };
-
       const total = {
         count: bucket.messages.length,
         messages: bucket.messages,
-        today: countToday(bucket.messages)
+        today: todaySubset(bucket.messages)
       };
-
       return { inbound, outbound, total };
     }
 
     const result = {
       sms: buildBucket(sms),
       calls: buildBucket(calls),
-      email: buildBucket(email)
+      email: buildBucket(email),
+      voicemail: buildBucket(voicemail)
     };
 
     return result;
