@@ -5951,7 +5951,7 @@ function attachMessageHandlers() {
         "source": "WEB_USER",
       },
       body: JSON.stringify({
-        contactId,            // now using the rowId passed in
+        contactId,
         locationId,
         type: "SMS",
         channel: "sms",
@@ -5985,7 +5985,7 @@ function attachMessageHandlers() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           From
-          <input id="sms-from" type="text" placeholder="+1 302-587-7490" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+          <input id="sms-from" type="text" value="+13025877490" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
         </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
           To
@@ -6013,9 +6013,10 @@ function attachMessageHandlers() {
       const fromNumber = qs("#sms-from", overlay).value.trim();
       const toNumber   = qs("#sms-to", overlay).value.trim();
       const message    = qs("#sms-body", overlay).value.trim();
-      const err = qs("#sms-error", overlay);
       const contactId  = overlay.dataset.contactId || "";
+      const err = qs("#sms-error", overlay);
       err.style.display = "none"; err.textContent = "";
+
       if (!fromNumber || !toNumber || !message || !contactId) {
         err.textContent = !contactId
           ? "Missing contact id for this row."
@@ -6023,6 +6024,7 @@ function attachMessageHandlers() {
         err.style.display = "block";
         return;
       }
+
       qs("#sms-send", overlay).disabled = true;
       qs("#sms-send", overlay).textContent = "Sending…";
       try {
@@ -6076,7 +6078,7 @@ function attachMessageHandlers() {
       const toNumber = rawPhone.replace(/[^\d+]/g, "").replace(/^1(?=\d{10}$)/, "+1");
 
       qs("#sms-to", overlay).value = toNumber || "";
-      qs("#sms-from", overlay).value = "";
+      qs("#sms-from", overlay).value = "+13025877490";
       qs("#sms-body", overlay).value = "";
       qs("#sms-error", overlay).style.display = "none";
 
