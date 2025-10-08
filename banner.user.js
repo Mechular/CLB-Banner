@@ -112,7 +112,8 @@
   let ENABLE_SHOW_TIMESTAMPS = true;
   let ENABLE_SIDEBAR_URL_CHANGE = true;
   let ENABLE_MONITOR_URL_CHANGES = true; // core function. do not disable!
-  
+  let extractContactDataRunOnce = false;
+
   // === State variables ===
   let initialized = false;
   let notesScrollInitialized = false;
@@ -4486,6 +4487,7 @@ async function loadMessages() {
 }
 
 async function extractContactData() {
+  if (extractContactDataRunOnce) return;
   if (!document.getElementById('notification_banner-top_bar')) return;
   
   try {
@@ -4573,7 +4575,7 @@ async function extractContactData() {
       email: buildBucket(email),
       voicemail: buildBucket(voicemail)
     };
-
+    extractContactDataRunOnce = true;
     return result;
   } catch (err) {
     console.error("extractContactData error:", err);
@@ -4772,6 +4774,7 @@ async function checkUrlChange() {
     window.myStatsAdded = false;
     iterationCount = 0;
     hasRunExtractNoteData = false;
+    extractContactDataRunOnce = false;
 
     removeIfExists("tb_voicemail_menu");
     removeIfExists("tb_addnote_menu");
