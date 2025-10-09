@@ -4602,86 +4602,97 @@ return { messages: { messages: arr } };
 }
 
 function buildBuckets(messages) {
-const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
-const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
-const email = { messages: [], inbound_messages: [], outbound_messages: [] };
-const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
+  const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
+  const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
+  const email = { messages: [], inbound_messages: [], outbound_messages: [] };
+  const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
+  const system = { messages: [], inbound_messages: [], outbound_messages: [] };
 
-const list = [...messages].sort((a, b) => {
-  const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
-  const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
-  return tb - ta;
-});
+  const list = [...messages].sort((a, b) => {
+    const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
+    const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
+    return tb - ta;
+  });
 
-for (const m of list) {
-  const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
-  const isSms = !isEmail && Object.prototype.hasOwnProperty.call(m, "body");
-  const bucket = isEmail ? email : isSms ? sms : calls;
+  for (const m of list) {
+    // System detection (case-insensitive)
+    const body = String(m?.body || "").toLowerCase();
+    const isSystem = ["opportunity created", "opportunity updated", "opportunity deleted"]
+      .some(phrase => body.includes(phrase));
 
-  const dirRaw = m?.direction ?? m?.meta?.email?.direction ?? "";
-  const dir = String(dirRaw).toLowerCase();
+    // Base type detection (only used if not system)
+    const isEmail = !isSystem && Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
+    const isSms   = !isSystem && !isEmail && Object.prototype.hasOwnProperty.call(m, "body");
 
-  bucket.messages.push(m);
-  if (dir === "inbound") bucket.inbound_messages.push(m);
-  else if (dir === "outbound") bucket.outbound_messages.push(m);
-}
+    const bucket = isSystem ? system : (isEmail ? email : (isSms ? sms : calls));
 
-const allCallCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
-for (const c of allCallCandidates) {
-  const added = new Date(c.dateAdded || 0).getTime();
-  const updated = new Date(c.dateUpdated || 0).getTime();
-  const duration = (updated - added) / 1000;
-  if (duration >= 20 && duration <= 80) {
-    voicemail.messages.push(c);
-    const dir = String(c?.direction ?? "").toLowerCase();
-    if (dir === "inbound") voicemail.inbound_messages.push(c);
-    else if (dir === "outbound") voicemail.outbound_messages.push(c);
+    const dirRaw = m?.direction ?? m?.meta?.email?.direction ?? "";
+    const dir = String(dirRaw).toLowerCase();
+
+    bucket.messages.push(m);
+    if (dir === "inbound") bucket.inbound_messages.push(m);
+    else if (dir === "outbound") bucket.outbound_messages.push(m);
   }
-}
 
-const now = new Date();
-const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
-function todaySubset(msgs) {
-  let count = 0;
-  const todayMsgs = [];
-  for (const m of msgs) {
-    const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
-    if (t >= start && t < end) {
-      count++;
-      todayMsgs.push(m);
+  // Identify voicemail within calls only (leave system/sms/email untouched)
+  const allCallCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
+  for (const c of allCallCandidates) {
+    const added = new Date(c.dateAdded || 0).getTime();
+    const updated = new Date(c.dateUpdated || 0).getTime();
+    const duration = (updated - added) / 1000;
+    if (duration >= 20 && duration <= 80) {
+      voicemail.messages.push(c);
+      const dir = String(c?.direction ?? "").toLowerCase();
+      if (dir === "inbound") voicemail.inbound_messages.push(c);
+      else if (dir === "outbound") voicemail.outbound_messages.push(c);
     }
   }
-  return { count, messages: todayMsgs };
+
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+  function todaySubset(msgs) {
+    let count = 0;
+    const todayMsgs = [];
+    for (const m of msgs) {
+      const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
+      if (t >= start && t < end) {
+        count++;
+        todayMsgs.push(m);
+      }
+    }
+    return { count, messages: todayMsgs };
+  }
+
+  function finish(bucket) {
+    const inbound = {
+      count: bucket.inbound_messages.length,
+      messages: bucket.inbound_messages,
+      today: todaySubset(bucket.inbound_messages)
+    };
+    const outbound = {
+      count: bucket.outbound_messages.length,
+      messages: bucket.outbound_messages,
+      today: todaySubset(bucket.outbound_messages)
+    };
+    const total = {
+      count: bucket.messages.length,
+      messages: bucket.messages,
+      today: todaySubset(bucket.messages)
+    };
+    return { inbound, outbound, total };
+  }
+
+  return {
+    sms: finish(sms),
+    calls: finish(calls),
+    email: finish(email),
+    voicemail: finish(voicemail),
+    system: finish(system)
+  };
 }
 
-function finish(bucket) {
-  const inbound = {
-    count: bucket.inbound_messages.length,
-    messages: bucket.inbound_messages,
-    today: todaySubset(bucket.inbound_messages)
-  };
-  const outbound = {
-    count: bucket.outbound_messages.length,
-    messages: bucket.outbound_messages,
-    today: todaySubset(bucket.outbound_messages)
-  };
-  const total = {
-    count: bucket.messages.length,
-    messages: bucket.messages,
-    today: todaySubset(bucket.messages)
-  };
-  return { inbound, outbound, total };
-}
-
-return {
-  sms: finish(sms),
-  calls: finish(calls),
-  email: finish(email),
-  voicemail: finish(voicemail)
-};
-}
 
 async function extractContactData() {
 const { lastConversationId } = await searchNotesFromUrl();
