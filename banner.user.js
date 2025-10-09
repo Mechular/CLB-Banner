@@ -2898,7 +2898,7 @@ function myStatsWidget() {
       }
   
       const counts = await extractContactData();
-      // console.log('', counts);
+      console.log('COUNTS ::: ', counts);
       let dispo = await getDisposition();
   
       // Check if dispo is empty or "Move to Contacted"
