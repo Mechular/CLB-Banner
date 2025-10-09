@@ -6055,7 +6055,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
 
       const bubble = document.createElement("div");
       bubble.style.cssText =
-        "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+        "padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
         (isOutbound
           ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
           : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
@@ -6163,7 +6163,7 @@ async function loadSmsHistoryFromModalHeader(overlay) {
 
         const bubble = document.createElement("div");
         bubble.style.cssText =
-          "max-width:80%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+          "padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
           (isOutbound
             ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
             : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
