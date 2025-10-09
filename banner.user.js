@@ -4450,31 +4450,57 @@ function getFirebaseIdToken() {
   });
 }
 
-function parseContextFromUrl(href = String(location.href)) {
+function parseContextFromUrl(href = String(location.href), root = document) {
   try {
     const u = new URL(href);
     const parts = u.pathname.split("/").filter(Boolean);
-    const locIdx = parts.findIndex(p => p === "location");
-    const contactsIdx = parts.findIndex(p => p === "contacts");
+
+    const locIdx = parts.indexOf("location");
+    const contactsIdx = parts.indexOf("contacts");
     const hasDetail = parts.includes("detail");
+    const hasSmartList = parts.includes("smart_list");
 
     const locationId = locIdx >= 0 ? parts[locIdx + 1] : null;
-    const contactId = contactsIdx >= 0 && hasDetail ? parts[contactsIdx + 2] : null;
+
+    let contactId = null;
+    if (hasDetail && contactsIdx >= 0) {
+      const detailIdx = parts.indexOf("detail");
+      contactId = parts[detailIdx + 1] || null;
+    } else if (hasSmartList) {
+      const qpContact = u.searchParams.get("contactId");
+      if (qpContact) {
+        contactId = qpContact;
+      } else if (root && typeof root.querySelector === "function") {
+        const fromActive = root.activeElement && root.activeElement.closest && root.activeElement.closest("tr[id]")?.id;
+        const fromSelected =
+          root.querySelector?.(
+            'tr[aria-selected="true"][id], tr[aria-current="true"][id], tr[role="row"].selected[id], tr.selected[id], tr[tabindex="0"][id]'
+          )?.id || null;
+        const firstRow = root.querySelector?.("tr[id]")?.id || null;
+        contactId = fromActive || fromSelected || firstRow || null;
+      }
+    }
 
     const qpLocation = u.searchParams.get("locationId");
     const qpContact = u.searchParams.get("contactId");
 
-    const useContactId = href.includes("/location/") && href.includes("/detail/");
+    const finalLocationId = locationId || qpLocation || null;
+    const finalContactId = contactId || qpContact || null;
+
+    const useContactId =
+      (u.pathname.includes("/location/") && u.pathname.includes("/detail/")) ||
+      (u.pathname.includes("/location/") && u.pathname.includes("/smart_list/"));
 
     return {
-      locationId: locationId || qpLocation || null,
-      contactId: contactId || qpContact || null,
-      idToUse: useContactId ? (contactId || qpContact) : (locationId || qpLocation)
+      locationId: finalLocationId,
+      contactId: finalContactId,
+      idToUse: useContactId ? finalContactId : finalLocationId
     };
   } catch {
     return { locationId: null, contactId: null, idToUse: null };
   }
 }
+
 
 async function searchNotesFromUrl() {
   const { locationId, contactId } = parseContextFromUrl();
@@ -6936,6 +6962,55 @@ if (metaEl) {
               avatarHref();
               attachPhoneDialHandlers();
               attachMessageHandlers();
+            
+function buildCommsTable(buckets) {
+  const channels = [
+    { label: "Calls", data: buckets.calls || {} },
+    { label: "SMS", data: buckets.sms || {} },
+    { label: "Email", data: buckets.email || {} },
+  ];
+
+  const rows = channels
+    .map(({ label, data }) => {
+      const inbound = data?.inbound?.count || 0;
+      const outbound = data?.outbound?.count || 0;
+      const todayOutbound = data?.outbound?.today?.count || 0;
+
+      return `
+        <tr>
+          <td style="text-align: right; padding: 4px 10px;">${label}:</td>
+          <td style="text-align: center; padding: 4px 10px;">${inbound}</td>
+          <td style="text-align: center; padding: 4px 10px;">${outbound}</td>
+          <td style="text-align: center; padding: 4px 10px;">${todayOutbound}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  return `
+    <div style="margin-top: 10px; font-family: sans-serif;">
+      <table style="border-collapse: collapse; width: 100%; max-width: 400px;">
+        <thead>
+          <tr>
+            <th></th>
+            <th style="text-align: center; border-bottom: 1px solid #ccc;">In</th>
+            <th style="text-align: center; border-bottom: 1px solid #ccc;">Out</th>
+            <th style="text-align: center; border-bottom: 1px solid #ccc;">Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Example usage:
+const buckets = await extractContactData();
+document.getElementById("summary").innerHTML = buildCommsTable(buckets);
+
+            buildCommsTable(buckets);
             
               populateCallQueue();
               moveCallBtn();
