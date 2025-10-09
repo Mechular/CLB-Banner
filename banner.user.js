@@ -4602,97 +4602,160 @@ return { messages: { messages: arr } };
 }
 
 function buildBuckets(messages) {
-  const sms = { messages: [], inbound_messages: [], outbound_messages: [] };
-  const calls = { messages: [], inbound_messages: [], outbound_messages: [] };
-  const email = { messages: [], inbound_messages: [], outbound_messages: [] };
-  const voicemail = { messages: [], inbound_messages: [], outbound_messages: [] };
-  const system = { messages: [], inbound_messages: [], outbound_messages: [] };
+  // buckets collect raw items first
+  const sms = { all: [], inb: [], out: [] };
+  const calls = { all: [], inb: [], out: [] };
+  const email = { all: [], inb: [], out: [] };
+  const voicemail = { all: [], inb: [], out: [] };
+  const system = { all: [] }; // no inbound/outbound
 
+  // --- helpers ---
+  const safeDate = (v) => (v ? new Date(v) : null);
+
+  const getDir = (m) =>
+    String(m?.direction ?? m?.meta?.email?.direction ?? "")
+      .toLowerCase()
+      .trim();
+
+  const isSystemMsg = (m) => {
+    const t = String(m?.body || "").toLowerCase();
+    return (
+      t.includes("opportunity created") ||
+      t.includes("opportunity updated") ||
+      t.includes("opportunity deleted")
+    );
+  };
+
+  const isEmailMsg = (m) =>
+    Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
+
+  const isSmsMsg = (m) =>
+    !isEmailMsg(m) && typeof m?.body === "string" && (m?.type === 2 || m?.source);
+
+  // normalize message so every bucket returns full, consistent details
+  const norm = (m) => ({
+    id: m.id ?? null,
+    type: m.type ?? null,
+    channel: isSystemMsg(m)
+      ? "system"
+      : isEmailMsg(m)
+      ? "email"
+      : isSmsMsg(m)
+      ? "sms"
+      : "call",
+    direction: getDir(m) || null,
+    status: m.status ?? m?.meta?.call?.status ?? null,
+    body: m.body ?? null,
+    contentType: m.contentType ?? m?.meta?.email?.contentType ?? null,
+
+    // timestamps (all preserved)
+    createdAt: m.createdAt ?? m.dateAdded ?? null,
+    updatedAt: m.dateUpdated ?? null,
+
+    // linkage
+    contactId: m.contactId ?? null,
+    conversationId: m.conversationId ?? null,
+    companyId: m.companyId ?? null,
+    locationId: m.locationId ?? null,
+    userId: m.userId ?? null,
+    altId: m.altId ?? null,
+    source: m.source ?? null,
+
+    // attachments / extras
+    attachments: Array.isArray(m.attachments) ? m.attachments : [],
+    activity: m.activity ?? null,
+    meta: m.meta ?? {},
+    latestOutboundLcEmailProvider: m.latestOutboundLcEmailProvider ?? null,
+
+    // keep full original just in case caller needs anything else
+    _raw: m,
+  });
+
+  // sort newest -> oldest
   const list = [...messages].sort((a, b) => {
     const ta = new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0).getTime();
     const tb = new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0).getTime();
     return tb - ta;
-  });
+    });
 
+  // route everything
   for (const m of list) {
-    // System detection (case-insensitive)
-    const body = String(m?.body || "").toLowerCase();
-    const isSystem = ["opportunity created", "opportunity updated", "opportunity deleted"]
-      .some(phrase => body.includes(phrase));
+    const nm = norm(m);
 
-    // Base type detection (only used if not system)
-    const isEmail = !isSystem && Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
-    const isSms   = !isSystem && !isEmail && Object.prototype.hasOwnProperty.call(m, "body");
+    if (nm.channel === "system") {
+      system.all.push(nm);
+      continue; // no inb/out buckets for system
+    }
 
-    const bucket = isSystem ? system : (isEmail ? email : (isSms ? sms : calls));
+    // choose non-system bucket
+    const bucket = nm.channel === "email" ? email : (nm.channel === "sms" ? sms : calls);
+    bucket.all.push(nm);
 
-    const dirRaw = m?.direction ?? m?.meta?.email?.direction ?? "";
-    const dir = String(dirRaw).toLowerCase();
-
-    bucket.messages.push(m);
-    if (dir === "inbound") bucket.inbound_messages.push(m);
-    else if (dir === "outbound") bucket.outbound_messages.push(m);
+    if (nm.direction === "inbound") bucket.inb.push(nm);
+    else if (nm.direction === "outbound") bucket.out.push(nm);
   }
 
-  // Identify voicemail within calls only (leave system/sms/email untouched)
-  const allCallCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
-  for (const c of allCallCandidates) {
-    const added = new Date(c.dateAdded || 0).getTime();
-    const updated = new Date(c.dateUpdated || 0).getTime();
-    const duration = (updated - added) / 1000;
-    if (duration >= 20 && duration <= 80) {
-      voicemail.messages.push(c);
-      const dir = String(c?.direction ?? "").toLowerCase();
-      if (dir === "inbound") voicemail.inbound_messages.push(c);
-      else if (dir === "outbound") voicemail.outbound_messages.push(c);
+  // flag voicemails from calls (keeps full details)
+  const callCandidates = [...calls.inb, ...calls.out];
+  for (const c of callCandidates) {
+    const start = safeDate(c.createdAt);
+    const end = safeDate(c.updatedAt);
+    const sec = start && end ? (end - start) / 1000 : null;
+
+    // simple heuristic; adjust as needed
+    if (typeof sec === "number" && sec >= 20 && sec <= 80) {
+      voicemail.all.push(c);
+      if (c.direction === "inbound") voicemail.inb.push(c);
+      else if (c.direction === "outbound") voicemail.out.push(c);
     }
   }
 
+  // today subsets (preserves full message details)
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-  function todaySubset(msgs) {
-    let count = 0;
-    const todayMsgs = [];
-    for (const m of msgs) {
-      const t = new Date(m.createdAt || m.dateAdded || m.dateUpdated || 0);
-      if (t >= start && t < end) {
-        count++;
-        todayMsgs.push(m);
-      }
-    }
-    return { count, messages: todayMsgs };
-  }
+  const todayOf = (arr) =>
+    arr.filter((m) => {
+      const t = safeDate(m.createdAt || m.updatedAt);
+      return t && t >= dayStart && t < dayEnd;
+    });
 
-  function finish(bucket) {
-    const inbound = {
-      count: bucket.inbound_messages.length,
-      messages: bucket.inbound_messages,
-      today: todaySubset(bucket.inbound_messages)
-    };
-    const outbound = {
-      count: bucket.outbound_messages.length,
-      messages: bucket.outbound_messages,
-      today: todaySubset(bucket.outbound_messages)
-    };
+  const shape = (bucket, hasIO = true) => {
     const total = {
-      count: bucket.messages.length,
-      messages: bucket.messages,
-      today: todaySubset(bucket.messages)
+      count: bucket.all.length,
+      messages: bucket.all,               // ← full normalized message objects
+      today: {
+        count: todayOf(bucket.all).length,
+        messages: todayOf(bucket.all),    // ← full details for today too
+      },
     };
-    return { inbound, outbound, total };
-  }
+
+    if (!hasIO) return { total };
+
+    return {
+      inbound: {
+        count: bucket.inb.length,
+        messages: bucket.inb,
+        today: { count: todayOf(bucket.inb).length, messages: todayOf(bucket.inb) },
+      },
+      outbound: {
+        count: bucket.out.length,
+        messages: bucket.out,
+        today: { count: todayOf(bucket.out).length, messages: todayOf(bucket.out) },
+      },
+      total,
+    };
+  };
 
   return {
-    sms: finish(sms),
-    calls: finish(calls),
-    email: finish(email),
-    voicemail: finish(voicemail),
-    system: finish(system)
+    sms: shape(sms),
+    calls: shape(calls),
+    email: shape(email),
+    voicemail: shape(voicemail),
+    system: shape(system, false), // only total, but with full message details
   };
 }
-
 
 async function extractContactData() {
 const { lastConversationId } = await searchNotesFromUrl();
