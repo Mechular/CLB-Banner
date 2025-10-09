@@ -6300,12 +6300,326 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    addTemplateMenu({
-        menuId: 'tb_sms_modal',
-        menuLabel: 'Text',
-        type: 'sms',
-        rightOf: 'sms-cancel'
+async function addTemplateMenu() {
+  if (!ENABLE_MENU_BUTTONS) return;
+
+  try {
+    const cancelBtn = document.querySelector('#sms-cancel');
+    const sendBtn = document.querySelector('#sms-send');
+    if (!cancelBtn || !sendBtn) return;
+
+    const actionRow = sendBtn.closest('div');
+    if (!actionRow) return;
+
+    const oldMenu = document.getElementById('tb_template_menu');
+    if (oldMenu) oldMenu.remove();
+    const oldSpacer = document.getElementById('tb_template_spacer');
+    if (oldSpacer) oldSpacer.remove();
+
+    const menuLink = document.createElement('a');
+    menuLink.id = 'tb_template_menu';
+    menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
+    menuLink.setAttribute('aria-label', 'SMS Templates');
+    menuLink.style.display = 'inline-flex';
+    menuLink.style.alignItems = 'center';
+    menuLink.style.lineHeight = '1.6rem';
+
+    menuLink.innerHTML = `
+      <span class="flex items-center select-none" id="menu-l1">
+        SMS Templates
+        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </span>
+    `;
+
+    const spacer = document.createElement('div');
+    spacer.id = 'tb_template_spacer';
+    spacer.style.flex = '1 1 auto';
+
+    actionRow.insertBefore(menuLink, actionRow.firstChild);
+    actionRow.insertBefore(spacer, cancelBtn);
+
+    let wrapper = null;
+
+    function createDropdown() {
+      const div = document.createElement('div');
+      div.setAttribute('role', 'menu');
+      div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
+      div.style.width = '13rem';
+      div.style.left = '0';
+      div.style.zIndex = '1000003';
+      menuLink.appendChild(div);
+      return div;
+    }
+
+    function hideAllPanels() {
+      if (!wrapper) return;
+      wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
+      const modal = document.getElementById('sms-template-hover');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function closeDropdown() {
+      hideAllPanels();
+      if (!wrapper) return;
+      wrapper.classList.add('hidden');
+      wrapper.setAttribute('hidden', '');
+      wrapper.style.display = 'none';
+      menuLink.setAttribute('aria-expanded', 'false');
+      menuLink.blur();
+      teardownGlobalClosers();
+    }
+
+    function openDropdown() {
+      wrapper.classList.remove('hidden');
+      wrapper.removeAttribute('hidden');
+      wrapper.style.display = '';
+      menuLink.setAttribute('aria-expanded', 'true');
+
+      outsideHandler = (ev) => {
+        if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+      };
+      escHandler = (ev) => {
+        if (ev.key === 'Escape') closeDropdown();
+      };
+      document.addEventListener('mousedown', outsideHandler, true);
+      document.addEventListener('keydown', escHandler, true);
+    }
+
+    wrapper = createDropdown();
+
+    let outsideHandler = null;
+    let escHandler = null;
+
+    function teardownGlobalClosers() {
+      if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
+      if (escHandler) document.removeEventListener('keydown', escHandler, true);
+      outsideHandler = null;
+      escHandler = null;
+    }
+
+    menuLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
+      if (!isHidden) {
+        closeDropdown();
+        return;
+      }
+
+      openDropdown();
+      wrapper.innerHTML = '';
+
+      const autoSendCheckboxWrapper = document.createElement('div');
+      autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+
+      const checkboxLabel = document.createElement('label');
+      checkboxLabel.textContent = 'Auto-send Text Message';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'mr-2';
+      checkboxLabel.prepend(checkbox);
+
+      autoSendCheckboxWrapper.appendChild(checkboxLabel);
+      wrapper.appendChild(autoSendCheckboxWrapper);
+      autoSendCheckboxWrapper.addEventListener('click', ev => ev.stopPropagation());
+
+      const storedAutoSendState = localStorage.getItem('autoSendChecked');
+      checkbox.checked = storedAutoSendState === 'true';
+      checkbox.addEventListener('change', () => {
+        localStorage.setItem('autoSendChecked', checkbox.checked);
+      });
+
+      try {
+        const userInfo = await getUserData();
+        if (!userInfo) return;
+
+        const sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || '';
+        const sellerEmail = document.querySelector('[name="contact.email"]')?.value || '';
+        const propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || '';
+        const safePropertyAddress = propertyAddressLine1 || 'your property';
+
+        const myFirstName = userInfo.myFirstName || '';
+        const myEmail = userInfo.myEmail || '';
+        const myTele = userInfo.myTele || '';
+
+        const menuData = {
+          'Initial Outreach': {
+            'No Contact #0 (Generic)': { message: `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n` },
+            'No Contact #1 (Condition Inquiry)': { message: `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}` },
+            'No Contact #2 (Basic Cash Offer Ask)': { message: `Hi ${sellerFirstName}. I'm interested in making an offer for ${safePropertyAddress}. When can I give you a call to discuss it further?\n${myFirstName}` },
+            'No Contact #3 (Still Available?)': { message: `Hi ${sellerFirstName}, just following up about paying cash for ${safePropertyAddress}. Is it still available?\n${myFirstName}` },
+            'No Contact #4 (Quick Chat Request)': { message: `Hi ${sellerFirstName}, is now a good time to chat about buying ${safePropertyAddress}?\n${myFirstName}` },
+            'No Contact #5 (Asking Price)': { message: `Hi ${sellerFirstName}. Can you let me know your asking price for ${safePropertyAddress}?\n${myFirstName}` },
+            'No Contact #6 (Preferred Communication)': { message: `Hi ${sellerFirstName}, would you rather text or talk on the phone about ${safePropertyAddress}? I’m good either way.\n${myFirstName}` },
+            'Reason for Selling': { message: `Hey ${sellerFirstName}, quick question. Why are you considering selling ${safePropertyAddress}?\n${myFirstName}` },
+            'Intro with Contact Info': { message: `Hi ${sellerFirstName}, this is ${myFirstName} with Cash Land Buyer USA. Feel free to call or text me here, or if it’s easier, email me at ${myEmail}. Looking forward to working with you!` }
+          },
+          'Disconnected': {
+            'Disconnected?': { message: `Did we get disconnected on my end or did you mean to hang up?\n\nIf you don't want to speak with me to sell your property, that's okay. I just need to know.` }
+          },
+          'Follow-Up': {
+            'Contract - Not Opened #1': { message: `Hi ${sellerFirstName}. I noticed our offer wasn't opened. Can you please confirm that you received our email?` },
+            'Contract - Not Opened #2': { message: `Hi ${sellerFirstName}. Do you have any questions about the contract we sent over?` },
+            'Sent Contract Confirm': { message: `Thanks again for taking the time to speak with me. I've sent the contract to ${sellerEmail}. Did you get it?` },
+            'Friendly Bump': { message: `Hi ${sellerFirstName}, just circling back on ${safePropertyAddress}. I’m still interested if you are. Let me know either way.\n${myFirstName}` },
+            'Still Considering?': { message: `Hey ${sellerFirstName}, I understand if you’re not ready to decide yet. Just checking if you're still open to selling ${safePropertyAddress}?\n${myFirstName}` },
+            'Wrong Number Check': { message: `Hi, I’m trying to reach ${sellerFirstName} about ${safePropertyAddress}. If this isn’t the right number, I apologize!` }
+          },
+          'Offer Context': {
+            'Why Us (no fees)': { message: `We buy fast, with cash, as-is
+- No agent commissions
+- No closing costs (we cover them)
+- No repair costs (we buy as-is)
+- No staging or cleaning expenses each time the property is shown
+- No showings
+- No inspection or appraisal fees
+- No deed transfer fees or lawyer fees
+- No holding costs (utilities, taxes, insurance, etc. while waiting to sell)
+- No listing fees or marketing expenses
+- No risk of buyer financing falling through
+` },
+            'Bait-and-Switch Warning': { message: `Some companies say they’ll pay a lot just to get your attention. But when it’s time to sign papers, they lower the price. They do this to try and win over others, so be careful.` },
+            'Justification of Offer': { message: `I know the price might seem low, but remember, we have the cash, so we can close quickly. We buy as-is, cover the closing costs and holding fees, save you from realtor commissions, and eliminate the hassle of property showings.` },
+            'No Underpricing Tricks': { message: `We put our offers in writing and don’t overprice, then undercut at the last minute like others may try to do.` },
+            'Price Negotiation Opener': { message: `It’s normal to go back and forth on the price until we find something that feels fair for both sides. What price would you be willing to sell your property for?` }
+          },
+          'Process Summary': {
+            'Process Summary': { message: `Quick overview: We handle everything — pay in cash, cover closing costs, and buy as-is. You don’t need to clean, fix, or show the property.` },
+            'How It Works': { message: `Once we agree on a price, I send a simple contract and close at a local title company. No pressure. Just info if you're considering selling.` },
+            'Market vs Cash Comparison': { message: `Selling with a realtor could take 90+ days. I can close in under 2 weeks if it works for you. No open houses, no listings.` }
+          },
+          'Final Attempts': {
+            'Missed Scheduled Call': { message: `Hi, it's ${myFirstName} with CLB. I tried calling back on and after our scheduled time, but I wasn't able to reach you. If you're no longer interested in the offer, just let me know so I can close out your file for now and reach out at a later date.` },
+            'Inbound Call Follow-Up': { message: `Hey ${sellerFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.` },
+            'Closing File Soft Exit': { message: `Hi ${sellerFirstName}, I don’t want to keep bothering you. If I don’t hear back, I’ll assume you’re not interested and close your file. No hard feelings at all. I'll try reaching out again in the near future.` },
+            'Expiring (FOMO)': { message: `Hi ${sellerFirstName}. Our offer is about to expire. Don't miss out! Call or text me when you can.` }
+          },
+          'Advisor Change': {
+            'Intro': { message: `Hi ${sellerFirstName}. You were speaking with my co-worker previously about selling your property. My name is ${myFirstName} and I'll be looking after you going forward. What questions can I answer for you?` }
+          },
+          'Last Ditch': {
+            'Last Ditch': { message: `If they try to low-ball you at the very last moment, don't feel obligated to take it.
+Let me know immediately and I will make sure you get a fair deal.` }
+          },
+          'Contract Clarification': {
+            '$10 Earnest': { message: `The $10 is just to open escrow and make the contract binding. The full amount will be paid at closing, but the $10 is what’s used to officially start the process.` }
+          }
+        };
+
+        let floatingModal = document.getElementById('sms-template-hover');
+        if (!floatingModal) {
+          floatingModal = createFloatingModal({
+            id: 'sms-template-hover',
+            styles: {
+              position: 'fixed',
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem',
+              zIndex: '1000005',
+              pointerEvents: 'none'
+            }
+          });
+        } else {
+          floatingModal.style.position = 'fixed';
+          floatingModal.style.zIndex = '1000005';
+          floatingModal.style.pointerEvents = 'none';
+        }
+
+        for (const [group, templates] of Object.entries(menuData)) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="hidden template-panel"></div>
+          `;
+
+          const panel = groupWrapper.querySelector('.template-panel');
+
+          for (const [label, { message }] of Object.entries(templates)) {
+            const buttonItem = document.createElement('div');
+            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            buttonItem.textContent = label;
+
+            const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+
+            function selectTemplate() {
+              const input = document.querySelector('#sms-body');
+              const sendButton = document.querySelector('#sms-send');
+              if (!input) return;
+
+              setInputValue(input, cleanedMessage, 'smsMsg');
+              if (checkbox?.checked && sendButton) setTimeout(() => sendButton.click(), 100);
+
+              closeDropdown(); // hide all menus including menu-l1 dropdown
+            }
+
+            buttonItem.addEventListener('click', (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+              selectTemplate();
+            });
+
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(cleanedMessage).replace(/\n/g, '<br>');
+              floatingModal.attachHover(buttonItem, preview, selectTemplate);
+            } else {
+              buttonItem.title = cleanedMessage.replace(/\s+/g, ' ').slice(0, 200);
+            }
+
+            panel.appendChild(buttonItem);
+          }
+
+          wrapper.appendChild(groupWrapper);
+        }
+
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panel = wrap.querySelector('.template-panel');
+
+          Object.assign(panel.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '500px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '1000004',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
+
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panel.style.top = `${rect.top + window.scrollY}px`;
+            panel.style.left = `${rect.right + window.scrollX}px`;
+            panel.style.display = 'block';
+          });
+
+          wrap.addEventListener('mouseleave', () => {
+            panel.style.display = 'none';
+          });
+        });
+      } finally {}
     });
+  } catch (err) {
+    cErr(`Error in tb_template_menu: ${err}`);
+  }
+}
+
+    addTemplateMenu();
 
     const hide = () => { overlay.style.display = "none"; };
     qs("#sms-close", overlay).onclick = hide;
