@@ -6719,13 +6719,38 @@ Let me know immediately and I will make sure you get a fair deal.` }
 
       overlay.dataset.contactId = rowId || "";
 
-      const metaEl = qs("#sms-title-meta", overlay);
-      if (metaEl) {
-        const metaText = clientName && rowId
-          ? `${clientName} (${rowId})`
-          : (clientName || rowId || "");
-        metaEl.textContent = metaText;
-      }
+const metaEl = qs("#sms-title-meta", overlay);
+if (metaEl) {
+  const nameSource =
+    (nameCell && nameCell.querySelector('a[title]')) ||
+    (nameCell && nameCell.querySelector('a')) ||
+    nameCell;
+
+  const rawName =
+    (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  const cleaned = rawName.replace(/\s+/g, " ").trim();
+  const parts = cleaned.split(" ").filter(Boolean);
+  const first = parts[0] || "";
+  const last = parts.slice(1).join(" ") || "";
+
+  const nameHtml =
+    (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
+    (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
+
+  const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
+  metaEl.innerHTML = `${nameHtml}${idHtml}`;
+}
+
 
       const histLoading = qs("#sms-history-loading", overlay);
       const histErr = qs("#sms-history-error", overlay);
