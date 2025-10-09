@@ -2898,7 +2898,7 @@ function myStatsWidget() {
       }
   
       const counts = await extractContactData();
-      console.log('COUNTS ::: ', counts);
+      // console.log('COUNTS ::: ', counts);
       let dispo = await getDisposition();
   
       // Check if dispo is empty or "Move to Contacted"
@@ -4615,7 +4615,15 @@ function buildBuckets(messages) {
 
   for (const m of list) {
     const isEmail = Object.prototype.hasOwnProperty.call(m, "latestOutboundLcEmailProvider");
-    const isSms = !isEmail && Object.prototype.hasOwnProperty.call(m, "body");
+
+    const bodyText = typeof m?.body === "string" ? m.body.toLowerCase() : "";
+    const isSystemLike = bodyText.includes("opportunity updated");
+
+    const isSms =
+      !isEmail &&
+      Object.prototype.hasOwnProperty.call(m, "body") &&
+      !isSystemLike;
+
     const bucket = isEmail ? email : isSms ? sms : calls;
 
     const dirRaw = m?.direction ?? m?.meta?.email?.direction ?? "";
@@ -4625,6 +4633,9 @@ function buildBuckets(messages) {
     if (dir === "inbound") bucket.inbound_messages.push(m);
     else if (dir === "outbound") bucket.outbound_messages.push(m);
   }
+
+  return { sms, calls, email, voicemail };
+}
 
   const allCallCandidates = [...calls.inbound_messages, ...calls.outbound_messages];
   for (const c of allCallCandidates) {
