@@ -6470,9 +6470,9 @@ async function addTemplateMenu() {
             // 'No Contact #4 (Quick Chat Request)': { message: `Hi ${sellerFirstName}, is now a good time to chat about buying ${safePropertyAddress}?\n${myFirstName}` },
             // 'No Contact #6 (Preferred Communication)': { message: `Hi ${sellerFirstName}, would you rather text or talk on the phone about ${safePropertyAddress}? I’m good either way.\n${myFirstName}` },
 
-            'No Contact #3 (Time is running out)': { message: `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP` },
-            'No Contact #4 (Time is almost up)': { message: `${sellerFirstName}, time is almost up for us to buy your property. Why haven't you responded?` },
-            'No Contact #5 (Not much time)': { message: `${sellerFirstName}, we don't have much time left to buy your property. Please respond ASAP` },
+            'No Contact #3 (Time is running out)': { message: `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP.` },
+            'No Contact #4 (Time is almost up)': { message: `${sellerFirstName}, time is almost up for us to buy your property. Please respond right away!` },
+            'No Contact #5 (Not much time)': { message: `${sellerFirstName}, we don't have much time left to buy your property and I haven't heard from back from you. Respond today!` },
             'No Contact #6 (Deadline is close)': { message: `Our deadline to buy your property is getting close. Don't miss out ${sellerFirstName}. Respond now!` },
             'No Contact #7 (Now or never)': { message: `We have to make our decision about your property ${sellerFirstName}! It's now or never! Reply this text or call me ASAP.` },
             'Reason for Selling': { message: `Hey ${sellerFirstName}, quick question. Why are you considering selling ${safePropertyAddress}?\n${myFirstName}` },
