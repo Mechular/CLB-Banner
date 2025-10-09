@@ -6963,55 +6963,6 @@ if (metaEl) {
               attachPhoneDialHandlers();
               attachMessageHandlers();
             
-function buildCommsTable(buckets) {
-  const channels = [
-    { label: "Calls", data: buckets.calls || {} },
-    { label: "SMS", data: buckets.sms || {} },
-    { label: "Email", data: buckets.email || {} },
-  ];
-
-  const rows = channels
-    .map(({ label, data }) => {
-      const inbound = data?.inbound?.count || 0;
-      const outbound = data?.outbound?.count || 0;
-      const todayOutbound = data?.outbound?.today?.count || 0;
-
-      return `
-        <tr>
-          <td style="text-align: right; padding: 4px 10px;">${label}:</td>
-          <td style="text-align: center; padding: 4px 10px;">${inbound}</td>
-          <td style="text-align: center; padding: 4px 10px;">${outbound}</td>
-          <td style="text-align: center; padding: 4px 10px;">${todayOutbound}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  return `
-    <div style="margin-top: 10px; font-family: sans-serif;">
-      <table style="border-collapse: collapse; width: 100%; max-width: 400px;">
-        <thead>
-          <tr>
-            <th></th>
-            <th style="text-align: center; border-bottom: 1px solid #ccc;">In</th>
-            <th style="text-align: center; border-bottom: 1px solid #ccc;">Out</th>
-            <th style="text-align: center; border-bottom: 1px solid #ccc;">Today</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-// Example usage:
-const buckets = await extractContactData();
-document.getElementById("summary").innerHTML = buildCommsTable(buckets);
-
-            buildCommsTable(buckets);
-            
               populateCallQueue();
               moveCallBtn();
               showDateInTimestamps();
