@@ -6436,9 +6436,28 @@ async function addTemplateMenu() {
         const userInfo = await getUserData();
         if (!userInfo) return;
 
-        const sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || '';
+        const row = menuLink.closest('tr') || sendBtn.closest('tr') || document.querySelector('#sms-title-meta')?.closest('tr') || null;
+
+        const sellerFirstName =
+          (row?.querySelector('#prospectFirstName')?.textContent || '').trim() ||
+          document.querySelector('[name="contact.first_name"]')?.value?.trim() ||
+          '';
+        
+        const sellerLastName =
+          (row?.querySelector('#prospectLastName')?.textContent || '').trim() ||
+          document.querySelector('[name="contact.last_name"]')?.value?.trim() ||
+          '';
+        
         const sellerEmail = document.querySelector('[name="contact.email"]')?.value || '';
-        const propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || '';
+        const addressCell =
+          row?.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') || null;
+        
+        const fullAddressFromRow = (addressCell?.textContent || '').trim();
+        
+        const propertyAddressLine1 =
+          (fullAddressFromRow ? fullAddressFromRow.split(',')[0].trim() : '') ||
+          (document.querySelector('[name="contact.street_address"]')?.value || '').trim();
+        
         const safePropertyAddress = propertyAddressLine1 || 'your property';
 
         const myFirstName = userInfo.myFirstName || '';
