@@ -6300,6 +6300,13 @@ async function loadSmsHistoryFromModalHeader(overlay) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
+    addTemplateMenu({
+        menuId: 'tb_sms_modal',
+        menuLabel: 'Text',
+        type: 'sms',
+        rightOf: 'sms-cancel'
+    });
+
     const hide = () => { overlay.style.display = "none"; };
     qs("#sms-close", overlay).onclick = hide;
     qs("#sms-cancel", overlay).onclick = hide;
