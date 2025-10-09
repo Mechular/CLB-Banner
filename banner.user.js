@@ -6439,13 +6439,10 @@ async function addTemplateMenu() {
         const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
 
         const sellerFirstName =
-          (row?.querySelector('#prospectFirstName')?.textContent || '').trim() ||
-          document.querySelector('[name="contact.first_name"]')?.value?.trim() ||
-          '';
+          (document.querySelector('#prospectFirstName')?.textContent || '').trim() || '';
         
         const sellerLastName =
-          (row?.querySelector('#prospectLastName')?.textContent || '').trim() ||
-          document.querySelector('[name="contact.last_name"]')?.value?.trim() ||
+          (document.querySelector('#prospectLastName')?.textContent || '').trim() ||
           '';
         
         const sellerEmail = document.querySelector('[name="contact.email"]')?.value || '';
