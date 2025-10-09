@@ -6137,7 +6137,7 @@ async function fetchConversationId({ contactId }) {
   return conv?.id || conv?._id || "";
 }
 
-async function fetchMessages({ conversationId, limit = 50 }) {
+async function fetchMessages({ conversationId, limit = 150 }) {
   const { idToken } = await getAuthTokenAndLocationId();
   const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
     method: "GET",
