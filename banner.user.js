@@ -6436,7 +6436,7 @@ async function addTemplateMenu() {
         const userInfo = await getUserData();
         if (!userInfo) return;
 
-        const row = menuLink.closest('tr') || sendBtn.closest('tr') || document.querySelector('#sms-title-meta')?.closest('tr') || null;
+        const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
 
         const sellerFirstName =
           (row?.querySelector('#prospectFirstName')?.textContent || '').trim() ||
