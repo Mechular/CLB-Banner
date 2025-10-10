@@ -7075,26 +7075,94 @@ console.log(url);
   }
 
   function getGlobalPopover() {
-    const existing = document.querySelector("#contact-stats-popover");
-    if (existing) existing.remove();
-  
-    const p = document.createElement("div");
-    p.id = "contact-stats-popover";
-    p.style.cssText = [
-      "position:fixed","z-index:999999","min-width:280px","max-width:420px",
-      "padding:12px","border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
-      "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
-    ].join(";");
-    p.dataset.locked = "0";
-  
-    p.addEventListener("pointerenter", () => { p.dataset.locked = "1"; });
-    p.addEventListener("pointerleave", () => { p.dataset.locked = "0"; maybeHidePopover(); });
-  
-    ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => p.addEventListener(ev, block, true));
-    document.body.appendChild(p);
-    return p;
+  const existing = document.querySelector("#contact-stats-popover");
+  if (existing) {
+    if (existing.dataset.abort) {
+      try { JSON.parse(existing.dataset.abort).forEach(id => cancelAnimationFrame(id)); } catch {}
+    }
+    existing.remove();
   }
 
+  const p = document.createElement("div");
+  p.id = "contact-stats-popover";
+  p.style.cssText = [
+    "position:fixed","z-index:999999","min-width:280px","max-width:420px",
+    "padding:12px","border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
+    "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none",
+    "top:0","left:0"
+  ].join(";");
+  p.dataset.locked = "0";
+
+  p.addEventListener("pointerenter", () => { p.dataset.locked = "1"; });
+  p.addEventListener("pointerleave", () => { p.dataset.locked = "0"; maybeHidePopover(); });
+
+  ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => p.addEventListener(ev, block, true));
+  document.body.appendChild(p);
+  return p;
+}
+
+function pinPopoverTo(popoverEl, anchorEl, opts = {}) {
+  const placement = opts.placement || "bottom-start";
+  const offsetX = Number(opts.offsetX || 0);
+  const offsetY = Number(opts.offsetY || 8);
+
+  let rafId = 0;
+  const rafIds = [];
+
+  function place() {
+    const r = anchorEl.getBoundingClientRect();
+    let top = r.bottom + offsetY;
+    let left = r.left + offsetX;
+
+    if (placement === "bottom-end") left = r.right - popoverEl.offsetWidth + offsetX;
+    if (placement === "top-start") top = r.top - popoverEl.offsetHeight - offsetY;
+    if (placement === "top-end") { top = r.top - popoverEl.offsetHeight - offsetY; left = r.right - popoverEl.offsetWidth + offsetX; }
+    if (placement === "right") { top = r.top + (r.height - popoverEl.offsetHeight)/2; left = r.right + offsetX; }
+    if (placement === "left") { top = r.top + (r.height - popoverEl.offsetHeight)/2; left = r.left - popoverEl.offsetWidth - offsetX; }
+
+    if (top < 0) top = 0;
+    if (left < 0) left = 0;
+
+    popoverEl.style.top = `${Math.round(top)}px`;
+    popoverEl.style.left = `${Math.round(left)}px`;
+  }
+
+  function tick() {
+    place();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  place();
+  popoverEl.style.display = "block";
+  rafId = requestAnimationFrame(tick);
+  rafIds.push(rafId);
+
+  const onResize = () => place();
+  const onScroll = () => place();
+  window.addEventListener("resize", onResize, { passive: true });
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  const scrollers = [];
+  let n = anchorEl.parentElement;
+  while (n && n !== document.body) {
+    const s = getComputedStyle(n).overflow + getComputedStyle(n).overflowY + getComputedStyle(n).overflowX;
+    if (/(auto|scroll)/.test(s)) {
+      n.addEventListener("scroll", onScroll, { passive: true });
+      scrollers.push(n);
+    }
+    n = n.parentElement;
+  }
+
+  popoverEl.dataset.abort = JSON.stringify(rafIds);
+
+  return function unpin() {
+    try { cancelAnimationFrame(rafId); } catch {}
+    window.removeEventListener("resize", onResize);
+    window.removeEventListener("scroll", onScroll);
+    scrollers.forEach(el => el.removeEventListener("scroll", onScroll));
+    popoverEl.dataset.abort = "";
+  };
+}
 
   let currentAnchor = null, hideTimer = null;
   function positionPopover(anchorEl) {
