@@ -7107,8 +7107,8 @@ function attachContactDataHandlers() {
   function renderStats(stats) {
     const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
     p.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:coral;">
-        <i class="fa-solid fa-circle-info"></i><strong>Contact activity</strong>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;">
+        <i class="fa-solid fa-circle-info" style="color:coral;"></i><strong>Contact activity</strong>
       </div>
       ${buildStatsTable(stats)}
       <div style="margin-top:8px;font-size:11px;color:#666;">Today counts reflect outbound today.</div>
