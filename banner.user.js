@@ -851,7 +851,7 @@ function setSecondaryDisposition() {
 
     // Ensure we always have targets
     if (!select2 || !select3 || !select4) {
-      console.warn('Missing select2, select3, or select4');
+      // console.warn('Missing select2, select3, or select4');
       return;
     }
 
