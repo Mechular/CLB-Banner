@@ -6954,7 +6954,7 @@ function attachContactDataHandlers() {
 
   async function fetchMessages({ conversationId, limit = 100 }) {
     const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const url = `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}${locationId ? `&locationId=${encodeURIComponent(locationId)}` : ""}`;
+    const url = `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`;
 
     const r = await fetch(url, {
       method: "GET",
