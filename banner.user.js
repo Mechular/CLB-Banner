@@ -7108,7 +7108,7 @@ function attachContactDataHandlers() {
     const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
     p.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;">
-        <i class="fa-solid fa-circle-info" style="color:coral;"></i><strong>Contact activity</strong>
+        <i class="fa-solid fa-circle-info""></i><strong>Contact activity</strong>
       </div>
       ${buildStatsTable(stats)}
       <div style="margin-top:8px;font-size:11px;color:#666;">Today counts reflect outbound today.</div>
@@ -7155,6 +7155,7 @@ function attachContactDataHandlers() {
       infoIcon.style.marginLeft = "4px";
       infoIcon.style.display = "inline-block";
       infoIcon.style.verticalAlign = "middle";
+      infoIcon.style.color = "coral";
       infoIcon.style.lineHeight = "1";
       infoIcon.removeAttribute("title");
 
