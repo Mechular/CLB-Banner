@@ -6890,23 +6890,30 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
-async function attachContactDataHandlers() {
+function attachContactDataHandlers() {
   const ROW_SELECTOR = 'tr[id], tr[data-contact-id]';
   const MSG_ICON_SELECTOR = '.call-actions .fa-solid.fa-message, .call-actions .fa-message, i.fa-message';
+  const TIMEOUT_MS = 8000;
 
-  // ---------- AUTH + HELPERS ----------
+  if (!location.href.includes("/contacts/smart_list/")) return;
+
+  function withTimeout(p, ms = TIMEOUT_MS) {
+    return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+  }
+  function block(e){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+  function toDateKeyTZ(iso, tz = "America/Halifax") {
+    try {
+      const d = iso ? new Date(iso) : new Date();
+      return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
+    } catch { return new Date().toISOString().slice(0,10); }
+  }
+
   async function getAuthTokenAndLocationId() {
-    const idb = await new Promise((res, rej) => {
-      const r = indexedDB.open("firebaseLocalStorageDb");
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
+    const idb = await new Promise((res, rej) => { const r = indexedDB.open("firebaseLocalStorageDb"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
     const rows = await new Promise((res, rej) => {
-      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const tx = idb.transaction("firebaseLocalStorage","readonly");
       const os = tx.objectStore("firebaseLocalStorage");
-      const rq = os.getAll();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error);
+      const rq = os.getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => rej(rq.error);
     });
     const row = rows.find(r => /authUser/.test(r.fbase_key));
     const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
@@ -6916,75 +6923,63 @@ async function attachContactDataHandlers() {
     const idx = parts.indexOf("location");
     const locationId = idx > -1 ? parts[idx + 1] : "";
 
-    console.log("[contact-stats] locationId:", locationId);
     return { idToken, locationId };
-  }
-
-  function toDateKeyTZ(iso, tz = "America/Halifax") {
-    try {
-      const d = iso ? new Date(iso) : new Date();
-      return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
-    } catch {
-      return new Date().toISOString().slice(0,10);
-    }
-  }
-
-  function safeGet(obj, path, def = 0) {
-    try { return path.split(".").reduce((o, k) => (o && k in o ? o[k] : undefined), obj) ?? def; } catch { return def; }
-  }
-
-  // ---------- YOUR API CALLS (only logging + parsing fix) ----------
-  async function fetchMessages({ conversationId, limit = 100 }) {
-    console.log("[contact-stats] fetchMessages: conversationId =", conversationId, "limit =", limit);
-    const { idToken } = await getAuthTokenAndLocationId();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-
-    // Parse your exact sample: { messages: { lastMessageId, nextPage, messages: [...] } }
-    if (Array.isArray(data?.messages?.messages)) {
-      console.log("[contact-stats] fetchMessages: parsed nested messages, count =", data.messages.messages.length);
-      return data.messages.messages;
-    }
-
-    // Your original fallbacks
-    const arr = Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
-    console.log("[contact-stats] fetchMessages: parsed fallback, count =", Array.isArray(arr) ? arr.length : 0);
-    return Array.isArray(arr) ? arr : [];
   }
 
   async function fetchConversationId({ contactId }) {
     const { idToken, locationId } = await getAuthTokenAndLocationId();
-    console.log("[contact-stats] fetchConversationId: contactId =", contactId, "locationId =", locationId);
-    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+
+    const url = new URL("https://services.leadconnectorhq.com/conversations/search");
+    url.searchParams.set("contactId", contactId);
+    if (locationId) url.searchParams.set("locationId", locationId);
+
+    const r = await fetch(url.toString(), {
       method: "GET",
       headers: {
         "content-type": "application/json",
         "token-id": idToken,
         "version": "2021-07-28",
         "channel": "APP",
-        "source": "WEB_USER"
-      }
+        "source": "WEB_USER",
+        ...(locationId ? { "LocationId": locationId } : {})
+      },
+      credentials: "include"
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const js = await r.json();
+    const list = js?.conversations || js?.data || [];
+    const conversationId = (Array.isArray(list) && (list.find(c => c?.contactId === contactId) || list[0])?.id) || js?.conversation?.id || "";
+    return conversationId || "";
+  }
+
+  async function fetchMessages({ conversationId, limit = 100 }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const url = `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}${locationId ? `&locationId=${encodeURIComponent(locationId)}` : ""}`;
+
+    const r = await fetch(url, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER",
+        ...(locationId ? { "LocationId": locationId } : {})
+      },
+      credentials: "include"
     });
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
     const data = await r.json();
-    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
-    const id = conv?.id || conv?._id || "";
-    console.log("[contact-stats] fetchConversationId: conversationId =", id);
-    return id;
+
+    if (Array.isArray(data?.messages?.messages)) return data.messages.messages;
+    if (Array.isArray(data?.messages)) return data.messages;
+    if (Array.isArray(data?.data?.messages)) return data.data.messages;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data)) return data;
+
+    return [];
   }
 
-  // ---------- BUCKETING + TABLE ----------
   function emptyStats() {
     const blank = { inbound:{count:0,today:{count:0,messages:[]},messages:[]},
                     outbound:{count:0,today:{count:0,messages:[]},messages:[]},
@@ -6998,9 +6993,13 @@ async function attachContactDataHandlers() {
     };
   }
 
-  // Based on your sample: 1=call, 2=sms, 28=system/opportunity
   function mapTypeToChannel(t) {
-    return t === 1 ? "calls" : t === 2 ? "sms" : t === 28 ? "system" : "sms";
+    switch (t) {
+      case 1: return "calls";
+      case 2: return "sms";
+      case 28: return "system";
+      default: return "sms";
+    }
   }
 
   function buildBuckets(messages = []) {
@@ -7028,16 +7027,20 @@ async function attachContactDataHandlers() {
     return stats;
   }
 
+  function safeGet(obj, path, def = 0) {
+    try { return path.split(".").reduce((o,k)=>(o && k in o ? o[k] : undefined), obj) ?? def; } catch { return def; }
+  }
+
   function buildStatsTable(stats) {
-    const callsIn = safeGet(stats, "calls.inbound.count");
-    const callsOut = safeGet(stats, "calls.outbound.count");
-    const callsToday = safeGet(stats, "calls.outbound.today.count");
-    const smsIn = safeGet(stats, "sms.inbound.count");
-    const smsOut = safeGet(stats, "sms.outbound.count");
-    const smsToday = safeGet(stats, "sms.outbound.today.count");
-    const emailIn = safeGet(stats, "email.inbound.count");
-    const emailOut = safeGet(stats, "email.outbound.count");
-    const emailToday = safeGet(stats, "email.outbound.today.count");
+    const callsIn = safeGet(stats,"calls.inbound.count");
+    const callsOut = safeGet(stats,"calls.outbound.count");
+    const callsToday = safeGet(stats,"calls.outbound.today.count");
+    const smsIn = safeGet(stats,"sms.inbound.count");
+    const smsOut = safeGet(stats,"sms.outbound.count");
+    const smsToday = safeGet(stats,"sms.outbound.today.count");
+    const emailIn = safeGet(stats,"email.inbound.count");
+    const emailOut = safeGet(stats,"email.outbound.count");
+    const emailToday = safeGet(stats,"email.outbound.today.count");
 
     return `
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -7073,64 +7076,68 @@ async function attachContactDataHandlers() {
     `;
   }
 
-  // ---------- MODAL UI (row-anchored, no navigation) ----------
-  function upsertStatsModal(row, stats, anchorIcon) {
-    if (!row) return null;
-    if (!row.style.position) row.style.position = "relative";
-    let modal = row.querySelector(".call-stats-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.className = "call-stats-modal";
-      modal.setAttribute("role", "dialog");
-      modal.setAttribute("aria-modal", "false");
-      modal.setAttribute("tabindex", "-1");
-      modal.style.cssText = [
-        "position:absolute","min-width:280px","max-width:420px","z-index:999",
-        "top:100%","left:0","margin-top:6px","padding:12px",
-        "border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
-        "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
-      ].join(";");
-      row.appendChild(modal);
-      modal.addEventListener("mouseenter", () => modal.dataset.locked = "1");
-      modal.addEventListener("mouseleave", () => { modal.dataset.locked = "0"; const i = row.querySelector(".contact-info-icon"); if (!i || !i.matches(":hover")) modal.style.display = "none"; });
-      row.addEventListener("keyup", (e) => { if (e.key === "Escape") modal.style.display = "none"; }, true);
-    }
-    modal.innerHTML = `
+  function getGlobalPopover() {
+    const existing = document.querySelector("#contact-stats-popover");
+    if (existing) existing.remove();
+    const p = document.createElement("div");
+    p.id = "contact-stats-popover";
+    p.style.cssText = [
+      "position:fixed","z-index:999999","min-width:280px","max-width:420px",
+      "padding:12px","border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
+      "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
+    ].join(";");
+    p.addEventListener("mouseover", () => p.dataset.locked = "1");
+    p.addEventListener("mouseout", () => { p.dataset.locked = "0"; maybeHidePopover(); });
+    ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => p.addEventListener(ev, block, true));
+    document.body.appendChild(p);
+    return p;
+  }
+
+  let currentAnchor = null, hideTimer = null;
+  function positionPopover(anchorEl) {
+    const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
+    const r = anchorEl.getBoundingClientRect();
+    const left = Math.round(Math.min(window.innerWidth - 360, Math.max(8, r.left)));
+    const top  = Math.round(Math.max(8, r.bottom + 6));
+    p.style.left = left + "px"; p.style.top = top + "px";
+  }
+  function showLoading(anchorEl) {
+    const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
+    positionPopover(anchorEl);
+    p.innerHTML = `<div style="font-size:12px;color:#555;">Loading…</div>`;
+    p.style.display = "block";
+    currentAnchor = anchorEl;
+  }
+  function renderStats(stats) {
+    const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
+    p.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;">
         <i class="fa-solid fa-circle-info"></i><strong>Contact activity</strong>
       </div>
       ${buildStatsTable(stats)}
       <div style="margin-top:8px;font-size:11px;color:#666;">Today counts reflect outbound today.</div>
     `;
-    if (anchorIcon) {
-      const ir = anchorIcon.getBoundingClientRect();
-      const rr = row.getBoundingClientRect();
-      modal.style.left = `${Math.max(0, ir.left - rr.left)}px`;
-    }
-    return modal;
+  }
+  function maybeHidePopover() {
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      const p = document.querySelector("#contact-stats-popover");
+      if (!p) return;
+      if (p.dataset.locked === "1") return;
+      if (currentAnchor && currentAnchor.matches(":hover")) return;
+      p.style.display = "none"; currentAnchor = null;
+    }, 120);
   }
 
-  function blockNav(e) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
-
-  // ---------- WIRING ----------
-  const cache = new Map();
-
-  async function getStats(contactId) {
+  async function getStatsFresh(contactId) {
     try {
       if (!contactId) return emptyStats();
-      if (cache.has(contactId)) return cache.get(contactId);
-
-      console.log("[contact-stats] getStats contactId:", contactId);
-      const conversationId = await fetchConversationId({ contactId });
-      if (!conversationId) { const e = emptyStats(); cache.set(contactId, e); return e; }
-
-      const messages = await fetchMessages({ conversationId, limit: 100 });
-      const buckets = buildBuckets(messages);
-      cache.set(contactId, buckets);
-      return buckets;
-    } catch (err) {
-      console.log("[contact-stats] getStats error:", err);
-      const e = emptyStats(); cache.set(contactId, e); return e;
+      const conversationId = await withTimeout(fetchConversationId({ contactId }), TIMEOUT_MS);
+      if (!conversationId) return emptyStats();
+      const messages = await withTimeout(fetchMessages({ conversationId, limit: 200 }), TIMEOUT_MS);
+      return buildBuckets(messages);
+    } catch {
+      return emptyStats();
     }
   }
 
@@ -7159,24 +7166,29 @@ async function attachContactDataHandlers() {
       holder.insertBefore(infoIcon, msgIcon.nextSibling?.nextSibling || msgIcon.nextSibling);
       if (!getComputedStyle(infoIcon).fontFamily.includes("Font Awesome")) infoIcon.textContent = "ℹ️";
 
-      const show = async () => {
-        const stats = await getStats(contactId);
-        const modal = upsertStatsModal(row, stats, infoIcon);
-        if (modal) modal.style.display = "block";
+      const onOver = async () => {
+        showLoading(infoIcon);
+        const stats = await getStatsFresh(contactId); // fetches on every hover
+        renderStats(stats);
+        (document.querySelector("#contact-stats-popover") || getGlobalPopover()).style.display = "block";
       };
-      const hide = () => {
-        const modal = row.querySelector(".call-stats-modal");
-        if (modal && modal.dataset.locked !== "1") modal.style.display = "none";
-      };
+      const onOut = () => { maybeHidePopover(); };
 
-      infoIcon.addEventListener("mouseenter", show, true);
-      infoIcon.addEventListener("focus", show, true);
-      infoIcon.addEventListener("mouseleave", () => setTimeout(hide, 120), true);
-      infoIcon.addEventListener("blur", () => setTimeout(hide, 120), true);
+      infoIcon.addEventListener("mouseover", (e) => {
+        const rt = e.relatedTarget;
+        if (rt && (rt === infoIcon || infoIcon.contains(rt))) return;
+        onOver();
+      }, true);
+      infoIcon.addEventListener("mouseout", (e) => {
+        const rt = e.relatedTarget;
+        const pop = document.querySelector("#contact-stats-popover");
+        if (rt && (rt === infoIcon || infoIcon.contains(rt) || (pop && pop.contains(rt)))) return;
+        onOut();
+      }, true);
 
-      ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, blockNav, true));
+      ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, block, true));
       const anchorParent = infoIcon.closest("a, [role='link']");
-      if (anchorParent) ["click","mousedown","mouseup"].forEach(ev => anchorParent.addEventListener(ev, blockNav, true));
+      if (anchorParent) ["click","mousedown","mouseup"].forEach(ev => anchorParent.addEventListener(ev, block, true));
     }
 
     row.dataset.infoBound = "1";
@@ -7189,32 +7201,38 @@ async function attachContactDataHandlers() {
     });
   }
 
-  function attachContactDataHandlers() {
-    if (!location.href.includes("/contacts/smart_list/")) return;
-    const root = document.querySelector('table') || document.body;
-    const mo = new MutationObserver((mut) => {
-      for (const m of mut) {
-        if (m.type === "childList") {
-          m.addedNodes.forEach((n) => {
-            if (!(n instanceof Element)) return;
-            if (n.matches && (n.matches(ROW_SELECTOR) || n.querySelector(ROW_SELECTOR))) {
-              scanAllRows();
-            } else if (n.querySelector && n.querySelector(MSG_ICON_SELECTOR)) {
-              const row = n.closest ? n.closest(ROW_SELECTOR) : null;
-              if (row) attachOneRow(row);
-            }
-          });
-        }
-        if (m.type === "attributes" && m.attributeName === "class") {
-          const row = m.target.closest ? m.target.closest(ROW_SELECTOR) : null;
-          if (row) attachOneRow(row);
-        }
-      }
-    });
-    mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
-    scanAllRows();
+  const root = document.querySelector('table') || document.body;
+
+  if (root.__contactStatsMO) { // dedupe: remove any prior observer from earlier calls
+    try { root.__contactStatsMO.disconnect(); } catch {}
+    delete root.__contactStatsMO;
   }
+
+  const mo = new MutationObserver((mut) => {
+    for (const m of mut) {
+      if (m.type === "childList") {
+        m.addedNodes.forEach((n) => {
+          if (!(n instanceof Element)) return;
+          if (n.matches && (n.matches(ROW_SELECTOR) || n.querySelector(ROW_SELECTOR))) {
+            scanAllRows();
+          } else if (n.querySelector && n.querySelector(MSG_ICON_SELECTOR)) {
+            const row = n.closest ? n.closest(ROW_SELECTOR) : null;
+            if (row) attachOneRow(row);
+          }
+        });
+      }
+      if (m.type === "attributes" && m.attributeName === "class") {
+        const row = m.target.closest ? m.target.closest(ROW_SELECTOR) : null;
+        if (row) attachOneRow(row);
+      }
+    }
+  });
+  mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  root.__contactStatsMO = mo;
+
+  scanAllRows();
 }
+
 
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
