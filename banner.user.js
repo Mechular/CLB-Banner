@@ -7153,13 +7153,13 @@ console.log(url);
 
   async function attachOneRow(row) {
     if (!row || row.dataset.infoBound === "1") return;
-
+  
     const contactId = row.getAttribute("data-contact-id") || row.id || "";
     if (!contactId) { row.dataset.infoBound = "1"; return; }
-
+  
     const msgIcon = row.querySelector(MSG_ICON_SELECTOR);
     if (!msgIcon) { row.dataset.infoBound = "1"; return; }
-
+  
     let infoIcon = row.querySelector(".fa-circle-info.contact-info-icon");
     if (!infoIcon) {
       const holder = msgIcon.parentElement || row;
@@ -7172,29 +7172,57 @@ console.log(url);
       infoIcon.style.color = "coral";
       infoIcon.style.lineHeight = "1";
       infoIcon.removeAttribute("title");
-
+  
       holder.insertBefore(document.createTextNode(" "), msgIcon.nextSibling);
       holder.insertBefore(infoIcon, msgIcon.nextSibling?.nextSibling || msgIcon.nextSibling);
       if (!getComputedStyle(infoIcon).fontFamily.includes("Font Awesome")) infoIcon.textContent = "ℹ️";
-
-      const onOver = async () => {
+  
+      const onClick = async () => {
+        const pop = document.querySelector("#contact-stats-popover") || getGlobalPopover();
+        const alreadyOpenForThisIcon = pop.style.display === "block" && currentAnchor === infoIcon;
+  
+        if (alreadyOpenForThisIcon) {
+          pop.style.display = "none";
+          currentAnchor = null;
+          return;
+        }
+  
         showLoading(infoIcon);
-        const stats = await getStatsFresh(contactId); // fetches on every hover
+        const stats = await getStatsFresh(contactId); // fetch fresh on each click
         renderStats(stats);
         (document.querySelector("#contact-stats-popover") || getGlobalPopover()).style.display = "block";
       };
-      const onOut = () => { maybeHidePopover(); };
-
-      infoIcon.addEventListener("pointerenter", () => { onOver(); }, true);
-      infoIcon.addEventListener("pointerleave", () => { onOut(); }, true);
-
-      ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, block, true));
+  
+      infoIcon.addEventListener("click", (e) => { block(e); onClick(); }, true);
+  
+      ["mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, block, true));
       const anchorParent = infoIcon.closest("a, [role='link']");
       if (anchorParent) ["click","mousedown","mouseup"].forEach(ev => anchorParent.addEventListener(ev, block, true));
+  
+      if (!document.__contactStatsOutsideHandlersBound) {
+        document.addEventListener("click", (e) => {
+          const pop = document.querySelector("#contact-stats-popover");
+          if (!pop || pop.style.display !== "block") return;
+          if (pop.contains(e.target) || (currentAnchor && currentAnchor.contains(e.target))) return;
+          pop.style.display = "none";
+          currentAnchor = null;
+        }, true);
+  
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            const pop = document.querySelector("#contact-stats-popover");
+            if (pop) pop.style.display = "none";
+            currentAnchor = null;
+          }
+        }, true);
+  
+        document.__contactStatsOutsideHandlersBound = true;
+      }
     }
-
+  
     row.dataset.infoBound = "1";
   }
+
 
   function scanAllRows() {
     document.querySelectorAll(ROW_SELECTOR).forEach((row) => {
