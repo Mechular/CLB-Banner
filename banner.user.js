@@ -6890,6 +6890,332 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
+async function attachContactDataHandlers() {
+  const ROW_SELECTOR = 'tr[id], tr[data-contact-id]';
+  const MSG_ICON_SELECTOR = '.call-actions .fa-solid.fa-message, .call-actions .fa-message, i.fa-message';
+
+  // ---------- AUTH + HELPERS ----------
+  async function getAuthTokenAndLocationId() {
+    const idb = await new Promise((res, rej) => {
+      const r = indexedDB.open("firebaseLocalStorageDb");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
+    const idToken = val?.stsTokenManager?.accessToken || "";
+
+    const parts = location.pathname.split("/");
+    const idx = parts.indexOf("location");
+    const locationId = idx > -1 ? parts[idx + 1] : "";
+
+    console.log("[contact-stats] locationId:", locationId);
+    return { idToken, locationId };
+  }
+
+  function toDateKeyTZ(iso, tz = "America/Halifax") {
+    try {
+      const d = iso ? new Date(iso) : new Date();
+      return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
+    } catch {
+      return new Date().toISOString().slice(0,10);
+    }
+  }
+
+  function safeGet(obj, path, def = 0) {
+    try { return path.split(".").reduce((o, k) => (o && k in o ? o[k] : undefined), obj) ?? def; } catch { return def; }
+  }
+
+  // ---------- YOUR API CALLS (only logging + parsing fix) ----------
+  async function fetchMessages({ conversationId, limit = 100 }) {
+    console.log("[contact-stats] fetchMessages: conversationId =", conversationId, "limit =", limit);
+    const { idToken } = await getAuthTokenAndLocationId();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+
+    // Parse your exact sample: { messages: { lastMessageId, nextPage, messages: [...] } }
+    if (Array.isArray(data?.messages?.messages)) {
+      console.log("[contact-stats] fetchMessages: parsed nested messages, count =", data.messages.messages.length);
+      return data.messages.messages;
+    }
+
+    // Your original fallbacks
+    const arr = Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+    console.log("[contact-stats] fetchMessages: parsed fallback, count =", Array.isArray(arr) ? arr.length : 0);
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  async function fetchConversationId({ contactId }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    console.log("[contact-stats] fetchConversationId: contactId =", contactId, "locationId =", locationId);
+    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
+    const id = conv?.id || conv?._id || "";
+    console.log("[contact-stats] fetchConversationId: conversationId =", id);
+    return id;
+  }
+
+  // ---------- BUCKETING + TABLE ----------
+  function emptyStats() {
+    const blank = { inbound:{count:0,today:{count:0,messages:[]},messages:[]},
+                    outbound:{count:0,today:{count:0,messages:[]},messages:[]},
+                    total:{count:0,today:{count:0,messages:[]},messages:[]} };
+    return {
+      calls: JSON.parse(JSON.stringify(blank)),
+      sms: JSON.parse(JSON.stringify(blank)),
+      email: JSON.parse(JSON.stringify(blank)),
+      voicemail: JSON.parse(JSON.stringify(blank)),
+      system: JSON.parse(JSON.stringify(blank))
+    };
+  }
+
+  // Based on your sample: 1=call, 2=sms, 28=system/opportunity
+  function mapTypeToChannel(t) {
+    return t === 1 ? "calls" : t === 2 ? "sms" : t === 28 ? "system" : "sms";
+  }
+
+  function buildBuckets(messages = []) {
+    const stats = emptyStats();
+    const todayKey = toDateKeyTZ(new Date().toISOString(), "America/Halifax");
+
+    for (const m of messages) {
+      const channel = mapTypeToChannel(m.type);
+      const dir = (m.direction || "").toLowerCase() === "inbound" ? "inbound" : "outbound";
+      const tsKey = toDateKeyTZ(m.dateAdded || m.dateUpdated, "America/Halifax");
+
+      const bucket = stats[channel];
+      bucket[dir].count += 1;
+      bucket.total.count += 1;
+      bucket[dir].messages.push(m);
+      bucket.total.messages.push(m);
+
+      if (tsKey === todayKey) {
+        bucket[dir].today.count += 1;
+        bucket.total.today.count += 1;
+        bucket[dir].today.messages.push(m);
+        bucket.total.today.messages.push(m);
+      }
+    }
+    return stats;
+  }
+
+  function buildStatsTable(stats) {
+    const callsIn = safeGet(stats, "calls.inbound.count");
+    const callsOut = safeGet(stats, "calls.outbound.count");
+    const callsToday = safeGet(stats, "calls.outbound.today.count");
+    const smsIn = safeGet(stats, "sms.inbound.count");
+    const smsOut = safeGet(stats, "sms.outbound.count");
+    const smsToday = safeGet(stats, "sms.outbound.today.count");
+    const emailIn = safeGet(stats, "email.inbound.count");
+    const emailOut = safeGet(stats, "email.outbound.count");
+    const emailToday = safeGet(stats, "email.outbound.today.count");
+
+    return `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);">Channel</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);">In</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);">Out</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);">Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 8px;">Calls</td>
+            <td style="padding:6px 8px;text-align:right;">${callsIn}</td>
+            <td style="padding:6px 8px;text-align:right;">${callsOut}</td>
+            <td style="padding:6px 8px;text-align:right;">${callsToday}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 8px;">SMS</td>
+            <td style="padding:6px 8px;text-align:right;">${smsIn}</td>
+            <td style="padding:6px 8px;text-align:right;">${smsOut}</td>
+            <td style="padding:6px 8px;text-align:right;">${smsToday}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 8px;">Email</td>
+            <td style="padding:6px 8px;text-align:right;">${emailIn}</td>
+            <td style="padding:6px 8px;text-align:right;">${emailOut}</td>
+            <td style="padding:6px 8px;text-align:right;">${emailToday}</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  // ---------- MODAL UI (row-anchored, no navigation) ----------
+  function upsertStatsModal(row, stats, anchorIcon) {
+    if (!row) return null;
+    if (!row.style.position) row.style.position = "relative";
+    let modal = row.querySelector(".call-stats-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.className = "call-stats-modal";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "false");
+      modal.setAttribute("tabindex", "-1");
+      modal.style.cssText = [
+        "position:absolute","min-width:280px","max-width:420px","z-index:999",
+        "top:100%","left:0","margin-top:6px","padding:12px",
+        "border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
+        "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
+      ].join(";");
+      row.appendChild(modal);
+      modal.addEventListener("mouseenter", () => modal.dataset.locked = "1");
+      modal.addEventListener("mouseleave", () => { modal.dataset.locked = "0"; const i = row.querySelector(".contact-info-icon"); if (!i || !i.matches(":hover")) modal.style.display = "none"; });
+      row.addEventListener("keyup", (e) => { if (e.key === "Escape") modal.style.display = "none"; }, true);
+    }
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;">
+        <i class="fa-solid fa-circle-info"></i><strong>Contact activity</strong>
+      </div>
+      ${buildStatsTable(stats)}
+      <div style="margin-top:8px;font-size:11px;color:#666;">Today counts reflect outbound today.</div>
+    `;
+    if (anchorIcon) {
+      const ir = anchorIcon.getBoundingClientRect();
+      const rr = row.getBoundingClientRect();
+      modal.style.left = `${Math.max(0, ir.left - rr.left)}px`;
+    }
+    return modal;
+  }
+
+  function blockNav(e) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+
+  // ---------- WIRING ----------
+  const cache = new Map();
+
+  async function getStats(contactId) {
+    try {
+      if (!contactId) return emptyStats();
+      if (cache.has(contactId)) return cache.get(contactId);
+
+      console.log("[contact-stats] getStats contactId:", contactId);
+      const conversationId = await fetchConversationId({ contactId });
+      if (!conversationId) { const e = emptyStats(); cache.set(contactId, e); return e; }
+
+      const messages = await fetchMessages({ conversationId, limit: 100 });
+      const buckets = buildBuckets(messages);
+      cache.set(contactId, buckets);
+      return buckets;
+    } catch (err) {
+      console.log("[contact-stats] getStats error:", err);
+      const e = emptyStats(); cache.set(contactId, e); return e;
+    }
+  }
+
+  async function attachOneRow(row) {
+    if (!row || row.dataset.infoBound === "1") return;
+
+    const contactId = row.getAttribute("data-contact-id") || row.id || "";
+    if (!contactId) { row.dataset.infoBound = "1"; return; }
+
+    const msgIcon = row.querySelector(MSG_ICON_SELECTOR);
+    if (!msgIcon) { row.dataset.infoBound = "1"; return; }
+
+    let infoIcon = row.querySelector(".fa-circle-info.contact-info-icon");
+    if (!infoIcon) {
+      const holder = msgIcon.parentElement || row;
+      infoIcon = document.createElement("i");
+      infoIcon.className = "fa-solid fa-circle-info contact-info-icon";
+      infoIcon.style.cursor = "pointer";
+      infoIcon.style.marginLeft = "4px";
+      infoIcon.style.display = "inline-block";
+      infoIcon.style.verticalAlign = "middle";
+      infoIcon.style.lineHeight = "1";
+      infoIcon.removeAttribute("title");
+
+      holder.insertBefore(document.createTextNode(" "), msgIcon.nextSibling);
+      holder.insertBefore(infoIcon, msgIcon.nextSibling?.nextSibling || msgIcon.nextSibling);
+      if (!getComputedStyle(infoIcon).fontFamily.includes("Font Awesome")) infoIcon.textContent = "ℹ️";
+
+      const show = async () => {
+        const stats = await getStats(contactId);
+        const modal = upsertStatsModal(row, stats, infoIcon);
+        if (modal) modal.style.display = "block";
+      };
+      const hide = () => {
+        const modal = row.querySelector(".call-stats-modal");
+        if (modal && modal.dataset.locked !== "1") modal.style.display = "none";
+      };
+
+      infoIcon.addEventListener("mouseenter", show, true);
+      infoIcon.addEventListener("focus", show, true);
+      infoIcon.addEventListener("mouseleave", () => setTimeout(hide, 120), true);
+      infoIcon.addEventListener("blur", () => setTimeout(hide, 120), true);
+
+      ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, blockNav, true));
+      const anchorParent = infoIcon.closest("a, [role='link']");
+      if (anchorParent) ["click","mousedown","mouseup"].forEach(ev => anchorParent.addEventListener(ev, blockNav, true));
+    }
+
+    row.dataset.infoBound = "1";
+  }
+
+  function scanAllRows() {
+    document.querySelectorAll(ROW_SELECTOR).forEach((row) => {
+      if (row.dataset.infoBound === "1") return;
+      if (row.querySelector(MSG_ICON_SELECTOR)) attachOneRow(row);
+    });
+  }
+
+  function attachContactDataHandlers() {
+    if (!location.href.includes("/contacts/smart_list/")) return;
+    const root = document.querySelector('table') || document.body;
+    const mo = new MutationObserver((mut) => {
+      for (const m of mut) {
+        if (m.type === "childList") {
+          m.addedNodes.forEach((n) => {
+            if (!(n instanceof Element)) return;
+            if (n.matches && (n.matches(ROW_SELECTOR) || n.querySelector(ROW_SELECTOR))) {
+              scanAllRows();
+            } else if (n.querySelector && n.querySelector(MSG_ICON_SELECTOR)) {
+              const row = n.closest ? n.closest(ROW_SELECTOR) : null;
+              if (row) attachOneRow(row);
+            }
+          });
+        }
+        if (m.type === "attributes" && m.attributeName === "class") {
+          const row = m.target.closest ? m.target.closest(ROW_SELECTOR) : null;
+          if (row) attachOneRow(row);
+        }
+      }
+    });
+    mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    scanAllRows();
+  }
+}
+
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
   const counts = await extractContactData();
@@ -7036,6 +7362,7 @@ async function autoDispoCall() {
             avatarHref();
             attachPhoneDialHandlers();
             attachMessageHandlers();
+            attachContactDataHandlers();
           
             populateCallQueue();
             moveCallBtn();
