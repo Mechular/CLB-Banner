@@ -7081,7 +7081,7 @@ console.log(url);
     const p = document.createElement("div");
     p.id = "contact-stats-popover";
     p.style.cssText = [
-      "position:fixed","z-index:999999","min-width:280px","max-width:420px",
+      "position:relative","z-index:999999","min-width:280px","max-width:420px",
       "padding:12px","border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
       "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
     ].join(";");
