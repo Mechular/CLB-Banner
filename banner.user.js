@@ -6928,28 +6928,24 @@ function attachContactDataHandlers() {
 
   async function fetchConversationId({ contactId }) {
     const { idToken, locationId } = await getAuthTokenAndLocationId();
-
-    const url = new URL("https://services.leadconnectorhq.com/conversations/search");
-    url.searchParams.set("contactId", contactId);
-    if (locationId) url.searchParams.set("locationId", locationId);
-
-    const r = await fetch(url.toString(), {
+    console.log("[contact-stats] fetchConversationId: contactId =", contactId, "locationId =", locationId);
+    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
       method: "GET",
       headers: {
         "content-type": "application/json",
         "token-id": idToken,
         "version": "2021-07-28",
         "channel": "APP",
-        "source": "WEB_USER",
-        ...(locationId ? { "LocationId": locationId } : {})
-      },
-      credentials: "include"
+        "source": "WEB_USER"
+      }
     });
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const js = await r.json();
-    const list = js?.conversations || js?.data || [];
-    const conversationId = (Array.isArray(list) && (list.find(c => c?.contactId === contactId) || list[0])?.id) || js?.conversation?.id || "";
-    return conversationId || "";
+    const data = await r.json();
+    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
+    const id = conv?.id || conv?._id || "";
+    console.log("[contact-stats] fetchConversationId: conversationId =", id);
+    return id;
   }
 
   async function fetchMessages({ conversationId, limit = 100 }) {
