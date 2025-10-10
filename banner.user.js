@@ -6948,33 +6948,22 @@ function attachContactDataHandlers() {
     return id;
   }
 
-  async function fetchMessages({ conversationId, limit = 100 }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const url = `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`;
-console.log(url);
-    const r = await fetch(url, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER",
-        ...(locationId ? { "LocationId": locationId } : {})
-      },
-      credentials: "include"
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-
-    if (Array.isArray(data?.messages?.messages)) return data.messages.messages;
-    if (Array.isArray(data?.messages)) return data.messages;
-    if (Array.isArray(data?.data?.messages)) return data.data.messages;
-    if (Array.isArray(data?.items)) return data.items;
-    if (Array.isArray(data)) return data;
-
-    return [];
-  }
+async function fetchMessages({ conversationId, limit = 100 }) {
+  const { idToken } = await getAuthTokenAndLocationId();
+  const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+    method: "GET",
+    headers: {
+      "content-type": "application/json",
+      "token-id": idToken,
+      "version": "2021-07-28",
+      "channel": "APP",
+      "source": "WEB_USER"
+    }
+  });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  const data = await r.json();
+  return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+}
 
   function emptyStats() {
     const blank = { inbound:{count:0,today:{count:0,messages:[]},messages:[]},
