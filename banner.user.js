@@ -4622,7 +4622,11 @@ function buildBuckets(messages) {
     return (
       t.includes("opportunity created") ||
       t.includes("opportunity updated") ||
-      t.includes("opportunity deleted")
+      t.includes("opportunity deleted") ||
+      t.includes("dnd enabled by customer") ||
+      t.includes("dnd disabled by customer") ||
+      t.includes("dnd disabled by user") ||
+      t.includes("dnd enabled by user")
     );
   };
 
