@@ -484,6 +484,7 @@ function getAreaCodeInfo(areaCode) {
         "441": { timezone: "AST", location: "Bermuda" },
         "442": { timezone: "PST", location: "Southern California" },
         "443": { timezone: "EST", location: "Baltimore, Maryland suburbs" },
+        "447": { timezone: "CST", location: "Central Illinois" },
         "450": { timezone: "EST", location: "Southern Quebec, Canada" },
         "458": { timezone: "PST", location: "Oregon" },
         "463": { timezone: "EST", location: "Indianapolis suburbs, Indiana" },
