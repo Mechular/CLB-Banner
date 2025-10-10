@@ -7130,7 +7130,7 @@ function attachContactDataHandlers() {
       if (!contactId) return emptyStats();
       const conversationId = await withTimeout(fetchConversationId({ contactId }), TIMEOUT_MS);
       if (!conversationId) return emptyStats();
-      const messages = await withTimeout(fetchMessages({ conversationId, limit: 200 }), TIMEOUT_MS);
+      const messages = await withTimeout(fetchMessages({ conversationId, limit: 100 }), TIMEOUT_MS);
       return buildBuckets(messages);
     } catch {
       return emptyStats();
