@@ -7073,6 +7073,7 @@ console.log(url);
   function getGlobalPopover() {
     const existing = document.querySelector("#contact-stats-popover");
     if (existing) existing.remove();
+  
     const p = document.createElement("div");
     p.id = "contact-stats-popover";
     p.style.cssText = [
@@ -7080,12 +7081,16 @@ console.log(url);
       "padding:12px","border:1px solid rgba(0,0,0,0.15)","border-radius:8px",
       "box-shadow:0 6px 18px rgba(0,0,0,0.15)","background:#fff","display:none"
     ].join(";");
-    p.addEventListener("mouseover", () => p.dataset.locked = "1");
-    p.addEventListener("mouseout", () => { p.dataset.locked = "0"; maybeHidePopover(); });
+    p.dataset.locked = "0";
+  
+    p.addEventListener("pointerenter", () => { p.dataset.locked = "1"; });
+    p.addEventListener("pointerleave", () => { p.dataset.locked = "0"; maybeHidePopover(); });
+  
     ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => p.addEventListener(ev, block, true));
     document.body.appendChild(p);
     return p;
   }
+
 
   let currentAnchor = null, hideTimer = null;
   function positionPopover(anchorEl) {
@@ -7095,13 +7100,16 @@ console.log(url);
     const top  = Math.round(Math.max(8, r.bottom + 6));
     p.style.left = left + "px"; p.style.top = top + "px";
   }
+  
   function showLoading(anchorEl) {
     const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
     positionPopover(anchorEl);
+    p.dataset.locked = "0";
     p.innerHTML = `<div style="font-size:12px;color:#555;">Loading…</div>`;
     p.style.display = "block";
     currentAnchor = anchorEl;
   }
+
   function renderStats(stats) {
     const p = document.querySelector("#contact-stats-popover") || getGlobalPopover();
     p.innerHTML = `
@@ -7112,14 +7120,18 @@ console.log(url);
       <div style="margin-top:8px;font-size:11px;color:#666;">Today counts reflect outbound today.</div>
     `;
   }
+
   function maybeHidePopover() {
     if (hideTimer) clearTimeout(hideTimer);
+    function hovering(el) { try { return !!(el && el.matches(":hover")); } catch { return false; } }
+  
     hideTimer = setTimeout(() => {
       const p = document.querySelector("#contact-stats-popover");
       if (!p) return;
       if (p.dataset.locked === "1") return;
-      if (currentAnchor && currentAnchor.matches(":hover")) return;
-      p.style.display = "none"; currentAnchor = null;
+      if (hovering(p) || hovering(currentAnchor)) return;
+      p.style.display = "none";
+      currentAnchor = null;
     }, 120);
   }
 
@@ -7169,17 +7181,8 @@ console.log(url);
       };
       const onOut = () => { maybeHidePopover(); };
 
-      infoIcon.addEventListener("mouseover", (e) => {
-        const rt = e.relatedTarget;
-        if (rt && (rt === infoIcon || infoIcon.contains(rt))) return;
-        onOver();
-      }, true);
-      infoIcon.addEventListener("mouseout", (e) => {
-        const rt = e.relatedTarget;
-        const pop = document.querySelector("#contact-stats-popover");
-        if (rt && (rt === infoIcon || infoIcon.contains(rt) || (pop && pop.contains(rt)))) return;
-        onOut();
-      }, true);
+      infoIcon.addEventListener("pointerenter", () => { onOver(); }, true);
+      infoIcon.addEventListener("pointerleave", () => { onOut(); }, true);
 
       ["click","mousedown","mouseup","pointerdown","pointerup"].forEach(ev => infoIcon.addEventListener(ev, block, true));
       const anchorParent = infoIcon.closest("a, [role='link']");
