@@ -13,8 +13,8 @@ const CALL_RULES = {
 
 
 
-function getMenuData(type, acqFirstName, acqLastName, acqEmail, acqTele, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
-  if (type === "sms") {
+function getMenuData(commType, acqFirstName, acqLastName, acqEmail, acqTele, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
+  if (commType === "sms") {
     let menuData = {
       'Initial Outreach': {
         'No Contact #0 (Generic)': { message: `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n` },
@@ -6643,7 +6643,7 @@ async function addTemplateMenu() {
           const myEmail = userInfo.myEmail || '';
           const myTele = userInfo.myTele || '';
           
-          const menuData = getMenuData(commType, myFirstName, myEmail, myTele, propertyAddressLine1, sellerEmail, sellerFirstName, sellerLastName)
+          const menuData = getMenuData("sms", myFirstName, myEmail, myTele, propertyAddressLine1, sellerEmail, sellerFirstName, sellerLastName)
           
           let floatingModal = document.getElementById('sms-template-hover');
           if (!floatingModal) {
