@@ -3879,60 +3879,7 @@ async function addTemplateMenu({
                         let menuData = getMenuData("email", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
                     }
                     if (type === 'voicemail') {
-                        const hasStreetName = propertyStreetName && propertyStreetName.trim() !== '';
-                        const suffix = hasStreetName ? ` on ${propertyStreetName}` : '';
-                        const propMention = hasStreetName ? ` your property on ${propertyStreetName}` : ' your property';
-
-                        let menuData = getMenuData("sms", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
-                        let menuData1 = {
-                            'Initial No Contact': {
-                                'Generic No Contact': {
-                                    //message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling${propMention}. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`
-                                    // message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I'm looking to purchase ${propMention}. Please give me a call when you're free, my direct number is ${myTele}. Looking forward to hearing from you soon! Have a great day!`
-                                    message: `Hi. My name is ${myFirstName}. I'm looking to purchase the property you have for sale. Please give me a call. My number is ${myTele}. Thank you!`
-                                },
-                                'Initial No Contact': {
-                                    //message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling${propMention}. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`
-                                    // message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I'm looking to purchase ${propMention}. Please give me a call when you're free, my direct number is ${myTele}. Looking forward to hearing from you soon! Have a great day!`
-                                    message: `Hi ${sellerFirstName}, my name is ${myFirstName}. I'm looking to purchase ${propMention}. Please give me a call. My number is ${myTele}. Thanks!`
-                                },
-                                'Second No Contact': {
-                                    // message: `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA following up on my previous message about${propMention}. I wanted to see if you had any questions or if you're still considering selling and if you are, I'll make the process as easy as possible for you. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon.`
-                                    //message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I'm following up on purchasing ${propMention}. Please give me a call when you have a free moment, my direct number is ${myTele}. Looking forward to hearing from you soon! Have a great day!`
-                                    message: `Hi ${sellerFirstName}, this is ${myFirstName} calling you back about buying ${propMention}. Please give me a call. My number is ${myTele}. Thanks!`
-                                },
-                                'Third No Contact': {
-                                    // message: `Hi ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I've reached out a few times regarding${propMention} and haven’t heard back. If you're still serious about selling, please get in touch as soon as possible to discuss how we can proceed. You can call or text me directly at ${myTele}. If I don't hear from you soon, I'll assume you're no longer interested. Thanks.`
-                                  message: `Hi ${sellerFirstName}, this is ${myFirstName} calling you back about buying ${propMention}. I haven't heard back from you. Please give me a call. My number is ${myTele}. Thanks!`
-                                }
-                            },
-                            'Pre-Sale Follow-Up': {
-                                'Contract Sent Check-in #1': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent${suffix}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                                },
-                                'Contract Sent Check-in #2': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent${suffix}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                                },
-                                'Ghosting - Contract Sent': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent${suffix}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                                }
-                            },
-                            'Advisor Change': {
-                                'Advisor Change #1': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. You were previously working with my colleague. I’ll be looking after you going forward. I was just calling to introduce myself and to see if you had any questions. Please reach out and I'll be happy to help you out. You can call or text me directly at ${myTele}. Looking forward to working with you! Have a great day!`
-                                },
-                                'Contract Sent Check-in #2': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent${suffix}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                                },
-                                'Ghosting - Contract Sent': {
-                                    message: `Hello ${sellerFirstName}, this is ${myFirstName}. I’m following up on the contract we sent${suffix}. Let me know if you have any questions or concerns. Call/text me at ${myTele}.`
-                                }
-                            }
-                        };
                     }
-
-
-
 
                     for (const [group, templates] of Object.entries(menuData)) {
                         const groupWrapper = document.createElement('div');
