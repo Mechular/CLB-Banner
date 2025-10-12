@@ -13,211 +13,546 @@ const CALL_RULES = {
 let menuData = {};
 
 async function getMenuData(commType) {
+  // Local helpers and styles are scoped inside this function
+  function injectMenuHoverStyles() {
+    if (document.getElementById('menu-disabled-style')) return;
+    const style = document.createElement('style');
+    style.id = 'menu-disabled-style';
+    style.textContent = `
+      .menu-item[aria-disabled="true"] { cursor: not-allowed; opacity: .55; pointer-events: auto; }
+      .menu-item[aria-disabled="true"]:hover { cursor: not-allowed; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function hasAll(ctx, keys) {
+    return keys.every(k => {
+      const v = ctx[k];
+      return !(v === undefined || v === null || (typeof v === 'string' && v.trim() === ''));
+    });
+  }
+
+  function makeItem(getMessage, requiredKeys, ctx) {
+    const disabled = !hasAll(ctx, requiredKeys);
+    const result = getMessage(ctx);
+    // Allow both string and {subject, message}
+    return typeof result === 'string'
+      ? { disabled, message: disabled ? '' : result }
+      : { disabled, subject: disabled ? '' : result.subject, message: disabled ? '' : result.message };
+  }
+
+  injectMenuHoverStyles();
+
   const userInfo = await getUserData().catch(() => null);
   if (!userInfo) return;
-  
+
   const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-  const sellerFirstName = document.querySelector('#prospectFirstName') ? document.querySelector('#prospectFirstName').textContent.trim() : (document.querySelector('[name="contact.first_name"]') ? document.querySelector('[name="contact.first_name"]').value.trim() : '');
-  const sellerLastName = document.querySelector('#prospectLastName') ? document.querySelector('#prospectLastName').textContent.trim() : '';
-  const sellerEmail = document.querySelector('[name="contact.email"]') ? document.querySelector('[name="contact.email"]').value.trim() : '';
-  const addressCell = row ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') : null) : null;
+
+  const sellerFirstName = document.querySelector('#prospectFirstName')
+    ? document.querySelector('#prospectFirstName').textContent.trim()
+    : (document.querySelector('[name="contact.first_name"]')
+        ? document.querySelector('[name="contact.first_name"]').value.trim()
+        : '');
+
+  const sellerLastName = document.querySelector('#prospectLastName')
+    ? document.querySelector('#prospectLastName').textContent.trim()
+    : '';
+
+  const sellerEmail = document.querySelector('[name="contact.email"]')
+    ? document.querySelector('[name="contact.email"]').value.trim()
+    : '';
+
+  const addressCell = row
+    ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
+        ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
+        : null)
+    : null;
+
   const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
-  const propertyAddressLine1 = fullAddressFromRow ? fullAddressFromRow.split(',')[0].trim() : (document.querySelector('[name="contact.street_address"]') ? document.querySelector('[name="contact.street_address"]').value.trim() : '');
-  const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
-  
-  // const sellerData = [sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1];
-  
+
+  const propertyAddressLine1 = fullAddressFromRow
+    ? fullAddressFromRow.split(',')[0].trim()
+    : (document.querySelector('[name="contact.street_address"]')
+        ? document.querySelector('[name="contact.street_address"]').value.trim()
+        : '');
+
+  const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1)
+    ? propertyAddressLine1
+    : 'your property';
+
   let myFullName = '';
   let myFirstName = '';
   let myLastName = '';
   let myInitials = '';
   let myEmail = '';
   let myTele = '';
-  
+
   if (userInfo && userInfo.myFirstName) {
-      myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
-      myFirstName = userInfo.myFirstName;
-      myLastName = userInfo.myLastName;
-      myInitials = userInfo.myInitials;
-      myEmail = userInfo.myEmail;
-      myTele = userInfo.myTele;
+    myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
+    myFirstName = userInfo.myFirstName;
+    myLastName = userInfo.myLastName;
+    myInitials = userInfo.myInitials;
+    myEmail = userInfo.myEmail;
+    myTele = userInfo.myTele;
   }
-  
+
+  const ctx = {
+    sellerFirstName,
+    sellerLastName,
+    sellerEmail,
+    propertyAddressLine1,
+    safePropertyAddress,
+    myFullName,
+    myFirstName,
+    myLastName,
+    myInitials,
+    myEmail,
+    myTele,
+    // These are referenced by voicemail templates. If your app sets them elsewhere,
+    // they’ll be picked up by requiredKeys checks.
+    first: undefined,
+    fullAddress: undefined,
+    streetLabelFromAddress: undefined,
+    CALLER_NAME: undefined,
+    CALLBACK_NUMBER: undefined
+  };
+
   if (commType === "sms") {
     menuData = {
       'Initial Outreach': {
-        'No Contact #0 (Generic)': { message: `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n` },
-        'No Contact #1 (Condition Inquiry)': { message: `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}` },
-        'No Contact #2 (Basic Cash Offer Ask)': { message: `Hi ${sellerFirstName}. I'm interested in making an offer for ${safePropertyAddress}. When can I give you a call to discuss it further?\n${myFirstName}` },
-        // 'No Contact #3 (Still Available?)': { message: `Hi ${sellerFirstName}, just following up about paying cash for ${safePropertyAddress}. Is it still available?\n${myFirstName}` },
-        // 'No Contact #4 (Quick Chat Request)': { message: `Hi ${sellerFirstName}, is now a good time to chat about buying ${safePropertyAddress}?\n${myFirstName}` },
-        // 'No Contact #6 (Preferred Communication)': { message: `Hi ${sellerFirstName}, would you rather text or talk on the phone about ${safePropertyAddress}? I’m good either way.\n${myFirstName}` },
-    
-        'No Contact #3 (Time is running out)': { message: `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP.` },
-        'No Contact #4 (Time is almost up)': { message: `${sellerFirstName}, time is almost up for us to buy your property. Please respond right away!` },
-        'No Contact #5 (Not much time)': { message: `${sellerFirstName}, we don't have much time left to buy your property and I haven't heard from back from you. Respond today!` },
-        'No Contact #6 (Deadline is close)': { message: `Our deadline to buy your property is getting close. Don't miss out ${sellerFirstName}. Respond now!` },
-        'No Contact #7 (Now or never)': { message: `We have to make our decision about your property ${sellerFirstName}! It's now or never! Reply this text or call me ASAP.` },
-        'Reason for Selling': { message: `Hey ${sellerFirstName}, quick question. Why are you considering selling ${safePropertyAddress}?\n${myFirstName}` },
-        'Intro with Contact Info': { message: `Hi ${sellerFirstName}, this is ${myFirstName} with Cash Land Buyer USA. Feel free to call or text me here, or if it’s easier, email me at ${myEmail}. Looking forward to working with you!` }
+        'No Contact #0 (Generic)': makeItem(
+          ({ sellerFirstName, safePropertyAddress }) =>
+            `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n`,
+          ['sellerFirstName', 'safePropertyAddress'],
+          ctx
+        ),
+        'No Contact #1 (Condition Inquiry)': makeItem(
+          ({ sellerFirstName, safePropertyAddress, myFirstName }) =>
+            `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}`,
+          ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
+          ctx
+        ),
+        'No Contact #2 (Basic Cash Offer Ask)': makeItem(
+          ({ sellerFirstName, safePropertyAddress, myFirstName }) =>
+            `Hi ${sellerFirstName}. I'm interested in making an offer for ${safePropertyAddress}. When can I give you a call to discuss it further?\n${myFirstName}`,
+          ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
+          ctx
+        ),
+        'No Contact #3 (Time is running out)': makeItem(
+          ({ sellerFirstName }) =>
+            `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP.`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'No Contact #4 (Time is almost up)': makeItem(
+          ({ sellerFirstName }) =>
+            `${sellerFirstName}, time is almost up for us to buy your property. Please respond right away!`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'No Contact #5 (Not much time)': makeItem(
+          ({ sellerFirstName }) =>
+            `${sellerFirstName}, we don't have much time left to buy your property and I haven't heard from back from you. Respond today!`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'No Contact #6 (Deadline is close)': makeItem(
+          ({ sellerFirstName }) =>
+            `Our deadline to buy your property is getting close. Don't miss out ${sellerFirstName}. Respond now!`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'No Contact #7 (Now or never)': makeItem(
+          ({ sellerFirstName }) =>
+            `We have to make our decision about your property ${sellerFirstName}! It's now or never! Reply this text or call me ASAP.`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'Reason for Selling': makeItem(
+          ({ sellerFirstName, safePropertyAddress, myFirstName }) =>
+            `Hey ${sellerFirstName}, quick question. Why are you considering selling ${safePropertyAddress}?\n${myFirstName}`,
+          ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
+          ctx
+        ),
+        'Intro with Contact Info': makeItem(
+          ({ sellerFirstName, myFirstName, myEmail }) =>
+            `Hi ${sellerFirstName}, this is ${myFirstName} with Cash Land Buyer USA. Feel free to call or text me here, or if it’s easier, email me at ${myEmail}. Looking forward to working with you!`,
+          ['sellerFirstName', 'myFirstName', 'myEmail'],
+          ctx
+        )
       },
       'Disconnected': {
-        'Disconnected?': { message: `Did we get disconnected on my end or did you mean to hang up?\n\nIf you don't want to speak with me to sell your property, that's okay. I just need to know.` }
+        'Disconnected?': makeItem(
+          () =>
+            `Did we get disconnected on my end or did you mean to hang up?\n\nIf you don't want to speak with me to sell your property, that's okay. I just need to know.`,
+          [],
+          ctx
+        )
       },
       'Follow-Up': {
-        'Contract - Not Opened #1': { message: `Hi ${sellerFirstName}. I noticed our offer wasn't opened. Can you please confirm that you received our email?` },
-        'Contract - Not Opened #2': { message: `Hi ${sellerFirstName}. Do you have any questions about the contract we sent over?` },
-        'Sent Contract Confirm': { message: `Thanks again for taking the time to speak with me. I've sent the contract to ${sellerEmail}. Did you get it?` },
-        'Friendly Bump': { message: `Hi ${sellerFirstName}, just circling back on ${safePropertyAddress}. I’m still interested if you are. Let me know either way.\n${myFirstName}` },
-        'Still Considering?': { message: `Hey ${sellerFirstName}, I understand if you’re not ready to decide yet. Just checking if you're still open to selling ${safePropertyAddress}?\n${myFirstName}` },
-        'Wrong Number Check': { message: `Hi, I’m trying to reach ${sellerFirstName} about ${safePropertyAddress}. If this isn’t the right number, I apologize!` }
+        'Contract - Not Opened #1': makeItem(
+          ({ sellerFirstName }) =>
+            `Hi ${sellerFirstName}. I noticed our offer wasn't opened. Can you please confirm that you received our email?`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'Contract - Not Opened #2': makeItem(
+          ({ sellerFirstName }) =>
+            `Hi ${sellerFirstName}. Do you have any questions about the contract we sent over?`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'Sent Contract Confirm': makeItem(
+          ({ sellerEmail }) =>
+            `Thanks again for taking the time to speak with me. I've sent the contract to ${sellerEmail}. Did you get it?`,
+          ['sellerEmail'],
+          ctx
+        ),
+        'Friendly Bump': makeItem(
+          ({ sellerFirstName, safePropertyAddress, myFirstName }) =>
+            `Hi ${sellerFirstName}, just circling back on ${safePropertyAddress}. I’m still interested if you are. Let me know either way.\n${myFirstName}`,
+          ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
+          ctx
+        ),
+        'Still Considering?': makeItem(
+          ({ sellerFirstName, safePropertyAddress, myFirstName }) =>
+            `Hey ${sellerFirstName}, I understand if you’re not ready to decide yet. Just checking if you're still open to selling ${safePropertyAddress}?\n${myFirstName}`,
+          ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
+          ctx
+        ),
+        'Wrong Number Check': makeItem(
+          ({ sellerFirstName, safePropertyAddress }) =>
+            `Hi, I’m trying to reach ${sellerFirstName} about ${safePropertyAddress}. If this isn’t the right number, I apologize!`,
+          ['sellerFirstName', 'safePropertyAddress'],
+          ctx
+        )
       },
       'Offer Context': {
-        'Why Us (no fees)': { message: `We buy fast, with cash, as-is
-    - No agent commissions
-    - No closing costs (we cover them)
-    - No repair costs (we buy as-is)
-    - No staging or cleaning expenses each time the property is shown
-    - No showings
-    - No inspection or appraisal fees
-    - No deed transfer fees or lawyer fees
-    - No holding costs (utilities, taxes, insurance, etc. while waiting to sell)
-    - No listing fees or marketing expenses
-    - No risk of buyer financing falling through
-    ` },
-        'Bait-and-Switch Warning': { message: `Some companies say they’ll pay a lot just to get your attention. But when it’s time to sign papers, they lower the price. They do this to try and win over others, so be careful.` },
-        'Justification of Offer': { message: `I know the price might seem low, but remember, we have the cash, so we can close quickly. We buy as-is, cover the closing costs and holding fees, save you from realtor commissions, and eliminate the hassle of property showings.` },
-        'No Underpricing Tricks': { message: `We put our offers in writing and don’t overprice, then undercut at the last minute like others may try to do.` },
-        'Price Negotiation Opener': { message: `It’s normal to go back and forth on the price until we find something that feels fair for both sides. What price would you be willing to sell your property for?` }
+        'Why Us (no fees)': makeItem(
+          () =>
+            `We buy fast, with cash, as-is
+- No agent commissions
+- No closing costs (we cover them)
+- No repair costs (we buy as-is)
+- No staging or cleaning expenses each time the property is shown
+- No showings
+- No inspection or appraisal fees
+- No deed transfer fees or lawyer fees
+- No holding costs (utilities, taxes, insurance, etc. while waiting to sell)
+- No listing fees or marketing expenses
+- No risk of buyer financing falling through
+`,
+          [],
+          ctx
+        ),
+        'Bait-and-Switch Warning': makeItem(
+          () =>
+            `Some companies say they’ll pay a lot just to get your attention. But when it’s time to sign papers, they lower the price. They do this to try and win over others, so be careful.`,
+          [],
+          ctx
+        ),
+        'Justification of Offer': makeItem(
+          () =>
+            `I know the price might seem low, but remember, we have the cash, so we can close quickly. We buy as-is, cover the closing costs and holding fees, save you from realtor commissions, and eliminate the hassle of property showings.`,
+          [],
+          ctx
+        ),
+        'No Underpricing Tricks': makeItem(
+          () =>
+            `We put our offers in writing and don’t overprice, then undercut at the last minute like others may try to do.`,
+          [],
+          ctx
+        ),
+        'Price Negotiation Opener': makeItem(
+          () =>
+            `It’s normal to go back and forth on the price until we find something that feels fair for both sides. What price would you be willing to sell your property for?`,
+          [],
+          ctx
+        )
       },
       'Process Summary': {
-        'Process Summary': { message: `Quick overview: We handle everything — pay in cash, cover closing costs, and buy as-is. You don’t need to clean, fix, or show the property.` },
-        'How It Works': { message: `Once we agree on a price, I send a simple contract and close at a local title company. No pressure. Just info if you're considering selling.` },
-        'Market vs Cash Comparison': { message: `Selling with a realtor could take 90+ days. I can close in under 2 weeks if it works for you. No open houses, no listings.` }
+        'Process Summary': makeItem(
+          () =>
+            `Quick overview: We handle everything — pay in cash, cover closing costs, and buy as-is. You don’t need to clean, fix, or show the property.`,
+          [],
+          ctx
+        ),
+        'How It Works': makeItem(
+          () =>
+            `Once we agree on a price, I send a simple contract and close at a local title company. No pressure. Just info if you're considering selling.`,
+          [],
+          ctx
+        ),
+        'Market vs Cash Comparison': makeItem(
+          () =>
+            `Selling with a realtor could take 90+ days. I can close in under 2 weeks if it works for you. No open houses, no listings.`,
+          [],
+          ctx
+        )
       },
       'Final Attempts': {
-        'Missed Scheduled Call': { message: `Hi, it's ${myFirstName} with CLB. I tried calling back on and after our scheduled time, but I wasn't able to reach you. If you're no longer interested in the offer, just let me know so I can close out your file for now and reach out at a later date.` },
-        'Inbound Call Follow-Up': { message: `Hey ${sellerFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.` },
-        'Closing File Soft Exit': { message: `Hi ${sellerFirstName}, I don’t want to keep bothering you. If I don’t hear back, I’ll assume you’re not interested and close your file. No hard feelings at all. I'll try reaching out again in the near future.` },
-        'Expiring (FOMO)': { message: `Hi ${sellerFirstName}. Our offer is about to expire. Don't miss out! Call or text me when you can.` }
+        'Missed Scheduled Call': makeItem(
+          ({ myFirstName }) =>
+            `Hi, it's ${myFirstName} with CLB. I tried calling back on and after our scheduled time, but I wasn't able to reach you. If you're no longer interested in the offer, just let me know so I can close out your file for now and reach out at a later date.`,
+          ['myFirstName'],
+          ctx
+        ),
+        'Inbound Call Follow-Up': makeItem(
+          ({ sellerFirstName }) =>
+            `Hey ${sellerFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'Closing File Soft Exit': makeItem(
+          ({ sellerFirstName }) =>
+            `Hi ${sellerFirstName}, I don’t want to keep bothering you. If I don’t hear back, I’ll assume you’re not interested and close your file. No hard feelings at all. I'll try reaching out again in the near future.`,
+          ['sellerFirstName'],
+          ctx
+        ),
+        'Expiring (FOMO)': makeItem(
+          ({ sellerFirstName }) =>
+            `Hi ${sellerFirstName}. Our offer is about to expire. Don't miss out! Call or text me when you can.`,
+          ['sellerFirstName'],
+          ctx
+        )
       },
       'Advisor Change': {
-        'Intro': { message: `Hi ${sellerFirstName}. You were speaking with my co-worker previously about selling your property. My name is ${myFirstName} and I'll be looking after you going forward. What questions can I answer for you?` }
+        'Intro': makeItem(
+          ({ sellerFirstName, myFirstName }) =>
+            `Hi ${sellerFirstName}. You were speaking with my co-worker previously about selling your property. My name is ${myFirstName} and I'll be looking after you going forward. What questions can I answer for you?`,
+          ['sellerFirstName', 'myFirstName'],
+          ctx
+        )
       },
       'Last Ditch': {
-        'Last Ditch': { message: `If they try to low-ball you at the very last moment, don't feel obligated to take it.
-    Let me know immediately and I will make sure you get a fair deal.` }
+        'Last Ditch': makeItem(
+          () =>
+            `If they try to low-ball you at the very last moment, don't feel obligated to take it.
+Let me know immediately and I will make sure you get a fair deal.`,
+          [],
+          ctx
+        )
       },
       'Contract Clarification': {
-        '$10 Earnest': { message: `The $10 is just to open escrow and make the contract binding. The full amount will be paid at closing, but the $10 is what’s used to officially start the process.` }
+        '$10 Earnest': makeItem(
+          () =>
+            `The $10 is just to open escrow and make the contract binding. The full amount will be paid at closing, but the $10 is what’s used to officially start the process.`,
+          [],
+          ctx
+        )
       }
     };
   }
 
   if (commType === 'email') {
-    const signature = `
-        \n\nKind regards,
-        <strong>${myFullName}</strong> | Property Acquisition Officer<br>
-        <strong>Cash Land Buyer USA</strong><br>
-        📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
-        📞 ${myTele}<br>
-        <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>
-    `;
+    const signature =
+      `
+
+Kind regards,
+<strong>${ctx.myFullName}</strong> | Property Acquisition Officer<br>
+<strong>Cash Land Buyer USA</strong><br>
+📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${ctx.myEmail}">${ctx.myEmail}</a><br>
+📞 ${ctx.myTele}<br>
+<a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>
+`;
 
     menuData = {
-        'Initial No Contact': {
-            "Initial No Contact #1": {
-                subject: `Regarding ${safePropertyAddress}`,
-                message: `Hi ${sellerFirstName},\n\nAre you still looking to sell your property?\n\nWe're ready to move forward when you are.${signature}`
-            },
-            "Initial No Contact #2": {
-                subject: `Following up on ${safePropertyAddress}`,
-                message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.${signature}`
-            },
-            "Initial No Contact #3": {
-                subject: `Need to speak with you about ${safePropertyAddress}`,
-                message: `Hi ${sellerFirstName},\n\nI've reached out a few times and haven’t heard back. If you're still open to selling, I'd really like to reconnect and see if we're a fit.\n\nIf you’ve already made other plans, please let me know, and I'll respectfully stop contacting you.${signature}`
-            }
-        },
-        'Pre-Sale Follow-Up': {
-            "Pre-Sale Follow-Up #1": {
-                subject: `Follow-up on contract sent`,
-                message: `Hello ${sellerFirstName},\n\nI'm following up on the contract we sent. Let me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
-            },
-            "Pre-Sale Follow-Up #2": {
-                subject: `Second follow-up on contract`,
-                message: `Hello ${sellerFirstName},\n\nJust checking in again on the contract. I'm happy to clarify anything if needed.\n\nFeel free to reach out at ${myTele}.${signature}`
-            },
-            "Pre-Sale Follow-Up #3": {
-                subject: `Still interested in the contract?`,
-                message: `Hello ${sellerFirstName},\n\nI haven’t heard back regarding the contract. If you’re still interested, I'm ready when you are.\n\nYou can reach me at ${myTele}.${signature}`
-            }
-        },
-        'Advisor Change': {
-            "Advisor Change #1": {
-                subject: `Change of hands regarding ${safePropertyAddress}`,
-                message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
-            }
-        },
-        'Add Signature': {
-            "Signature #1": {
-                subject: ``,
-                message: `\n\nKind regards,
-                         <strong>${myFullName}</strong> | Property Acquisition Officer<br>
-                         <strong>Cash Land Buyer USA</strong><br>
-                         📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
-                         📞 ${myTele}<br>
-                         <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`
-            }
-        }
+      'Initial No Contact': {
+        'Initial No Contact #1': makeItem(
+          ({ sellerFirstName, safePropertyAddress }) => ({
+            subject: `Regarding ${safePropertyAddress}`,
+            message: `Hi ${sellerFirstName},\n\nAre you still looking to sell your property?\n\nWe're ready to move forward when you are.${signature}`
+          }),
+          ['sellerFirstName', 'safePropertyAddress'],
+          ctx
+        ),
+        'Initial No Contact #2': makeItem(
+          ({ sellerFirstName, safePropertyAddress }) => ({
+            subject: `Following up on ${safePropertyAddress}`,
+            message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.${signature}`
+          }),
+          ['sellerFirstName', 'safePropertyAddress'],
+          ctx
+        ),
+        'Initial No Contact #3': makeItem(
+          ({ sellerFirstName, safePropertyAddress }) => ({
+            subject: `Need to speak with you about ${safePropertyAddress}`,
+            message: `Hi ${sellerFirstName},\n\nI've reached out a few times and haven’t heard back. If you're still open to selling, I'd really like to reconnect and see if we're a fit.\n\nIf you’ve already made other plans, please let me know, and I'll respectfully stop contacting you.${signature}`
+          }),
+          ['sellerFirstName', 'safePropertyAddress'],
+          ctx
+        )
+      },
+      'Pre-Sale Follow-Up': {
+        'Pre-Sale Follow-Up #1': makeItem(
+          ({ sellerFirstName, myTele }) => ({
+            subject: `Follow-up on contract sent`,
+            message: `Hello ${sellerFirstName},\n\nI'm following up on the contract we sent. Let me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
+          }),
+          ['sellerFirstName', 'myTele'],
+          ctx
+        ),
+        'Pre-Sale Follow-Up #2': makeItem(
+          ({ sellerFirstName, myTele }) => ({
+            subject: `Second follow-up on contract`,
+            message: `Hello ${sellerFirstName},\n\nJust checking in again on the contract. I'm happy to clarify anything if needed.\n\nFeel free to reach out at ${myTele}.${signature}`
+          }),
+          ['sellerFirstName', 'myTele'],
+          ctx
+        ),
+        'Pre-Sale Follow-Up #3': makeItem(
+          ({ sellerFirstName, myTele }) => ({
+            subject: `Still interested in the contract?`,
+            message: `Hello ${sellerFirstName},\n\nI haven’t heard back regarding the contract. If you’re still interested, I'm ready when you are.\n\nYou can reach me at ${myTele}.${signature}`
+          }),
+          ['sellerFirstName', 'myTele'],
+          ctx
+        )
+      },
+      'Advisor Change': {
+        'Advisor Change #1': makeItem(
+          ({ sellerFirstName, myFullName, myTele }) => ({
+            subject: `Change of hands regarding ${safePropertyAddress}`,
+            message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
+          }),
+          ['sellerFirstName', 'myFullName', 'myTele'],
+          ctx
+        )
+      },
+      'Add Signature': {
+        'Signature #1': makeItem(
+          ({ myFullName, myEmail, myTele }) => ({
+            subject: ``,
+            message: `
+
+Kind regards,
+<strong>${myFullName}</strong> | Property Acquisition Officer<br>
+<strong>Cash Land Buyer USA</strong><br>
+📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
+📞 ${myTele}<br>
+<a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`
+          }),
+          ['myFullName', 'myEmail', 'myTele'],
+          ctx
+        )
+      }
     };
   }
-  if (commType === 'voicemail') {
-    
-        const heyName = first ? `Hey ${sellerFirstName}, ` : "";
-        const hiName = first ? `Hi ${sellerFirstName}, ` : "";
-        const street = streetLabelFromAddress(fullAddress) ? ` on *${streetLabelFromAddress(fullAddress)}*` : "";
 
-          menuData = {
-              `${hiName}this is ${CALLER_NAME}. I saw your info come through about selling your property${street}.
-  I’d love to talk about what you’re looking for and see if I can make you an offer that works.
-  Please call me at ${CALLBACK_NUMBER} when you get a moment. Looking forward to hearing from you.`,
-  
-              `${heyName}it’s ${CALLER_NAME}. Following up since you mentioned being interested in selling your place${street}.
-  I’ve got flexibility with timing and price, and I think we can make something work.
-  Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soon.`,
-  
-              `${heyName}it’s ${CALLER_NAME} checking back in about your property${street}.
-  I can give you a straightforward cash offer with no repairs or showings.
-  Call me at ${CALLBACK_NUMBER} and we can go over your options. Thank you.`,
-  
-              `${hiName}it’s ${CALLER_NAME}. I haven’t heard back yet and I’m still ready to move forward on your property${street}.
-  We can close whenever works best for you.
-  Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forward to connecting.`,
-  
-              `${heyName}${CALLER_NAME} here. I’m still very interested in buying your property${street}.
-  If you’re weighing options, I can make an all-cash offer and handle everything for you.
-  Give me a quick call at ${CALLBACK_NUMBER} and we’ll see if we're a fit. Talk to you soon!`,
-  
-              `${hiName}it’s ${CALLER_NAME} again. I’m finalizing offers on a few properties this week and I'd like yours to be one of them.
-  If you’re ready, we can get started right away with a simple process.
-  You can reach me at ${CALLBACK_NUMBER}. Talk soon.`,
-  
-              `${heyName}${CALLER_NAME} here. Reaching out before I move forward with a couple of other sellers.
-  If selling your property${street} is still on your mind, this is a good time to connect.
-  Please call me today at ${CALLBACK_NUMBER}. Thank you.`,
-  
-              `${hiName}it’s ${CALLER_NAME}. I don’t want to keep calling if the timing isn’t right, but I’d like to make this easy for you.
-  If you’re ready, we can agree on a number and start the paperwork today.
-  Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`,
-  
-              `${heyName}it’s ${CALLER_NAME}. Quick heads-up: I’m wrapping up my offers this week and I’d still like to include your property${street}.
-  If you’re serious about selling, call me today at ${CALLBACK_NUMBER} and we can lock this in. Thanks.`,
-  
-              `${hiName}${CALLER_NAME} here. You showed interest in selling your property${street} and I don’t want you to miss out before I close things out.
-  If you’re still considering it, please call or text me at ${CALLBACK_NUMBER} today.
-  If not, no problem. Thank you for your time.`
-    }
+  if (commType === 'voicemail') {
+    menuData = {
+      'Voicemail Scripts': {
+        'VM #1': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}this is ${CALLER_NAME}. I saw your info come through about selling your property${street}.
+I’d love to talk about what you’re looking for and see if I can make you an offer that works.
+Please call me at ${CALLBACK_NUMBER} when you get a moment. Looking forward to hearing from you.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #2': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}it’s ${CALLER_NAME}. Following up since you mentioned being interested in selling your place${street}.
+I’ve got flexibility with timing and price, and I think we can make something work.
+Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soon.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #3': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}it’s ${CALLER_NAME} checking back in about your property${street}.
+I can give you a straightforward cash offer with no repairs or showings.
+Call me at ${CALLBACK_NUMBER} and we can go over your options. Thank you.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #4': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const hiName = first ? `Hi ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${hiName}it’s ${CALLER_NAME}. I haven’t heard back yet and I’m still ready to move forward on your property${street}.
+We can close whenever works best for you.
+Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forward to connecting.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #5': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}${CALLER_NAME} here. I’m still very interested in buying your property${street}.
+If you’re weighing options, I can make an all-cash offer and handle everything for you.
+Give me a quick call at ${CALLBACK_NUMBER} and we’ll see if we're a fit. Talk to you soon!`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #6': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const hiName = first ? `Hi ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${hiName}it’s ${CALLER_NAME} again. I’m finalizing offers on a few properties this week and I'd like yours to be one of them.
+If you’re ready, we can get started right away with a simple process.
+You can reach me at ${CALLBACK_NUMBER}. Talk soon.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #7': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}${CALLER_NAME} here. Reaching out before I move forward with a couple of other sellers.
+If selling your property${street} is still on your mind, this is a good time to connect.
+Please call me today at ${CALLBACK_NUMBER}. Thank you.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #8': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const hiName = first ? `Hi ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${hiName}it’s ${CALLER_NAME}. I don’t want to keep calling if the timing isn’t right, but I’d like to make this easy for you.
+If you’re ready, we can agree on a number and start the paperwork today.
+Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #9': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const heyName = first ? `Hey ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${heyName}it’s ${CALLER_NAME}. Quick heads-up: I’m wrapping up my offers this week and I’d still like to include your property${street}.
+If you’re serious about selling, call me today at ${CALLBACK_NUMBER} and we can lock this in. Thanks.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        ),
+        'VM #10': makeItem(
+          ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
+            const hiName = first ? `Hi ${sellerFirstName}, ` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            return `${hiName}${CALLER_NAME} here. You showed interest in selling your property${street} and I don’t want you to miss out before I close things out.
+If you’re still considering it, please call or text me at ${CALLBACK_NUMBER} today.
+If not, no problem. Thank you for your time.`;
+          },
+          ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
+          ctx
+        )
+      }
+    };
   }
 
   return menuData;
