@@ -13,7 +13,30 @@ const CALL_RULES = {
 
 
 
-function getMenuData(commType, acqFirstName, acqLastName, acqEmail, acqTele, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
+function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
+  const userInfo = await getUserData();
+  if (!userInfo) return;
+  
+  let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
+  let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
+  let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || "";
+  let propertyStreetName = getStreetName(document.querySelector('[name="contact.street_address"]')?.value) || "";
+  
+  let myFullName = '';
+  let myFirstName = '';
+  let myLastName = '';
+  let myInitials = '';
+  let myEmail = '';
+  let myTele = '';
+  
+  if (userInfo && userInfo.myFirstName) {
+      myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
+      myFirstName = userInfo.myFirstName;
+      myLastName = userInfo.myLastName;
+      myInitials = userInfo.myInitials;
+      myEmail = userInfo.myEmail;
+      myTele = userInfo.myTele;
+  }
   let menuData = {};
   
   const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
@@ -3836,30 +3859,6 @@ async function addTemplateMenu({
                 }
 
                 try {
-                    const userInfo = await getUserData();
-                    if (!userInfo) return;
-
-                    let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
-                    let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-                    let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || "";
-                    let propertyStreetName = getStreetName(document.querySelector('[name="contact.street_address"]')?.value) || "";
-
-                    let myFullName = '';
-                    let myFirstName = '';
-                    let myLastName = '';
-                    let myInitials = '';
-                    let myEmail = '';
-                    let myTele = '';
-
-                    if (userInfo && userInfo.myFirstName) {
-                        myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
-                        myFirstName = userInfo.myFirstName;
-                        myLastName = userInfo.myLastName;
-                        myInitials = userInfo.myInitials;
-                        myEmail = userInfo.myEmail;
-                        myTele = userInfo.myTele;
-                    }
-
                     let floatingModal = document.getElementById(`${type}-modal`);
                     if (!floatingModal) {
                         floatingModal = createFloatingModal({
@@ -3873,12 +3872,18 @@ async function addTemplateMenu({
                         });
                     }
 
+                    if (type === 'sms') {
+                        let menuData = getMenuData("sms", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
+                    }
+                    if (type === 'email') {
+                        let menuData = getMenuData("email", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
+                    }
                     if (type === 'voicemail') {
                         const hasStreetName = propertyStreetName && propertyStreetName.trim() !== '';
                         const suffix = hasStreetName ? ` on ${propertyStreetName}` : '';
                         const propMention = hasStreetName ? ` your property on ${propertyStreetName}` : ' your property';
 
-                        let menuData = getMenuData("sms", myFirstName, myEmail, myTele, propertyAddressLine1, sellerEmail, sellerFirstName, sellerLastName);
+                        let menuData = getMenuData("sms", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
                         let menuData1 = {
                             'Initial No Contact': {
                                 'Generic No Contact': {
