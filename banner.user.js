@@ -12,11 +12,19 @@ const CALL_RULES = {
 
 let menuData = {};
 
-async function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1) {
+async function getMenuData(commType) {
   const userInfo = await getUserData().catch(() => null);
   if (!userInfo) return;
   
-  let propertyStreetName = getStreetName(propertyAddressLine1) || "";
+  const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+  const sellerFirstName = document.querySelector('#prospectFirstName') ? document.querySelector('#prospectFirstName').textContent.trim() : (document.querySelector('[name="contact.first_name"]') ? document.querySelector('[name="contact.first_name"]').value.trim() : '');
+  const sellerLastName = document.querySelector('#prospectLastName') ? document.querySelector('#prospectLastName').textContent.trim() : '';
+  const sellerEmail = document.querySelector('[name="contact.email"]') ? document.querySelector('[name="contact.email"]').value.trim() : '';
+  const addressCell = row ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') : null) : null;
+  const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
+  const propertyAddressLine1 = fullAddressFromRow ? fullAddressFromRow.split(',')[0].trim() : (document.querySelector('[name="contact.street_address"]') ? document.querySelector('[name="contact.street_address"]').value.trim() : '');
+  
+  // const sellerData = [sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1];
   
   let myFullName = '';
   let myFirstName = '';
@@ -34,10 +42,6 @@ async function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmai
       myTele = userInfo.myTele;
   }
   
-  const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
-
-  let menuData = {};
-
   if (commType === "sms") {
     menuData = {
       'Initial Outreach': {
@@ -3873,7 +3877,7 @@ async function addTemplateMenu({
         }
 
         let menuData = {};
-        if (type === 'sms' || type === 'email') {
+        if (type === 'sms') {
           menuData = await getMenuData(type, undefined, undefined, undefined, undefined);
         } else if (type === 'voicemail') {
           menuData = { 'Voicemail': { 'Note Template': { message: 'Left a voicemail regarding their property.' } } };
@@ -3927,7 +3931,7 @@ async function addTemplateMenu({
                 wrapper.classList.add('hidden');
               };
             }
-
+            
             if (type === 'sms') {
               cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
 
@@ -6433,33 +6437,8 @@ async function addTemplateMenu() {
         try {
           const userInfo = await getUserData();
           if (!userInfo) return;
-    
-          const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-    
-          const sellerFirstName =
-            (document.querySelector('#prospectFirstName')?.textContent || '').trim() || '';
           
-          const sellerLastName =
-            (document.querySelector('#prospectLastName')?.textContent || '').trim() ||
-            '';
-          
-          const sellerEmail = document.querySelector('[name="contact.email"]')?.value || '';
-          const addressCell =
-            row?.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') || null;
-          
-          const fullAddressFromRow = (addressCell?.textContent || '').trim();
-          
-          const propertyAddressLine1 =
-            (fullAddressFromRow ? fullAddressFromRow.split(',')[0].trim() : '') ||
-            (document.querySelector('[name="contact.street_address"]')?.value || '').trim();
-          
-          const safePropertyAddress = propertyAddressLine1 || 'your property';
-    
-          const myFirstName = userInfo.myFirstName || '';
-          const myEmail = userInfo.myEmail || '';
-          const myTele = userInfo.myTele || '';
-          
-          const menuData = getMenuData("sms", myFirstName, myEmail, myTele, propertyAddressLine1, sellerEmail, sellerFirstName, sellerLastName)
+          const menuData = getMenuData('sms', 'modal');
           
           let floatingModal = document.getElementById('sms-template-hover');
           if (!floatingModal) {
