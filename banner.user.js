@@ -14,8 +14,12 @@ const CALL_RULES = {
 
 
 function getMenuData(commType, acqFirstName, acqLastName, acqEmail, acqTele, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
+  let menuData = {};
+  
+  const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
+  
   if (commType === "sms") {
-    let menuData = {
+    menuData = {
       'Initial Outreach': {
         'No Contact #0 (Generic)': { message: `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n` },
         'No Contact #1 (Condition Inquiry)': { message: `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}` },
@@ -84,6 +88,63 @@ function getMenuData(commType, acqFirstName, acqLastName, acqEmail, acqTele, sel
       }
     };
   }
+  if (commType === 'email') {
+    const signature = `
+        \n\nKind regards,
+        <strong>${myFullName}</strong> | Property Acquisition Officer<br>
+        <strong>Cash Land Buyer USA</strong><br>
+        📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
+        📞 ${myTele}<br>
+        <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>
+    `;
+
+    menuData = {
+        'Initial No Contact': {
+            "Initial No Contact #1": {
+                subject: `Regarding ${safePropertyAddress}`,
+                message: `Hi ${sellerFirstName},\n\nAre you still looking to sell your property?\n\nWe're ready to move forward when you are.${signature}`
+            },
+            "Initial No Contact #2": {
+                subject: `Following up on ${safePropertyAddress}`,
+                message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.${signature}`
+            },
+            "Initial No Contact #3": {
+                subject: `Need to speak with you about ${safePropertyAddress}`,
+                message: `Hi ${sellerFirstName},\n\nI've reached out a few times and haven’t heard back. If you're still open to selling, I'd really like to reconnect and see if we're a fit.\n\nIf you’ve already made other plans, please let me know, and I'll respectfully stop contacting you.${signature}`
+            }
+        },
+        'Pre-Sale Follow-Up': {
+            "Pre-Sale Follow-Up #1": {
+                subject: `Follow-up on contract sent`,
+                message: `Hello ${sellerFirstName},\n\nI'm following up on the contract we sent. Let me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
+            },
+            "Pre-Sale Follow-Up #2": {
+                subject: `Second follow-up on contract`,
+                message: `Hello ${sellerFirstName},\n\nJust checking in again on the contract. I'm happy to clarify anything if needed.\n\nFeel free to reach out at ${myTele}.${signature}`
+            },
+            "Pre-Sale Follow-Up #3": {
+                subject: `Still interested in the contract?`,
+                message: `Hello ${sellerFirstName},\n\nI haven’t heard back regarding the contract. If you’re still interested, I'm ready when you are.\n\nYou can reach me at ${myTele}.${signature}`
+            }
+        },
+        'Advisor Change': {
+            "Advisor Change #1": {
+                subject: `Change of hands regarding ${safePropertyAddress}`,
+                message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
+            }
+        },
+        'Add Signature': {
+            "Signature #1": {
+                subject: ``,
+                message: `\n\nKind regards,
+                         <strong>${myFullName}</strong> | Property Acquisition Officer<br>
+                         <strong>Cash Land Buyer USA</strong><br>
+                         📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
+                         📞 ${myTele}<br>
+                         <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`
+            }
+        }
+    };
   return menuData;
 }
 
@@ -3799,8 +3860,6 @@ async function addTemplateMenu({
                         myTele = userInfo.myTele;
                     }
 
-                    let menuData = {};
-
                     let floatingModal = document.getElementById(`${type}-modal`);
                     if (!floatingModal) {
                         floatingModal = createFloatingModal({
@@ -3814,190 +3873,13 @@ async function addTemplateMenu({
                         });
                     }
 
-                    if (type === 'email') {
-                        const signature = `
-                            \n\nKind regards,
-                            <strong>${myFullName}</strong> | Property Acquisition Officer<br>
-                            <strong>Cash Land Buyer USA</strong><br>
-                            📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
-                            📞 ${myTele}<br>
-                            <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>
-                        `;
-
-                        const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
-
-                        menuData = {
-                            'Initial No Contact': {
-                                "Initial No Contact #1": {
-                                    subject: `Regarding ${propertyAddressLine1}`,
-                                    message: `Hi ${sellerFirstName},\n\nAre you still looking to sell your property?\n\nWe're ready to move forward when you are.${signature}`
-                                },
-                                "Initial No Contact #2": {
-                                    subject: `Following up on ${propertyAddressLine1}`,
-                                    message: `Hi ${sellerFirstName},\n\nI haven't heard back and wanted to see if you're still considering your options for selling the property.\n\nIf the timing isn’t right, that’s totally fine. I'd still appreciate a quick note so I know where things stand.${signature}`
-                                },
-                                "Initial No Contact #3": {
-                                    subject: `Need to speak with you about ${propertyAddressLine1}`,
-                                    message: `Hi ${sellerFirstName},\n\nI've reached out a few times and haven’t heard back. If you're still open to selling, I'd really like to reconnect and see if we're a fit.\n\nIf you’ve already made other plans, please let me know, and I'll respectfully stop contacting you.${signature}`
-                                }
-                            },
-                            'Pre-Sale Follow-Up': {
-                                "Pre-Sale Follow-Up #1": {
-                                    subject: `Follow-up on contract sent`,
-                                    message: `Hello ${sellerFirstName},\n\nI'm following up on the contract we sent. Let me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
-                                },
-                                "Pre-Sale Follow-Up #2": {
-                                    subject: `Second follow-up on contract`,
-                                    message: `Hello ${sellerFirstName},\n\nJust checking in again on the contract. I'm happy to clarify anything if needed.\n\nFeel free to reach out at ${myTele}.${signature}`
-                                },
-                                "Pre-Sale Follow-Up #3": {
-                                    subject: `Still interested in the contract?`,
-                                    message: `Hello ${sellerFirstName},\n\nI haven’t heard back regarding the contract. If you’re still interested, I'm ready when you are.\n\nYou can reach me at ${myTele}.${signature}`
-                                }
-                            },
-                            'Advisor Change': {
-                                "Advisor Change #1": {
-                                    subject: `Change of hands regarding ${safePropertyAddress}`,
-                                    message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
-                                }
-                            },
-                            'Add Signature': {
-                                "Signature #1": {
-                                    subject: ``,
-                                    message: `\n\nKind regards,
-                                             <strong>${myFullName}</strong> | Property Acquisition Officer<br>
-                                             <strong>Cash Land Buyer USA</strong><br>
-                                             📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
-                                             📞 ${myTele}<br>
-                                             <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`
-                                }
-                            }
-                        };
-                    } else if (type === 'sms') {
-                        const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
-
-                        menuData = {
-                            'Initial Outreach': {
-                                //     'No Contact #1 (Condition Inquiry)': {
-                                //         message: `Hi ${sellerFirstName}, I’m reaching out about ${safePropertyAddress}. I offer quick, hassle-free sales — cash offers, no fees, no cleanup, and flexible closing. What is the condition of the property?\n${myFirstName}`
-                                //     },
-                                'No Contact #0 (Generic)': {
-                                    message: `Hi ${sellerFirstName}. Are you still looking to sell ${safePropertyAddress}?\n\n`
-                                },
-                                'No Contact #1 (Condition Inquiry)': {
-                                    message: `Hi ${sellerFirstName}, I'm looking to buy ${safePropertyAddress}. When can we have a quick call?\n${myFirstName}`
-                                },
-                                'No Contact #2 (Basic Cash Offer Ask)': {
-                                    message: `Hi ${sellerFirstName}. I'm interested in making an offer for ${safePropertyAddress}. When can I give you a call to discuss it further?\n${myFirstName}`
-                                },
-                                'No Contact #3 (Still Available?)': {
-                                    message: `Hi ${sellerFirstName}, just following up about paying cash for ${safePropertyAddress}. Is it still available?\n${myFirstName}`
-                                },
-                                'No Contact #4 (Quick Chat Request)': {
-                                    message: `Hi ${sellerFirstName}, is now a good time to chat about buying ${safePropertyAddress}?\n${myFirstName}`
-                                },
-                                'No Contact #5 (Asking Price)': {
-                                    message: `Hi ${sellerFirstName}. Can you let me know your asking price for ${safePropertyAddress}?\n${myFirstName}`
-                                },
-                                'No Contact #6 (Preferred Communication)': {
-                                    message: `Hi ${sellerFirstName}, would you rather text or talk on the phone about ${safePropertyAddress}? I’m good either way.\n${myFirstName}`
-                                },
-                                'Reason for Selling': {
-                                    message: `Hey ${sellerFirstName}, quick question. Why are you considering selling ${safePropertyAddress}?\n${myFirstName}`
-                                },
-                                'Intro with Contact Info': {
-                                    message: `Hi ${sellerFirstName}, this is ${myFirstName} with Cash Land Buyer USA. Feel free to call or text me here, or if it’s easier, email me at ${myEmail}. Looking forward to working with you!`
-                                }
-                            },
-                            'Disconnected': {
-                                'Disconnected?': {
-                                    message: `Did we get disconnected on my end or did you mean to hang up?\n\nIf you don't want to speak with me to sell your property, that's okay. I just need to know.`
-                                }
-                            },
-                            'Follow-Up': {
-                                'Contract - Not Opened #1': {
-                                    message: `Hi ${sellerFirstName}. I noticed our offer wasn't opened. Can you please confirm that you received our email?`
-                                },
-                                'Contract - Not Opened #2': {
-                                    message: `Hi ${sellerFirstName}. Do you have any questions about the contract we sent over?`
-                                },
-                                'Sent Contract Confirm': {
-                                    message: `Thanks again for taking the time to speak with me. I've sent the contract to ${sellerEmail}. Did you get it?`
-                                },
-                                'Friendly Bump': {
-                                    message: `Hi ${sellerFirstName}, just circling back on ${safePropertyAddress}. I’m still interested if you are. Let me know either way.\n${myFirstName}`
-                                },
-                                'Still Considering?': {
-                                    message: `Hey ${sellerFirstName}, I understand if you’re not ready to decide yet. Just checking if you're still open to selling ${safePropertyAddress}?\n${myFirstName}`
-                                },
-                                'Wrong Number Check': {
-                                    message: `Hi, I’m trying to reach ${sellerFirstName} about ${safePropertyAddress}. If this isn’t the right number, I apologize!`
-                                }
-                            },
-                            'Offer Context': {
-                                'Why Us (no fees)': {
-                                    message: `We buy fast, with cash, as-is\n- No agent commissions\n- No closing costs (we cover them)\n- No repair costs (we buy as-is)\n- No staging or cleaning expenses each time the property is shown\n- No showings\n- No inspection or appraisal fees\n- No deed transfer fees or lawyer fees\n- No holding costs (utilities, taxes, insurance, etc. while waiting to sell)\n- No listing fees or marketing expenses\n- No risk of buyer financing falling through\n`
-                                },
-                                'Bait-and-Switch Warning': {
-                                    message: `Some companies say they’ll pay a lot just to get your attention. But when it’s time to sign papers, they lower the price. They do this to try and win over others, so be careful.`
-                                },
-                                'Justification of Offer': {
-                                    message: `I know the price might seem low, but remember, we have the cash, so we can close quickly. We buy as-is, cover the closing costs and holding fees, save you from realtor commissions, and eliminate the hassle of property showings.`
-                                },
-                                'No Underpricing Tricks': {
-                                    message: `We put our offers in writing and don’t overprice, then undercut at the last minute like others may try to do.`
-                                },
-                                'Price Negotiation Opener': {
-                                    message: `It’s normal to go back and forth on the price until we find something that feels fair for both sides. What price would you be willing to sell your property for?`
-                                }
-                            },
-                            'Process Summary': {
-                                'Process Summary': {
-                                    message: `Quick overview: We handle everything — pay in cash, cover closing costs, and buy as-is. You don’t need to clean, fix, or show the property.`
-                                },
-                                'How It Works': {
-                                    message: `Once we agree on a price, I send a simple contract and close at a local title company. No pressure. Just info if you're considering selling.`
-                                },
-                                'Market vs Cash Comparison': {
-                                    message: `Selling with a realtor could take 90+ days. I can close in under 2 weeks if it works for you. No open houses, no listings.`
-                                }
-                            },
-                            'Final Attempts': {
-                                'Missed Scheduled Call': {
-                                    message: `Hi, it's ${myFirstName} with CLB. I tried calling back on and after our scheduled time, but I wasn't able to reach you. If you're no longer interested in the offer, just let me know so I can close out your file for now and reach out at a later date.`
-                                },
-                                'Inbound Call Follow-Up': {
-                                    message: `Hey ${sellerFirstName}. Tried to return your call but wasn't able to reach you. I'll try you again in a bit, or you can text me if that's easier.`
-                                },
-                                'Closing File Soft Exit': {
-                                    message: `Hi ${sellerFirstName}, I don’t want to keep bothering you. If I don’t hear back, I’ll assume you’re not interested and close your file. No hard feelings at all. I'll try reaching out again in the near future.`
-                                },
-                                'Expiring (FOMO)': {
-                                    message: `Hi ${sellerFirstName}. Our offer is about to expire. Don't miss out! Call or text me when you can.`
-                                }
-                            },
-                            'Advisor Change': {
-                                'Intro': {
-                                    message: `Hi ${sellerFirstName}. You were speaking with my co-worker previously about selling your property. My name is ${myFirstName} and I'll be looking after you going forward. What questions can I answer for you?`
-                                }
-                            },
-                            'Last Ditch': {
-                                'Last Ditch': {
-                                    message: `If they try to low-ball you at the very last moment, don't feel obligated to take it.\nLet me know immediately and I will make sure you get a fair deal.`
-                                }
-                            },
-                            'Contract Clarification': {
-                                '$10 Earnest': {
-                                    message: `The $10 is just to open escrow and make the contract binding. The full amount will be paid at closing, but the $10 is what’s used to officially start the process.`
-                                }
-                            }
-                        };
-                    } else if (type === 'voicemail') {
+                    if (type === 'voicemail') {
                         const hasStreetName = propertyStreetName && propertyStreetName.trim() !== '';
                         const suffix = hasStreetName ? ` on ${propertyStreetName}` : '';
                         const propMention = hasStreetName ? ` your property on ${propertyStreetName}` : ' your property';
 
-                        menuData = {
+                        let menuData = getMenuData("sms", myFirstName, myEmail, myTele, propertyAddressLine1, sellerEmail, sellerFirstName, sellerLastName);
+                        let menuData1 = {
                             'Initial No Contact': {
                                 'Generic No Contact': {
                                     //message: `Hello ${sellerFirstName}, this is ${myFirstName} from Cash Land Buyer USA. I understand you're interested in selling${propMention}. I make cash offers. I buy as-is, and can close very quickly with no commissions, no repairs, and no inconvenient property showings. I'm very interested in discussing this further with you so you can call or text me directly at ${myTele} and we'll see what we can do for you. Looking forward to hearing from you soon!`
