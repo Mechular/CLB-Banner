@@ -12,14 +12,11 @@ const CALL_RULES = {
 
 let menuData = {};
 
-async function getMenuData(commType) {
+async function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1) {
   const userInfo = await getUserData().catch(() => null);
   if (!userInfo) return;
   
-  let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
-  let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-  let propertyAddressLine1 = document.querySelector('[name="contact.street_address"]')?.value || "";
-  let propertyStreetName = getStreetName(document.querySelector('[name="contact.street_address"]')?.value) || "";
+  let propertyStreetName = getStreetName(propertyAddressLine1) || "";
   
   let myFullName = '';
   let myFirstName = '';
