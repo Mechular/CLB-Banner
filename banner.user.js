@@ -347,9 +347,9 @@ Let me know immediately and I will make sure you get a fair deal.`,
   if (commType === 'email') {
     const signature = `
 Kind regards,
-<strong>${myFullName}</strong>\n
-Property Acquisition Officer\nCash Land Buyer USA</strong>\n
-📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>\n
+<strong>${myFullName}</strong>
+Property Acquisition Officer  |  Cash Land Buyer USA
+📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>
 📞 ${myTele}\n
 <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`;
 
