@@ -84,6 +84,7 @@ function getMenuData(commType, acqFirstName, acqLastName, acqEmail, acqTele, sel
       }
     };
   }
+  return menuData;
 }
 
 // Keep your original isWithinCallHours working by syncing globals it reads
