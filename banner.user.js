@@ -23,6 +23,7 @@ async function getMenuData(commType) {
   const addressCell = row ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') : null) : null;
   const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
   const propertyAddressLine1 = fullAddressFromRow ? fullAddressFromRow.split(',')[0].trim() : (document.querySelector('[name="contact.street_address"]') ? document.querySelector('[name="contact.street_address"]').value.trim() : '');
+  const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
   
   // const sellerData = [sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1];
   
