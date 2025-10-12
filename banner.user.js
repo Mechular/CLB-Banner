@@ -345,16 +345,13 @@ Let me know immediately and I will make sure you get a fair deal.`,
   }
 
   if (commType === 'email') {
-    const signature =
-      `
-
+    const signature = `
 Kind regards,
-<strong>${ctx.myFullName}</strong> | Property Acquisition Officer<br>
-<strong>Cash Land Buyer USA</strong><br>
-📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${ctx.myEmail}">${ctx.myEmail}</a><br>
-📞 ${ctx.myTele}<br>
-<a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>
-`;
+<strong>${myFullName}</strong>\n
+Property Acquisition Officer\nCash Land Buyer USA</strong>\n
+📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>\n
+📞 ${myTele}\n
+<a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`;
 
     menuData = {
       'Initial No Contact': {
@@ -423,14 +420,7 @@ Kind regards,
         'Signature #1': makeItem(
           ({ myFullName, myEmail, myTele }) => ({
             subject: ``,
-            message: `
-
-Kind regards,
-<strong>${myFullName}</strong> | Property Acquisition Officer<br>
-<strong>Cash Land Buyer USA</strong><br>
-📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a><br>
-📞 ${myTele}<br>
-<a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`
+            message: signature
           }),
           ['myFullName', 'myEmail', 'myTele'],
           ctx
