@@ -10,11 +10,10 @@ const CALL_RULES = {
   SHOW_BADGE: true           // show TZ/time badge in Phone cell
 };
 
+let menuData = {};
 
-
-
-function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, sellerAddressLine1) {
-  const userInfo = await getUserData();
+async function getMenuData(commType) {
+  const userInfo = await getUserData().catch(() => null);
   if (!userInfo) return;
   
   let sellerFirstName = document.querySelector('[name="contact.first_name"]')?.value || "";
@@ -37,10 +36,11 @@ function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, sel
       myEmail = userInfo.myEmail;
       myTele = userInfo.myTele;
   }
-  let menuData = {};
   
   const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1) ? propertyAddressLine1 : 'your property';
-  
+
+  let menuData = {};
+
   if (commType === "sms") {
     menuData = {
       'Initial Outreach': {
@@ -111,6 +111,7 @@ function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, sel
       }
     };
   }
+
   if (commType === 'email') {
     const signature = `
         \n\nKind regards,
@@ -168,6 +169,8 @@ function getMenuData(commType, sellerFirstName, sellerLastName, sellerEmail, sel
             }
         }
     };
+  }
+
   return menuData;
 }
 
@@ -3774,271 +3777,252 @@ async function addTextMessageMenu() {
 
 
 async function addTemplateMenu({
-    menuId = 'tb_template_menu',
-    menuLabel = 'Templates',
-    rightOf = 'tb_tasks',
-    type = null
+  menuId = 'tb_template_menu',
+  menuLabel = 'Templates',
+  rightOf = 'tb_tasks',
+  type = null
 } = {}) {
-    if (!ENABLE_MENU_BUTTONS) return;
+  if (!ENABLE_MENU_BUTTONS) return;
 
-    try {
-        const prevMenu = document.getElementById(rightOf); // document.getElementById('tb_scripts_menu') || document.getElementById('tb_voicemail_menu') || document.getElementById('tb_email_menu') || document.getElementById('tb_sms_menu') ||document.getElementById("tb_tasks");
-        const notesTab = document.getElementById("notes-tab");
-        const existingMenu = document.getElementById(menuId);
+  try {
+    const prevMenu = document.getElementById(rightOf);
+    const notesTab = document.getElementById('notes-tab');
+    const existingMenu = document.getElementById(menuId);
 
-        if (!prevMenu || !notesTab) return;
+    if (!prevMenu || !notesTab) return;
 
-        if (existingMenu && type === 'email') {
-            const emailInput = document.querySelector('[name="contact.email"]');
-            if (emailInput && emailInput.value.trim() === '') {
-                attachTooltip(existingMenu, true, "No Email Address");
-            } else {
-                detachTooltip(existingMenu);
-            }
-        }
-
-        if (!existingMenu) {
-            const menuLink = document.createElement('a');
-            menuLink.id = menuId;
-            menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-            menuLink.setAttribute('aria-label', menuLabel);
-            menuLink.style.lineHeight = '1.6rem';
-
-            menuLink.innerHTML = `
-                <span class="flex items-center select-none">
-                    ${menuLabel}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </span>
-                <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
-            `;
-
-            prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
-
-            const wrapper = menuLink.querySelector('.template-dropdown');
-            wrapper.style.width = '13rem';
-            wrapper.style.left = '0';
-
-            menuLink.addEventListener('click', async e => {
-                e.preventDefault();
-                closeOtherMenus(menuId);
-
-                if (wrapper.classList.contains('hidden')) {
-                    // Show the menu
-                    wrapper.removeAttribute('hidden');
-
-                }
-                wrapper.innerHTML = '';
-
-                if (type === 'sms') {
-                    const autoSendCheckboxWrapper = document.createElement('div');
-                    autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
-
-                    const checkboxLabel = document.createElement('label');
-                    checkboxLabel.textContent = 'Auto-send Text Message';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'mr-2';
-                    checkboxLabel.prepend(checkbox);
-
-                    autoSendCheckboxWrapper.appendChild(checkboxLabel);
-                    wrapper.appendChild(autoSendCheckboxWrapper);
-
-                    autoSendCheckboxWrapper.addEventListener('click', e => e.stopPropagation());
-
-                    // Retrieve the stored state from localStorage and set checkbox
-                    const storedAutoSendState = localStorage.getItem('autoSendChecked');
-                    checkbox.checked = storedAutoSendState === 'true';
-
-                    // Save the checkbox state to localStorage when it changes
-                    checkbox.addEventListener('change', () => {
-                        localStorage.setItem('autoSendChecked', checkbox.checked);
-                    });
-                }
-
-                try {
-                    let floatingModal = document.getElementById(`${type}-modal`);
-                    if (!floatingModal) {
-                        floatingModal = createFloatingModal({
-                            id: `${type}-modal`,
-                            styles: {
-                                backgroundColor: '#f9f9f9',
-                                border: '1px solid #ccc',
-                                minWidth: '20rem',
-                                maxWidth: '20rem'
-                            }
-                        });
-                    }
-
-                    if (type === 'sms') {
-                        let menuData = getMenuData("sms", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
-                    }
-                    if (type === 'email') {
-                        let menuData = getMenuData("email", sellerFirstName, sellerLastName, sellerEmail, propertyAddressLine1);
-                    }
-                    if (type === 'voicemail') {
-                    }
-
-                    for (const [group, templates] of Object.entries(menuData)) {
-                        const groupWrapper = document.createElement('div');
-                        groupWrapper.className = 'relative group submenu-wrapper';
-                        groupWrapper.innerHTML = `
-                            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-                                <span>${group}</span>
-                                <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-                            </button>
-                            <div class="hidden template-panel"></div>
-                        `;
-
-                        const panel = groupWrapper.querySelector('.template-panel');
-
-                        for (const [label, { subject = '', message }] of Object.entries(templates)) {
-                            const buttonItem = document.createElement('div');
-                            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-                            buttonItem.textContent = label;
-
-                            let handleClick = () => console.warn(`Unhandled template type: ${type}`);
-
-                            // const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-                            let cleanedMessage = '';
-
-                            if (type === 'email') {
-                                cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
-
-                                handleClick = async () => {
-                                    const activeTab = document.querySelector('.nav-link.active');
-                                    const emailTab = document.querySelector('#email-tab');
-                                    if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
-                                        emailTab.click();
-                                        await new Promise(resolve => setTimeout(resolve, 1500));
-                                    }
-
-                                    const composer = document.querySelector('#message-composer');
-                                    const subjectField = composer?.querySelector('#subject');
-                                    const editor = composer?.querySelector('.tiptap.ProseMirror');
-
-                                    if (subjectField) setInputValue(subjectField, subject, 'email-template');
-                                    if (editor) {
-                                        editor.innerHTML = cleanedMessage
-                                            .split('\n')
-                                            .map(p => `<p>${p}</p>`)
-                                            .join('');
-                                    }
-
-                                    floatingModal.remove();
-                                    wrapper.setAttribute('hidden', '');
-                                };
-                            }
-
-                            if (type === 'sms') {
-                                cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-
-                                handleClick = async () => {
-                                    let activeTab = document.querySelector('.nav-link.active');
-                                    const smsTab = document.querySelector('#sms-tab');
-
-                                    if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
-                                        smsTab.click();
-                                        await new Promise(resolve => setTimeout(resolve, 250));
-                                    }
-
-                                    const input = document.querySelector('#text-message');
-                                    const sendButton = document.querySelector('#send-sms');
-                                    if (!input) return;
-
-                                    setInputValue(input, cleanedMessage, 'smsMsg');
-
-                                    activeTab = document.querySelector('.nav-link.active');
-
-                                    // Check for the checkbox by ID or wrapper scope
-                                    const checkbox = wrapper.querySelector('input[type="checkbox"]');
-                                    if (checkbox?.checked && sendButton && activeTab.innerText.trim() === 'SMS') {
-                                        setTimeout(() => sendButton.click(), 100);
-                                    }
-
-                                    floatingModal.remove();
-                                    wrapper.setAttribute('hidden', '');
-                                };
-
-                            }
-
-                            if (type === 'voicemail') {
-                                cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-
-                                handleClick = () => {
-                                    const textarea = document.querySelector('#voicemail-note');
-                                    if (textarea) {
-                                        setInputValue(textarea, cleanedMessage, 'vm-template');
-                                    }
-
-                                    floatingModal.remove();
-                                    wrapper.setAttribute('hidden', '');
-                                };
-                            }
-
-                            buttonItem.addEventListener('click', handleClick);
-
-                            // Attach hover preview (if modal is supported for this type)
-                            if (floatingModal && typeof floatingModal.attachHover === 'function') {
-                                if (typeof cleanedMessage === 'string') {
-                                    const preview = cleanedMessage.replace(/\n/g, '<br>');
-                                    floatingModal.attachHover(buttonItem, preview, handleClick);
-                                }
-                            }
-
-                            panel.appendChild(buttonItem);
-                        }
-
-                        wrapper.appendChild(groupWrapper);
-                    }
-
-                    wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
-                        const button = wrap.querySelector('button');
-                        const panel = wrap.querySelector('.template-panel');
-
-                        Object.assign(panel.style, {
-                            fontFamily: 'inherit',
-                            fontSize: '0.875rem',
-                            lineHeight: '1.25rem',
-                            padding: '0.5rem',
-                            maxWidth: '500px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-                            zIndex: '9999',
-                            position: 'fixed',
-                            display: 'none',
-                            whiteSpace: 'normal',
-                            color: '#374151'
-                        });
-
-                        wrap.addEventListener('mouseenter', () => {
-                            const rect = button.getBoundingClientRect();
-                            panel.style.top = `${rect.top + window.scrollY}px`;
-                            panel.style.left = `${rect.right + window.scrollX}px`;
-                            panel.style.display = 'block';
-                        });
-
-                        wrap.addEventListener('mouseleave', () => {
-                            panel.style.display = 'none';
-                        });
-                    });
-
-                } finally {
-                    wrapper.classList.toggle('hidden');
-                }
-            });
-        }
-    } catch (err) {
-        cErr(`Error in ${menuId}: ${err}`);
+    if (existingMenu && type === 'email') {
+      const emailInput = document.querySelector('[name="contact.email"]');
+      if (emailInput && emailInput.value.trim() === '') {
+        attachTooltip(existingMenu, true, 'No Email Address');
+      } else {
+        detachTooltip(existingMenu);
+      }
     }
+
+    if (!existingMenu) {
+      const menuLink = document.createElement('a');
+      menuLink.id = menuId;
+      menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+      menuLink.setAttribute('aria-label', menuLabel);
+      menuLink.style.lineHeight = '1.6rem';
+
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none">
+          ${menuLabel}
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+        <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
+      `;
+
+      prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
+
+      const wrapper = menuLink.querySelector('.template-dropdown');
+      wrapper.style.width = '13rem';
+      wrapper.style.left = '0';
+
+      menuLink.addEventListener('click', async e => {
+        e.preventDefault();
+        closeOtherMenus(menuId);
+
+        const isOpen = !wrapper.classList.contains('hidden');
+        if (isOpen) {
+          wrapper.classList.add('hidden');
+          wrapper.innerHTML = '';
+          return;
+        }
+
+        wrapper.classList.remove('hidden');
+        wrapper.innerHTML = '';
+
+        if (type === 'sms') {
+          const autoSendCheckboxWrapper = document.createElement('div');
+          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+
+          const checkboxLabel = document.createElement('label');
+          checkboxLabel.textContent = 'Auto-send Text Message';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'mr-2';
+          checkboxLabel.prepend(checkbox);
+
+          autoSendCheckboxWrapper.appendChild(checkboxLabel);
+          wrapper.appendChild(autoSendCheckboxWrapper);
+
+          autoSendCheckboxWrapper.addEventListener('click', evt => evt.stopPropagation());
+
+          const storedAutoSendState = localStorage.getItem('autoSendChecked');
+          checkbox.checked = storedAutoSendState === 'true';
+
+          checkbox.addEventListener('change', () => {
+            localStorage.setItem('autoSendChecked', checkbox.checked);
+          });
+        }
+
+        let floatingModal = document.getElementById(`${type}-modal`);
+        if (!floatingModal) {
+          floatingModal = createFloatingModal({
+            id: `${type}-modal`,
+            styles: {
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem'
+            }
+          });
+        }
+
+        let menuData = {};
+        if (type === 'sms' || type === 'email') {
+          menuData = await getMenuData(type, undefined, undefined, undefined, undefined);
+        } else if (type === 'voicemail') {
+          menuData = { 'Voicemail': { 'Note Template': { message: 'Left a voicemail regarding their property.' } } };
+        }
+
+        for (const [group, templates] of Object.entries(menuData || {})) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="template-panel"></div>
+          `;
+
+          const panel = groupWrapper.querySelector('.template-panel');
+
+          for (const [label, { subject = '', message }] of Object.entries(templates)) {
+            const buttonItem = document.createElement('div');
+            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            buttonItem.textContent = label;
+
+            let cleanedMessage = '';
+            let handleClick = () => console.warn(`Unhandled template type: ${type}`);
+
+            if (type === 'email') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
+
+              handleClick = async () => {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) {
+                  editor.innerHTML = cleanedMessage
+                    .split('\n')
+                    .map(p => `<p>${p}</p>`)
+                    .join('');
+                }
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (type === 'sms') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+
+              handleClick = async () => {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 250));
+                }
+
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanedMessage, 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (type === 'voicemail') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = () => {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) {
+                  setInputValue(textarea, cleanedMessage, 'vm-template');
+                }
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            buttonItem.addEventListener('click', handleClick);
+
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(cleanedMessage || '').replace(/\n/g, '<br>');
+              floatingModal.attachHover(buttonItem, preview, handleClick);
+            }
+
+            panel.appendChild(buttonItem);
+          }
+
+          wrapper.appendChild(groupWrapper);
+        }
+
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panel = wrap.querySelector('.template-panel');
+
+          Object.assign(panel.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '500px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '9999',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
+
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panel.style.top = `${rect.top + window.scrollY}px`;
+            panel.style.left = `${rect.right + window.scrollX}px`;
+            panel.style.display = 'block';
+          });
+
+          wrap.addEventListener('mouseleave', () => {
+            panel.style.display = 'none';
+          });
+        });
+      });
+    }
+  } catch (err) {
+    cErr(`Error in ${menuId}: ${err}`);
+  }
 }
-
-
-
 
 async function addQuickNotesMenu() {
     if (!ENABLE_MENU_BUTTONS) return;
