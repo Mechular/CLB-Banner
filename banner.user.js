@@ -3876,11 +3876,11 @@ async function addTemplateMenu({
           });
         }
 
-        let menuData = {};
+        menuData = await getMenuData(type);
+        
         if (type === 'sms') {
-          menuData = await getMenuData(type, undefined, undefined, undefined, undefined);
         } else if (type === 'voicemail') {
-          menuData = { 'Voicemail': { 'Note Template': { message: 'Left a voicemail regarding their property.' } } };
+          // menuData = { 'Voicemail': { 'Note Template': { message: 'Left a voicemail regarding their property.' } } };
         }
 
         for (const [group, templates] of Object.entries(menuData || {})) {
