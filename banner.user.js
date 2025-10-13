@@ -8407,7 +8407,7 @@ async function autoDispoCall() {
                     rightOf: 'tb_email_menu'
                 });
 
-                addQuickNotesMenu();
+                // addQuickNotesMenu();
 
                 removePostDialModal();
                 shrinkCenterPanelHeight();
