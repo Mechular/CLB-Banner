@@ -13,7 +13,6 @@ const CALL_RULES = {
 let menuData = {};
 
 async function getMenuData(commType) {
-  // Local helpers and styles are scoped inside this function
   function injectMenuHoverStyles() {
     if (document.getElementById('menu-disabled-style')) return;
     const style = document.createElement('style');
@@ -35,7 +34,6 @@ async function getMenuData(commType) {
   function makeItem(getMessage, requiredKeys, ctx) {
     const disabled = !hasAll(ctx, requiredKeys);
     const result = getMessage(ctx);
-    // Allow both string and {subject, message}
     return typeof result === 'string'
       ? { disabled, message: disabled ? '' : result }
       : { disabled, subject: disabled ? '' : result.subject, message: disabled ? '' : result.message };
@@ -63,9 +61,7 @@ async function getMenuData(commType) {
     : '';
 
   const addressCell = row
-    ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
-        ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
-        : null)
+    ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') || null)
     : null;
 
   const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
@@ -88,7 +84,7 @@ async function getMenuData(commType) {
   let myTele = '';
 
   if (userInfo && userInfo.myFirstName) {
-    myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
+    myFullName = `${userInfo.myFirstName} ${userInfo.myLastName}`;
     myFirstName = userInfo.myFirstName;
     myLastName = userInfo.myLastName;
     myInitials = userInfo.myInitials;
@@ -96,6 +92,21 @@ async function getMenuData(commType) {
     myTele = userInfo.myTele;
   }
 
+  // helpers for VM street label (match Rocketly behavior)
+  function streetFromAddress(full) {
+    if (!full) return '';
+    const i = full.indexOf(',');
+    return i > 0 ? full.slice(0, i).trim() : full.trim();
+  }
+  function stripLeadingStreetNumbers(line) {
+    return line ? line.replace(/^\s*(?:\d{1,6}[A-Za-z]?)(?:-\d{1,6}[A-Za-z]?)?\s+/, '') : '';
+  }
+  function streetLabelFromAddress(full) {
+    const base = streetFromAddress(full);
+    return base ? stripLeadingStreetNumbers(base) : '';
+  }
+
+  // Fill VM fields so items are enabled and render correctly
   const ctx = {
     sellerFirstName,
     sellerLastName,
@@ -108,16 +119,15 @@ async function getMenuData(commType) {
     myInitials,
     myEmail,
     myTele,
-    // These are referenced by voicemail templates. If your app sets them elsewhere,
-    // they’ll be picked up by requiredKeys checks.
-    first: undefined,
-    fullAddress: undefined,
-    streetLabelFromAddress: undefined,
-    CALLER_NAME: undefined,
-    CALLBACK_NUMBER: undefined
+
+    first: sellerFirstName || undefined,
+    fullAddress: fullAddressFromRow || undefined,
+    streetLabelFromAddress,                 // function
+    CALLER_NAME: myFirstName || myFullName, // fallback to full name if needed
+    CALLBACK_NUMBER: myTele                 // phone from user profile
   };
 
-  if (commType === "sms") {
+  if (commType === 'sms') {
     menuData = {
       'Initial Outreach': {
         'No Contact #0 (Generic)': makeItem(
@@ -138,10 +148,11 @@ async function getMenuData(commType) {
           ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
           ctx
         ),
+        // fixed to use address + name
         'No Contact #3 (Time is running out)': makeItem(
-          ({ sellerFirstName }) =>
-            `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP.`,
-          ['sellerFirstName'],
+          ({ sellerFirstName, safePropertyAddress }) =>
+            `We're running out of time to decide about buying ${safePropertyAddress}, ${sellerFirstName}. Please contact me ASAP.`,
+          ['sellerFirstName', 'safePropertyAddress'],
           ctx
         ),
         'No Contact #4 (Time is almost up)': makeItem(
@@ -350,7 +361,7 @@ Kind regards,
 <strong>${myFullName}</strong>
 Property Acquisition Officer  |  Cash Land Buyer USA
 📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>
-📞 ${myTele}\n
+📞 ${myTele}
 <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`;
 
     menuData = {
@@ -408,11 +419,11 @@ Property Acquisition Officer  |  Cash Land Buyer USA
       },
       'Advisor Change': {
         'Advisor Change #1': makeItem(
-          ({ sellerFirstName, myFullName, myTele }) => ({
+          ({ sellerFirstName, myFullName, myTele, safePropertyAddress }) => ({
             subject: `Change of hands regarding ${safePropertyAddress}`,
             message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
           }),
-          ['sellerFirstName', 'myFullName', 'myTele'],
+          ['sellerFirstName', 'myFullName', 'myTele', 'safePropertyAddress'],
           ctx
         )
       },
@@ -4398,304 +4409,485 @@ async function addTemplateMenu({
   }
 }
 
-async function addQuickNotesMenu() {
-    if (!ENABLE_MENU_BUTTONS) return;
-    if (document.getElementById('tb_addnote_menu')) return;
-    if (!document.getElementById("notes-tab")) return;
-    if (!document.getElementById('notification_banner-top_bar')) return;
+async function addTemplateMenu({
+  menuId = 'tb_template_menu',
+  menuLabel = 'Templates',
+  rightOf = 'tb_tasks',
+  type = null
+} = {}) {
+  if (!ENABLE_MENU_BUTTONS) return;
 
-    const voicemailBtn = document.getElementById('tb_voicemail_menu');
-    if (!voicemailBtn || !voicemailBtn.parentNode) return;
+  try {
+    const prevMenu = document.getElementById(rightOf);
+    const notesTab = document.getElementById('notes-tab');
+    const existingMenu = document.getElementById(menuId);
 
-    const noteButton = document.createElement('a');
-    noteButton.id = 'tb_addnote_menu';
-    noteButton.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-    noteButton.setAttribute('aria-label', 'Add Note Menu');
-    noteButton.style.lineHeight = '1.6rem';
-    noteButton.style.zIndex = '1000';
-    noteButton.innerHTML = `
-        <span class="flex items-center select-none">
-            Quick Notes
-            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-        </span>
-        <div role="menu" aria-orientation="vertical" tabindex="-1"
-            class="hidden origin-top-right absolute right-0 mt-2 w-96 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40">
-        </div>
-    `;
+    if (!prevMenu || !notesTab) return;
 
-    // ✅ Create floating modal that follows cursor
-    const floatingModal = createFloatingModal({
-        id: 'quicknotes-modal',
-        styles: {
-            backgroundColor: '#f9f9f9',
-            border: '1px solid #ccc'
-        },
-        onUpdatePosition: (e, modal) => {
-            // Optional extra behavior on mouse move
-        }
-    });
-
-
-    const dropdown = noteButton.querySelector('div[role="menu"]');
-    dropdown.style.width = '26rem';
-    dropdown.style.left = '0';
-
-    async function renderNoteOptions() {
-        try {
-            closeOtherMenus('tb_addnote_menu');
-            dropdown.innerHTML = '';
-
-            const userInfo = await getUserData();
-            if (!userInfo) return;
-
-            let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-            let outboundCallCount = document.querySelector("#outboundCallCount").innerText;
-            const counts = await extractContactData();
-            console.log('counts', counts);
-
-            const smsText = counts.sms.outbound.count === "DND"
-            ? "SMS (DND)"
-            : counts.sms.outbound.today.count
-            ? `Sent SMS (Total: ${counts.sms.outbound.count})`
-            : `No SMS sent (Total: ${counts.sms.outbound.count})`;
-
-            const emailText = sellerEmail
-            ? (counts.email.outbound.today.count
-               ? `Sent email (Total: ${counts.email.outbound.count})`
-               : `No email sent (Total: ${counts.email.outbound.count})`)
-            : "Cannot email (no email address)";
-
-            const noteOptions = [];
-
-            let dispo = await getDisposition();
-          
-            // Check if dispo is empty or "Move to Contacted"
-            if (dispo === "Unable to reach") {
-                noteOptions.push({
-                    name: 'Lost Follow-Up',
-                    text: `${dispo} call back. No answer.`,
-                    nextAccount: true,
-                    autoSave: true
-                });
-            }
-
-
-            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
-                //if (counts.calls.outbound.count >= 2 && (counts.sms.outbound.count >= 2 || counts.sms.outbound.count === "DND")) {
-              if (counts.calls.outbound.count >= 5) {
-                    noteOptions.push({
-                        name: 'Move to Unable to Reach',
-                        text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.voicemail.outbound.count}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
-                        dispo: 'Unable to reach',
-                        nextAccount: true,
-                        autoSave: true
-                    });
-                }
-            }
-
-            if (counts.voicemail.outbound.count === 0) {
-                noteOptions.push({
-                    name: 'Left Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                });
-            } else {
-                noteOptions.push({
-                    name: 'Left Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                });
-            }
-
-            noteOptions.push(
-                {
-                    name: 'No Voicemail Left',
-                    text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Could Not Leave Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Standard Questions',
-                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nCMV: \nOur Offer: \nTimeline: \n\nRepairs: \nRenovations: \n`,
-                    autoSave: false
-                },
-                {
-                    name: 'Post Purchase Notes',
-                    text: `Purchase price: $ \nName of seller: \nProperty address: \n - Long/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \n - If tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
-                    autoSave: false
-                },
-                {
-                    name: 'Made Contact',
-                    text: `Call attempt #${counts.calls.outbound.count}\nMade contact.`,
-                    autoSave: false
-                },
-                {
-                    name: 'Appointment set',
-                    text: "Appointment set.",
-                    autoSave: false
-                },
-                {
-                    name: 'Call blocked',
-                    text: "Blocked by screening service",
-                    dispo: 'Unable to reach',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Rental Questions',
-                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilites: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
-                    autoSave: false
-                },
-                sellerEmail ? {
-                    name: 'Contract Sent',
-                    text: `Contract sent to ${sellerEmail}. <br><font size=-1 color=red>(Automatically moves to 'Move to Intial Offer Made')</font>`,
-                    dispo: `Move to Initial Offer Made`,
-                    autoSave: false
-                } : null,
-                {
-                    name: 'Not Looking to Sell',
-                    text: "Contact explicitly expressed they are not looking to sell <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
-                    dispo: 'Fake Lead',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Does Not Wish to Proceed',
-                    text: "Seller does not wish to proceed.\nREASON:",
-                    autoSave: false
-                },
-                {
-                    name: 'DNC',
-                    text: "Seller is on the DNC list. <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
-                    dispo: 'Fake Lead',
-                    nextAccount: true,
-                    autoSave: true
-                }
-            );
-
-            const cleanNotes = noteOptions.filter(Boolean).map(note => ({
-                name: note.name,
-                text: note.text.trim(),
-                dispo: note.dispo || null,
-                nextAccount: note.nextAccount || null,
-                autoSave: note.autoSave
-            }));
-
-            cleanNotes.forEach(({ name, text, dispo, nextAccount, autoSave }) => {
-                const noteButtonItem = document.createElement('button');
-                noteButtonItem.className = 'block w-full text-left px-4 py-2 text-sm text-gray-700';
-                noteButtonItem.innerHTML = name;
-
-                floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
-
-                noteButtonItem.addEventListener('click', () => {
-                    const textareaSelector = 'textarea[class*="input__textarea-el"]';
-                    const saveButtonSelector = "#notes-form-save-btn";
-
-                    function setTextareaValue(el, newText) {
-                        el.value = newText;
-                        el.dispatchEvent(new Event("input", { bubbles: true }));
-                        el.dispatchEvent(new Event("change", { bubbles: true }));
-                    }
-
-                    function handleNoteInsert(el, noteText) {
-                        const existingText = el.value.trim();
-                        if (existingText.includes(noteText)) return;
-
-                        // const autoSaveBlockers = ["standard questions", "rental questions", "does not wish to proceed"];
-                        // const haltAutoSave = autoSaveBlockers.some(str => noteText.toLowerCase().includes(str));
-
-                        let finalText = existingText ? existingText + "\n\n" + noteText : noteText;
-                        finalText = finalText.replace(/ <br><font[^>]*>(.*?)<\/font>/gi, "");
-
-                        setTextareaValue(el, finalText);
-
-                        // if (haltAutoSave) return;
-                        if (!autoSave) return;
-
-                        if (!existingText) {
-                            const saveButton = document.querySelector(saveButtonSelector);
-                            if (saveButton) {
-                                setTimeout(() => saveButton.click(), 100);
-                                if (dispo) {
-                                    // setDisposition(dispo);
-                                }
-                                if (nextAccount) {
-                                    clickToNextContact();
-                                }
-                                if (finalText.toLowerCase().includes("contract sent to ")) {
-                                    alert('Reminder: Add CMV to notes');
-                                }
-                            }
-                        }
-                    }
-
-                    const textarea = document.querySelector(textareaSelector);
-                    if (textarea) {
-                        handleNoteInsert(textarea, text);
-                    } else {
-                        const addNoteButton = document.getElementById("add-note-button");
-                        if (addNoteButton) {
-                            addNoteButton.click();
-                            setTimeout(() => {
-                                const newTextarea = document.querySelector(textareaSelector);
-                                if (newTextarea) {
-                                    handleNoteInsert(newTextarea, text);
-                                } else {
-                                    cWarn("Textarea still not found after 250ms.");
-                                }
-                            }, 250);
-                        }
-                    }
-                });
-
-                dropdown.appendChild(noteButtonItem);
-            });
-
-        } finally {
-            // optional cleanup
-        }
+    if (existingMenu && type === 'email') {
+      const emailInput = document.querySelector('[name="contact.email"]');
+      if (emailInput && emailInput.value.trim() === '') {
+        attachTooltip(existingMenu, true, 'No Email Address');
+      } else {
+        detachTooltip(existingMenu);
+      }
     }
 
-    noteButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const isOpen = !dropdown.classList.contains('hidden');
-        if (isOpen) {
-            dropdown.classList.add('hidden');
-        } else {
-            renderNoteOptions();
-            dropdown.classList.remove('hidden');
+    if (!existingMenu) {
+      const menuLink = document.createElement('a');
+      menuLink.id = menuId;
+      menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+      menuLink.setAttribute('aria-label', menuLabel);
+      menuLink.style.lineHeight = '1.6rem';
+
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none">
+          ${menuLabel}
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+        <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
+      `;
+
+      prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
+
+      const wrapper = menuLink.querySelector('.template-dropdown');
+      wrapper.style.width = '13rem';
+      wrapper.style.left = '0';
+
+      // local helpers for panel tracking
+      const SEEN_TTL = 56 * 24 * 60 * 60 * 1000;
+      const seenKey = (t, contactId, group, label) => `tmSeen:${t}:${contactId}:${group}:${label}`;
+      const hasSeen = (t, contactId, group, label) => {
+        const raw = localStorage.getItem(seenKey(t, contactId, group, label));
+        if (!raw) return false;
+        try {
+          const d = JSON.parse(raw);
+          if (!d?.ts || Date.now() - d.ts > SEEN_TTL) {
+            localStorage.removeItem(seenKey(t, contactId, group, label));
+            return false;
+          }
+          return !!d.seen;
+        } catch {
+          localStorage.removeItem(seenKey(t, contactId, group, label));
+          return false;
         }
-    });
+      };
+      const markSeen = (t, contactId, group, label) => { try { localStorage.setItem(seenKey(t, contactId, group, label), JSON.stringify({ seen:true, ts:Date.now() })); } catch {} };
+      const unmarkSeen = (t, contactId, group, label) => { try { localStorage.removeItem(seenKey(t, contactId, group, label)); } catch {} };
+      const pruneOld = () => {
+        const now = Date.now();
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith('tmSeen:')) continue;
+          try {
+            const d = JSON.parse(localStorage.getItem(k));
+            if (!d?.ts || now - d.ts > SEEN_TTL) localStorage.removeItem(k);
+          } catch { localStorage.removeItem(k); }
+        }
+      };
 
-    dropdown.addEventListener('mouseenter', () => {
-        dropdown.classList.remove('hidden');
-    });
+      menuLink.addEventListener('click', async e => {
+        e.preventDefault();
+        closeOtherMenus(menuId);
 
-    noteButton.addEventListener('mouseleave', () => {
-        setTimeout(() => {
-            if (!dropdown.matches(':hover') && !noteButton.matches(':hover')) {
-                dropdown.classList.add('hidden');
+        const isOpen = !wrapper.classList.contains('hidden');
+        if (isOpen) {
+          wrapper.classList.add('hidden');
+          wrapper.innerHTML = '';
+          return;
+        }
+
+        wrapper.classList.remove('hidden');
+        wrapper.innerHTML = '';
+
+        if (type === 'sms') {
+          const autoSendCheckboxWrapper = document.createElement('div');
+          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+
+          const checkboxLabel = document.createElement('label');
+          checkboxLabel.textContent = 'Auto-send Text Message';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'mr-2';
+          checkboxLabel.prepend(checkbox);
+
+          autoSendCheckboxWrapper.appendChild(checkboxLabel);
+          wrapper.appendChild(autoSendCheckboxWrapper);
+          autoSendCheckboxWrapper.addEventListener('click', evt => evt.stopPropagation());
+
+          const storedAutoSendState = localStorage.getItem('autoSendChecked');
+          checkbox.checked = storedAutoSendState === 'true';
+          checkbox.addEventListener('change', () => {
+            localStorage.setItem('autoSendChecked', checkbox.checked);
+          });
+        }
+
+        let floatingModal = document.getElementById(`${type}-modal`);
+        if (!floatingModal) {
+          floatingModal = createFloatingModal({
+            id: `${type}-modal`,
+            styles: {
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem'
             }
-        }, 100);
-    });
+          });
+        }
 
-    voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
+        // Build menu data
+        menuData = await getMenuData(type);
+
+        // Panel styles once
+        if (!document.getElementById('tm-panel-styles')) {
+          const css = `
+            .contact-data{display:flex;flex-direction:column;background:#fff;min-width:320px;max-width:520px}
+            .contact-data .cd-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px}
+            .contact-data .cd-card{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px}
+            .contact-data .cd-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px}
+            .cd-grid{display:grid;grid-template-columns:1fr;gap:8px}
+            .menu-item{display:flex;flex-direction:column;gap:4px;border-radius:6px;padding:6px;cursor:pointer}
+            .menu-item .cd-key{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:8px}
+            .menu-item .cd-used{font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:1px 6px}
+            .menu-item .cd-val{font-size:14px;color:#111827;white-space:pre-wrap}
+          `;
+          const s = document.createElement('style');
+          s.id = 'tm-panel-styles';
+          s.textContent = css;
+          document.head.appendChild(s);
+        }
+
+        // Contact id for per-contact “Used”
+        const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+        const contactId = row?.id || '';
+        pruneOld();
+
+        // Build inline panel from menuData
+        const panel = document.createElement('div');
+        panel.className = 'tm-panel';
+        panel.style.cssText = 'padding:8px;border-top:1px solid #e5e7eb;max-width:520px;';
+        wrapper.appendChild(panel);
+
+        function renderPanel() {
+          const groups = Object.entries(menuData || {}).map(([groupName, templates]) => {
+            const items = Object.entries(templates).map(([label, payload]) => {
+              const disabled = !!payload.disabled;
+              const subj = payload.subject || '';
+              const msg = payload.message || '';
+              const used = contactId && hasSeen(type, contactId, groupName, label);
+              const preview = (type === 'email') ? String(msg).replace(/\n/g, '<br>') : String(msg);
+
+              return `
+                <div class="menu-item" data-group="${encodeURIComponent(groupName)}" data-label="${encodeURIComponent(label)}"
+                     ${disabled ? 'aria-disabled="true"' : ''}>
+                  <div class="cd-key">
+                    <span>${label}${subj ? ` — ${subj}` : ''}</span>
+                    ${used ? '<span class="cd-used">Used</span>' : ''}
+                  </div>
+                  <div class="cd-val">${preview || '<em style="color:#6b7280">Unavailable (missing info)</em>'}</div>
+                </div>
+              `;
+            }).join('');
+
+            return `
+              <div class="cd-card">
+                <div class="cd-label">${groupName}</div>
+                <div class="cd-grid">${items}</div>
+              </div>
+            `;
+          }).join('');
+
+          panel.innerHTML = `
+            <div class="contact-data">
+              <div class="cd-body">
+                ${groups}
+              </div>
+            </div>
+          `;
+
+          // Item click handlers (respect disabled)
+          panel.querySelectorAll('.menu-item').forEach(itemEl => {
+            const disabled = itemEl.getAttribute('aria-disabled') === 'true';
+            if (disabled) return;
+
+            const groupName = decodeURIComponent(itemEl.getAttribute('data-group') || '');
+            const label = decodeURIComponent(itemEl.getAttribute('data-label') || '');
+            const payload = (menuData[groupName] || {})[label] || {};
+            const subject = payload.subject || '';
+            const message = payload.message || '';
+
+            itemEl.addEventListener('click', async () => {
+              if (type === 'sms') {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(r => setTimeout(r, 250));
+                }
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanMessageText(message), 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+              }
+
+              if (type === 'email') {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(r => setTimeout(r, 1500));
+                }
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) editor.innerHTML = cleanMessageEmail(message).split('\n').map(p => `<p>${p}</p>`).join('');
+              }
+
+              if (type === 'voicemail') {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) setInputValue(textarea, cleanMessageText(message), 'vm-template');
+              }
+
+              // toggle Used
+              const already = hasSeen(type, contactId, groupName, label);
+              if (already) unmarkSeen(type, contactId, groupName, label);
+              else markSeen(type, contactId, groupName, label);
+
+              const badge = itemEl.querySelector('.cd-used');
+              const nowUsed = hasSeen(type, contactId, groupName, label);
+              if (nowUsed && !badge) {
+                const b = document.createElement('span'); b.className='cd-used'; b.textContent='Used';
+                itemEl.querySelector('.cd-key').appendChild(b);
+              } else if (!nowUsed && badge) {
+                badge.remove();
+              }
+            });
+          });
+
+          // Extra: Voicemail “Days” quick-pick from your 10 VM scripts
+          if (type === 'voicemail' && menuData['Voicemail Scripts']) {
+            const vmEntries = Object.entries(menuData['Voicemail Scripts']);
+            const msgs = vmEntries.map(([_, p]) => p.message || '').filter(Boolean);
+            if (msgs.length >= 10) {
+              const body = panel.querySelector('.cd-body');
+              const mkDay = (dayIdx, a, b) => `
+                <div class="cd-card">
+                  <div class="cd-label">Day ${dayIdx}</div>
+                  <div class="cd-grid">
+                    <div class="menu-item" data-day="${dayIdx}" data-which="1">
+                      <div class="cd-key">Voicemail #1</div>
+                      <div class="cd-val">${msgs[a]}</div>
+                    </div>
+                    <div class="menu-item" data-day="${dayIdx}" data-which="2">
+                      <div class="cd-key">Voicemail #2</div>
+                      <div class="cd-val">${msgs[b]}</div>
+                    </div>
+                  </div>
+                </div>`;
+              body.insertAdjacentHTML('afterbegin', [
+                mkDay(5, 8, 9),
+                mkDay(4, 6, 7),
+                mkDay(3, 4, 5),
+                mkDay(2, 2, 3),
+                mkDay(1, 0, 1)
+              ].join(''));
+
+              panel.querySelectorAll('.menu-item[data-day]').forEach(el => {
+                el.addEventListener('click', () => {
+                  const textarea = document.querySelector('#voicemail-note');
+                  const val = el.querySelector('.cd-val')?.textContent || '';
+                  if (textarea) setInputValue(textarea, val, 'vm-template');
+
+                  const day = el.getAttribute('data-day');
+                  const which = el.getAttribute('data-which');
+                  const dayKey = `Day${day}#${which}`;
+                  const used = hasSeen('voicemail', contactId, 'Days', dayKey);
+                  if (used) unmarkSeen('voicemail', contactId, 'Days', dayKey);
+                  else markSeen('voicemail', contactId, 'Days', dayKey);
+                  el.style.background = hasSeen('voicemail', contactId, 'Days', dayKey) ? 'lightgrey' : '';
+                });
+              });
+            }
+          }
+        }
+
+        // initial render
+        renderPanel();
+
+        // Keep panel synced while open
+        const mo = new MutationObserver(() => {
+          renderPanel();
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+
+        // Build your existing right-flyout submenu items (kept as-is, but we also mark “Used” on click)
+        for (const [group, templates] of Object.entries(menuData || {})) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="template-panel"></div>
+          `;
+
+          const panelRight = groupWrapper.querySelector('.template-panel');
+
+          for (const [label, { subject = '', message, disabled = false }] of Object.entries(templates)) {
+            const buttonItem = document.createElement('div');
+            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            buttonItem.textContent = label;
+            if (disabled) {
+              buttonItem.setAttribute('aria-disabled', 'true');
+              buttonItem.style.opacity = '.55';
+              buttonItem.style.cursor = 'not-allowed';
+            }
+
+            let cleanedMessage = '';
+            let handleClick = () => console.warn(`Unhandled or disabled template type: ${type}`);
+
+            if (!disabled && type === 'email') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
+              handleClick = async () => {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) {
+                  editor.innerHTML = cleanedMessage.split('\n').map(p => `<p>${p}</p>`).join('');
+                }
+
+                // mark Used
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('email', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (!disabled && type === 'sms') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = async () => {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 250));
+                }
+
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanedMessage, 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('sms', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (!disabled && type === 'voicemail') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = () => {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) {
+                  setInputValue(textarea, cleanedMessage, 'vm-template');
+                }
+
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('voicemail', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            buttonItem.addEventListener('click', handleClick);
+
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(cleanedMessage || '').replace(/\n/g, '<br>');
+              floatingModal.attachHover(buttonItem, preview, handleClick);
+            }
+
+            panelRight.appendChild(buttonItem);
+          }
+
+          wrapper.appendChild(groupWrapper);
+        }
+
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panelRight = wrap.querySelector('.template-panel');
+
+          Object.assign(panelRight.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '500px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '9999',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
+
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panelRight.style.top = `${rect.top + window.scrollY}px`;
+            panelRight.style.left = `${rect.right + window.scrollX}px`;
+            panelRight.style.display = 'block';
+          });
+
+          wrap.addEventListener('mouseleave', () => {
+            panelRight.style.display = 'none';
+          });
+        });
+      });
+    }
+  } catch (err) {
+    cErr(`Error in ${menuId}: ${err}`);
+  }
 }
+
 
 function getFirebaseIdToken() {
 return new Promise((resolve, reject) => {
