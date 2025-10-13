@@ -4553,7 +4553,304 @@ async function addTemplateMenu({
   }
 }
 
+async function addQuickNotesMenu() {
+    if (!ENABLE_MENU_BUTTONS) return;
+    if (document.getElementById('tb_addnote_menu')) return;
+    if (!document.getElementById("notes-tab")) return;
+    if (!document.getElementById('notification_banner-top_bar')) return;
 
+    const voicemailBtn = document.getElementById('tb_voicemail_menu');
+    if (!voicemailBtn || !voicemailBtn.parentNode) return;
+
+    const noteButton = document.createElement('a');
+    noteButton.id = 'tb_addnote_menu';
+    noteButton.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+    noteButton.setAttribute('aria-label', 'Add Note Menu');
+    noteButton.style.lineHeight = '1.6rem';
+    noteButton.style.zIndex = '1000';
+    noteButton.innerHTML = `
+        <span class="flex items-center select-none">
+            Quick Notes
+            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </span>
+        <div role="menu" aria-orientation="vertical" tabindex="-1"
+            class="hidden origin-top-right absolute right-0 mt-2 w-96 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40">
+        </div>
+    `;
+
+    // ✅ Create floating modal that follows cursor
+    const floatingModal = createFloatingModal({
+        id: 'quicknotes-modal',
+        styles: {
+            backgroundColor: '#f9f9f9',
+            border: '1px solid #ccc'
+        },
+        onUpdatePosition: (e, modal) => {
+            // Optional extra behavior on mouse move
+        }
+    });
+
+
+    const dropdown = noteButton.querySelector('div[role="menu"]');
+    dropdown.style.width = '26rem';
+    dropdown.style.left = '0';
+
+    async function renderNoteOptions() {
+        try {
+            closeOtherMenus('tb_addnote_menu');
+            dropdown.innerHTML = '';
+
+            const userInfo = await getUserData();
+            if (!userInfo) return;
+
+            let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
+            let outboundCallCount = document.querySelector("#outboundCallCount").innerText;
+            const counts = await extractContactData();
+            console.log('counts', counts);
+
+            const smsText = counts.sms.outbound.count === "DND"
+            ? "SMS (DND)"
+            : counts.sms.outbound.today.count
+            ? `Sent SMS (Total: ${counts.sms.outbound.count})`
+            : `No SMS sent (Total: ${counts.sms.outbound.count})`;
+
+            const emailText = sellerEmail
+            ? (counts.email.outbound.today.count
+               ? `Sent email (Total: ${counts.email.outbound.count})`
+               : `No email sent (Total: ${counts.email.outbound.count})`)
+            : "Cannot email (no email address)";
+
+            const noteOptions = [];
+
+            let dispo = await getDisposition();
+          
+            // Check if dispo is empty or "Move to Contacted"
+            if (dispo === "Unable to reach") {
+                noteOptions.push({
+                    name: 'Lost Follow-Up',
+                    text: `${dispo} call back. No answer.`,
+                    nextAccount: true,
+                    autoSave: true
+                });
+            }
+
+
+            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
+                //if (counts.calls.outbound.count >= 2 && (counts.sms.outbound.count >= 2 || counts.sms.outbound.count === "DND")) {
+              if (counts.calls.outbound.count >= 5) {
+                    noteOptions.push({
+                        name: 'Move to Unable to Reach',
+                        text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.voicemail.outbound.count}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
+                        dispo: 'Unable to reach',
+                        nextAccount: true,
+                        autoSave: true
+                    });
+                }
+            }
+
+            if (counts.voicemail.outbound.count === 0) {
+                noteOptions.push({
+                    name: 'Left Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                });
+            } else {
+                noteOptions.push({
+                    name: 'Left Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                });
+            }
+
+            noteOptions.push(
+                {
+                    name: 'No Voicemail Left',
+                    text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Could Not Leave Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Standard Questions',
+                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nCMV: \nOur Offer: \nTimeline: \n\nRepairs: \nRenovations: \n`,
+                    autoSave: false
+                },
+                {
+                    name: 'Post Purchase Notes',
+                    text: `Purchase price: $ \nName of seller: \nProperty address: \n - Long/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \n - If tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
+                    autoSave: false
+                },
+                {
+                    name: 'Made Contact',
+                    text: `Call attempt #${counts.calls.outbound.count}\nMade contact.`,
+                    autoSave: false
+                },
+                {
+                    name: 'Appointment set',
+                    text: "Appointment set.",
+                    autoSave: false
+                },
+                {
+                    name: 'Call blocked',
+                    text: "Blocked by screening service",
+                    dispo: 'Unable to reach',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Rental Questions',
+                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilites: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
+                    autoSave: false
+                },
+                sellerEmail ? {
+                    name: 'Contract Sent',
+                    text: `Contract sent to ${sellerEmail}. <br><font size=-1 color=red>(Automatically moves to 'Move to Intial Offer Made')</font>`,
+                    dispo: `Move to Initial Offer Made`,
+                    autoSave: false
+                } : null,
+                {
+                    name: 'Not Looking to Sell',
+                    text: "Contact explicitly expressed they are not looking to sell <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
+                    dispo: 'Fake Lead',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Does Not Wish to Proceed',
+                    text: "Seller does not wish to proceed.\nREASON:",
+                    autoSave: false
+                },
+                {
+                    name: 'DNC',
+                    text: "Seller is on the DNC list. <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
+                    dispo: 'Fake Lead',
+                    nextAccount: true,
+                    autoSave: true
+                }
+            );
+
+            const cleanNotes = noteOptions.filter(Boolean).map(note => ({
+                name: note.name,
+                text: note.text.trim(),
+                dispo: note.dispo || null,
+                nextAccount: note.nextAccount || null,
+                autoSave: note.autoSave
+            }));
+
+            cleanNotes.forEach(({ name, text, dispo, nextAccount, autoSave }) => {
+                const noteButtonItem = document.createElement('button');
+                noteButtonItem.className = 'block w-full text-left px-4 py-2 text-sm text-gray-700';
+                noteButtonItem.innerHTML = name;
+
+                floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
+
+                noteButtonItem.addEventListener('click', () => {
+                    const textareaSelector = 'textarea[class*="input__textarea-el"]';
+                    const saveButtonSelector = "#notes-form-save-btn";
+
+                    function setTextareaValue(el, newText) {
+                        el.value = newText;
+                        el.dispatchEvent(new Event("input", { bubbles: true }));
+                        el.dispatchEvent(new Event("change", { bubbles: true }));
+                    }
+
+                    function handleNoteInsert(el, noteText) {
+                        const existingText = el.value.trim();
+                        if (existingText.includes(noteText)) return;
+
+                        // const autoSaveBlockers = ["standard questions", "rental questions", "does not wish to proceed"];
+                        // const haltAutoSave = autoSaveBlockers.some(str => noteText.toLowerCase().includes(str));
+
+                        let finalText = existingText ? existingText + "\n\n" + noteText : noteText;
+                        finalText = finalText.replace(/ <br><font[^>]*>(.*?)<\/font>/gi, "");
+
+                        setTextareaValue(el, finalText);
+
+                        // if (haltAutoSave) return;
+                        if (!autoSave) return;
+
+                        if (!existingText) {
+                            const saveButton = document.querySelector(saveButtonSelector);
+                            if (saveButton) {
+                                setTimeout(() => saveButton.click(), 100);
+                                if (dispo) {
+                                    // setDisposition(dispo);
+                                }
+                                if (nextAccount) {
+                                    clickToNextContact();
+                                }
+                                if (finalText.toLowerCase().includes("contract sent to ")) {
+                                    alert('Reminder: Add CMV to notes');
+                                }
+                            }
+                        }
+                    }
+
+                    const textarea = document.querySelector(textareaSelector);
+                    if (textarea) {
+                        handleNoteInsert(textarea, text);
+                    } else {
+                        const addNoteButton = document.getElementById("add-note-button");
+                        if (addNoteButton) {
+                            addNoteButton.click();
+                            setTimeout(() => {
+                                const newTextarea = document.querySelector(textareaSelector);
+                                if (newTextarea) {
+                                    handleNoteInsert(newTextarea, text);
+                                } else {
+                                    cWarn("Textarea still not found after 250ms.");
+                                }
+                            }, 250);
+                        }
+                    }
+                });
+
+                dropdown.appendChild(noteButtonItem);
+            });
+
+        } finally {
+            // optional cleanup
+        }
+    }
+
+    noteButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const isOpen = !dropdown.classList.contains('hidden');
+        if (isOpen) {
+            dropdown.classList.add('hidden');
+        } else {
+            renderNoteOptions();
+            dropdown.classList.remove('hidden');
+        }
+    });
+
+    dropdown.addEventListener('mouseenter', () => {
+        dropdown.classList.remove('hidden');
+    });
+
+    noteButton.addEventListener('mouseleave', () => {
+        setTimeout(() => {
+            if (!dropdown.matches(':hover') && !noteButton.matches(':hover')) {
+                dropdown.classList.add('hidden');
+            }
+        }, 100);
+    });
+
+    voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
+}
 
 function getFirebaseIdToken() {
 return new Promise((resolve, reject) => {
@@ -7452,21 +7749,15 @@ function attachEmailHandlers() {
   }
 
   // -------------------- Utils --------------------
-function toEmailHtml(input, contentType) {
-  const s = String(input ?? "");
-  const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(s);
-  if (isHtml) return s;
-
-  const esc = s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const withSpaces = esc.replace(/ {2,}/g, m => "&nbsp;".repeat(m.length - 1) + " ");
-
-  // Replace ONLY single \n with <br>, keep double \n\n as <br><br>
-  const normalized = withSpaces.replace(/\r\n/g, "\n");
-  return normalized
-    .split(/\n\n/)                 // preserve blank lines as paragraph breaks
-    .map(chunk => chunk.replace(/\n/g, "<br>")) // single \n → <br>
-    .join("<br><br>");
-}
+  function toEmailHtml(input, contentType) {
+    const s = String(input ?? "");
+    const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(s);
+    if (isHtml) return s;
+    // plaintext → HTML (preserve spaces and line breaks)
+    const esc = s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const withSpaces = esc.replace(/ {2,}/g, m => "&nbsp;".repeat(m.length - 1) + " ");
+    return withSpaces.replace(/\r\n|\n/g, "<br>");
+  }
   function escapeHtml(s) {
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   }
@@ -8005,6 +8296,7 @@ function toEmailHtml(input, contentType) {
     }
   });
   mo.observe(tbl, { childList: true, subtree: true });
+
 }
 
 async function autoDispoCall() {
@@ -8110,7 +8402,7 @@ async function autoDispoCall() {
                     rightOf: 'tb_email_menu'
                 });
 
-                // addQuickNotesMenu();
+                addQuickNotesMenu();
 
                 removePostDialModal();
                 shrinkCenterPanelHeight();
