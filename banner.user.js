@@ -3,7 +3,7 @@ const debugON = false;
 // === CALL WINDOW CONFIG (adjust as needed) ===
 const CALL_RULES = {
   CALL_START_HOUR: 8,        // inclusive (0–23) callee local hour
-  CALL_END_HOUR: 20,         // exclusive (0–23) callee local hour
+  CALL_END_HOUR: 21,         // exclusive (0–23) callee local hour
   BLOCK_WEEKENDS: true,      // disallow Sat/Sun by callee local time
   ALLOW_UNKNOWN_TZ: false,   // block if timezone can’t be resolved
   WARN_ONLY: true,           // true = confirm instead of block
@@ -4160,6 +4160,7 @@ async function addTextMessageMenu() {
     }
 }
 
+
 async function addTemplateMenu({
   menuId = 'tb_template_menu',
   menuLabel = 'Templates',
@@ -4172,380 +4173,235 @@ async function addTemplateMenu({
     const prevMenu = document.getElementById(rightOf);
     const notesTab = document.getElementById('notes-tab');
     const existingMenu = document.getElementById(menuId);
+
     if (!prevMenu || !notesTab) return;
 
     if (existingMenu && type === 'email') {
       const emailInput = document.querySelector('[name="contact.email"]');
-      if (emailInput && emailInput.value.trim() === '') attachTooltip(existingMenu, true, 'No Email Address');
-      else detachTooltip(existingMenu);
+      if (emailInput && emailInput.value.trim() === '') {
+        attachTooltip(existingMenu, true, 'No Email Address');
+      } else {
+        detachTooltip(existingMenu);
+      }
     }
 
-    if (existingMenu) return;
+    if (!existingMenu) {
+      const menuLink = document.createElement('a');
+      menuLink.id = menuId;
+      menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+      menuLink.setAttribute('aria-label', menuLabel);
+      menuLink.style.lineHeight = '1.6rem';
 
-    const menuLink = document.createElement('a');
-    menuLink.id = menuId;
-    menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-    menuLink.setAttribute('aria-label', menuLabel);
-    menuLink.style.lineHeight = '1.6rem';
-    menuLink.innerHTML = `
-      <span class="flex items-center select-none">
-        ${menuLabel}
-        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </span>
-      <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
-    `;
-    prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
-
-    const wrapper = menuLink.querySelector('.template-dropdown');
-    wrapper.style.width = '13rem';
-    wrapper.style.left = '0';
-
-    const SEEN_TTL = 56 * 24 * 60 * 60 * 1000;
-    const seenKey = (t, contactId, group, label) => `tmSeen:${t}:${contactId}:${group}:${label}`;
-    const hasSeen = (t, contactId, group, label) => {
-      const raw = localStorage.getItem(seenKey(t, contactId, group, label));
-      if (!raw) return false;
-      try {
-        const d = JSON.parse(raw);
-        if (!d?.ts || Date.now() - d.ts > SEEN_TTL) {
-          localStorage.removeItem(seenKey(t, contactId, group, label));
-          return false;
-        }
-        return !!d.seen;
-      } catch {
-        localStorage.removeItem(seenKey(t, contactId, group, label));
-        return false;
-      }
-    };
-    const markSeen = (t, contactId, group, label) => { try { localStorage.setItem(seenKey(t, contactId, group, label), JSON.stringify({ seen:true, ts:Date.now() })); } catch {} };
-    const unmarkSeen = (t, contactId, group, label) => { try { localStorage.removeItem(seenKey(t, contactId, group, label)); } catch {} };
-    const pruneOld = () => {
-      const now = Date.now();
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (!k || !k.startsWith('tmSeen:')) continue;
-        try {
-          const d = JSON.parse(localStorage.getItem(k));
-          if (!d?.ts || now - d.ts > SEEN_TTL) localStorage.removeItem(k);
-        } catch { localStorage.removeItem(k); }
-      }
-    };
-
-    function ensurePanelCSS() {
-      if (document.getElementById('tm-panel-styles')) return;
-      const css = `
-        .contact-data{display:flex;flex-direction:column;background:#fff;min-width:320px;max-width:520px}
-        .contact-data .cd-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px}
-        .contact-data .cd-card{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px}
-        .contact-data .cd-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px}
-        .cd-grid{display:grid;grid-template-columns:1fr;gap:8px}
-        .menu-item{display:flex;flex-direction:column;gap:4px;border-radius:6px;padding:6px;cursor:pointer}
-        .menu-item[aria-disabled="true"]{cursor:not-allowed;opacity:.55}
-        .menu-item .cd-key{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:8px}
-        .menu-item .cd-used{font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:1px 6px}
-        .menu-item .cd-val{font-size:14px;color:#111827;white-space:pre-wrap;max-height:160px;overflow:auto}
-      `;
-      const s = document.createElement('style');
-      s.id = 'tm-panel-styles';
-      s.textContent = css;
-      document.head.appendChild(s);
-    }
-
-    menuLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      closeOtherMenus(menuId);
-
-      const isOpen = !wrapper.classList.contains('hidden');
-      if (isOpen) {
-        wrapper.classList.add('hidden');
-        wrapper.innerHTML = '';
-        return;
-      }
-
-      wrapper.classList.remove('hidden');
-      wrapper.innerHTML = '';
-
-      if (type === 'sms') {
-        const rowC = document.createElement('div');
-        rowC.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
-        rowC.innerHTML = `<label><input type="checkbox" class="mr-2" id="tm-auto-send">Auto-send Text Message</label>`;
-        wrapper.appendChild(rowC);
-        const cb = rowC.querySelector('#tm-auto-send');
-        cb.checked = localStorage.getItem('autoSendChecked') === 'true';
-        rowC.addEventListener('click', (evt) => evt.stopPropagation());
-        cb.addEventListener('change', () => localStorage.setItem('autoSendChecked', cb.checked));
-      }
-
-      let floatingModal = document.getElementById(`${type}-modal`);
-      if (!floatingModal) {
-        floatingModal = createFloatingModal({
-          id: `${type}-modal`,
-          styles: { backgroundColor: '#f9f9f9', border: '1px solid #ccc', minWidth: '20rem', maxWidth: '20rem' }
-        });
-      }
-
-      ensurePanelCSS();
-      pruneOld();
-
-      const data = await getMenuData(type) || {};
-      const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-      const contactId = row?.id || '';
-
-      const panel = document.createElement('div');
-      panel.className = 'tm-panel';
-      panel.style.cssText = 'padding:8px;border-top:1px solid #e5e7eb;max-width:520px;';
-      wrapper.appendChild(panel);
-
-      function itemHTML(groupName, label, payload) {
-        const disabled = !!payload.disabled;
-        const subj = payload.subject || '';
-        const msg = payload.message || '';
-        const used = contactId && hasSeen(type, contactId, groupName, label);
-        const preview = type === 'email' ? String(msg).replace(/\n/g, '<br>') : String(msg);
-        return `
-          <div class="menu-item" data-group="${encodeURIComponent(groupName)}" data-label="${encodeURIComponent(label)}" ${disabled ? 'aria-disabled="true"' : ''}>
-            <div class="cd-key">
-              <span>${label}${subj ? ` — ${subj}` : ''}</span>
-              ${used ? '<span class="cd-used">Used</span>' : ''}
-            </div>
-            <div class="cd-val">${preview || '<em style="color:#6b7280">Unavailable (missing info)</em>'}</div>
-          </div>
-        `;
-      }
-
-      function buildGroupCards() {
-        return Object.entries(data).map(([groupName, templates]) => {
-          const items = Object.entries(templates).map(([label, payload]) => itemHTML(groupName, label, payload)).join('');
-          return `
-            <div class="cd-card">
-              <div class="cd-label">${groupName}</div>
-              <div class="cd-grid">${items}</div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      function buildVoicemailDays() {
-        if (type !== 'voicemail' || !data['Voicemail Scripts']) return '';
-        const vms = Object.values(data['Voicemail Scripts']).map(p => p?.message || '').filter(Boolean);
-        if (vms.length < 10) return '';
-        const mkDay = (dayIdx, i1, i2) => `
-          <div class="cd-card">
-            <div class="cd-label">Day ${dayIdx}</div>
-            <div class="cd-grid">
-              <div class="menu-item" data-day="${dayIdx}" data-which="1"><div class="cd-key">Voicemail #1</div><div class="cd-val">${vms[i1]}</div></div>
-              <div class="menu-item" data-day="${dayIdx}" data-which="2"><div class="cd-key">Voicemail #2</div><div class="cd-val">${vms[i2]}</div></div>
-            </div>
-          </div>`;
-        return mkDay(5, 8, 9) + mkDay(4, 6, 7) + mkDay(3, 4, 5) + mkDay(2, 2, 3) + mkDay(1, 0, 1);
-      }
-
-      panel.innerHTML = `
-        <div class="contact-data">
-          <div class="cd-body">
-            ${buildVoicemailDays()}
-            ${buildGroupCards()}
-          </div>
-        </div>
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none">
+          ${menuLabel}
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+        <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
       `;
 
-      panel.addEventListener('click', async (evt) => {
-        const el = evt.target.closest('.menu-item');
-        if (!el) return;
+      prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
 
-        const day = el.getAttribute('data-day');
-        const which = el.getAttribute('data-which');
+      const wrapper = menuLink.querySelector('.template-dropdown');
+      wrapper.style.width = '13rem';
+      wrapper.style.left = '0';
 
-        if (day) {
-          const textarea = document.querySelector('#voicemail-note');
-          const val = el.querySelector('.cd-val')?.textContent || '';
-          if (textarea) setInputValue(textarea, val, 'vm-template');
-          const dayKey = `Day${day}#${which}`;
-          const used = hasSeen('voicemail', contactId, 'Days', dayKey);
-          if (used) unmarkSeen('voicemail', contactId, 'Days', dayKey);
-          else markSeen('voicemail', contactId, 'Days', dayKey);
-          el.style.background = hasSeen('voicemail', contactId, 'Days', dayKey) ? 'lightgrey' : '';
+      menuLink.addEventListener('click', async e => {
+        e.preventDefault();
+        closeOtherMenus(menuId);
+
+        const isOpen = !wrapper.classList.contains('hidden');
+        if (isOpen) {
+          wrapper.classList.add('hidden');
+          wrapper.innerHTML = '';
           return;
         }
 
-        const disabled = el.getAttribute('aria-disabled') === 'true';
-        if (disabled) return;
-
-        const groupName = decodeURIComponent(el.getAttribute('data-group') || '');
-        const label = decodeURIComponent(el.getAttribute('data-label') || '');
-        const payload = (data[groupName] || {})[label] || {};
-        const subject = payload.subject || '';
-        const message = payload.message || '';
+        wrapper.classList.remove('hidden');
+        wrapper.innerHTML = '';
 
         if (type === 'sms') {
-          let activeTab = document.querySelector('.nav-link.active');
-          const smsTab = document.querySelector('#sms-tab');
-          if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
-            smsTab.click();
-            await new Promise(r => setTimeout(r, 250));
+          const autoSendCheckboxWrapper = document.createElement('div');
+          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+
+          const checkboxLabel = document.createElement('label');
+          checkboxLabel.textContent = 'Auto-send Text Message';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'mr-2';
+          checkboxLabel.prepend(checkbox);
+
+          autoSendCheckboxWrapper.appendChild(checkboxLabel);
+          wrapper.appendChild(autoSendCheckboxWrapper);
+
+          autoSendCheckboxWrapper.addEventListener('click', evt => evt.stopPropagation());
+
+          const storedAutoSendState = localStorage.getItem('autoSendChecked');
+          checkbox.checked = storedAutoSendState === 'true';
+
+          checkbox.addEventListener('change', () => {
+            localStorage.setItem('autoSendChecked', checkbox.checked);
+          });
+        }
+
+        let floatingModal = document.getElementById(`${type}-modal`);
+        if (!floatingModal) {
+          floatingModal = createFloatingModal({
+            id: `${type}-modal`,
+            styles: {
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem'
+            }
+          });
+        }
+
+        menuData = await getMenuData(type);
+        
+        if (type === 'sms') {
+        } else if (type === 'voicemail') {
+          // menuData = { 'Voicemail': { 'Note Template': { message: 'Left a voicemail regarding their property.' } } };
+        }
+
+        for (const [group, templates] of Object.entries(menuData || {})) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="template-panel"></div>
+          `;
+
+          const panel = groupWrapper.querySelector('.template-panel');
+
+          for (const [label, { subject = '', message }] of Object.entries(templates)) {
+            const buttonItem = document.createElement('div');
+            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            buttonItem.textContent = label;
+
+            let cleanedMessage = '';
+            let handleClick = () => console.warn(`Unhandled template type: ${type}`);
+
+            if (type === 'email') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
+
+              handleClick = async () => {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) {
+                  editor.innerHTML = cleanedMessage
+                    .split('\n')
+                    .map(p => `<p>${p}</p>`)
+                    .join('');
+                }
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+            
+            if (type === 'sms') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+
+              handleClick = async () => {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 250));
+                }
+
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanedMessage, 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (type === 'voicemail') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = () => {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) {
+                  setInputValue(textarea, cleanedMessage, 'vm-template');
+                }
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            buttonItem.addEventListener('click', handleClick);
+
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(cleanedMessage || '').replace(/\n/g, '<br>');
+              floatingModal.attachHover(buttonItem, preview, handleClick);
+            }
+
+            panel.appendChild(buttonItem);
           }
-          const input = document.querySelector('#text-message');
-          const sendButton = document.querySelector('#send-sms');
-          if (!input) return;
-          setInputValue(input, cleanMessageText(message), 'smsMsg');
-          const checkbox = wrapper.querySelector('#tm-auto-send');
-          activeTab = document.querySelector('.nav-link.active');
-          if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') setTimeout(() => sendButton.click(), 100);
+
+          wrapper.appendChild(groupWrapper);
         }
 
-        if (type === 'email') {
-          const activeTab = document.querySelector('.nav-link.active');
-          const emailTab = document.querySelector('#email-tab');
-          if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
-            emailTab.click();
-            await new Promise(r => setTimeout(r, 1500));
-          }
-          const composer = document.querySelector('#message-composer');
-          const subjectField = composer?.querySelector('#subject');
-          const editor = composer?.querySelector('.tiptap.ProseMirror');
-          if (subjectField) setInputValue(subjectField, subject, 'email-template');
-          if (editor) editor.innerHTML = cleanMessageEmail(message).split('\n').map(p => `<p>${p}</p>`).join('');
-        }
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panel = wrap.querySelector('.template-panel');
 
-        if (type === 'voicemail') {
-          const textarea = document.querySelector('#voicemail-note');
-          if (textarea) setInputValue(textarea, cleanMessageText(message), 'vm-template');
-        }
+          Object.assign(panel.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '500px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '9999',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
 
-        const already = hasSeen(type, contactId, groupName, label);
-        if (already) unmarkSeen(type, contactId, groupName, label);
-        else markSeen(type, contactId, groupName, label);
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panel.style.top = `${rect.top + window.scrollY}px`;
+            panel.style.left = `${rect.right + window.scrollX}px`;
+            panel.style.display = 'block';
+          });
 
-        const keyWrap = el.querySelector('.cd-key');
-        const badge = el.querySelector('.cd-used');
-        const nowUsed = hasSeen(type, contactId, groupName, label);
-        if (nowUsed && !badge) {
-          const b = document.createElement('span'); b.className = 'cd-used'; b.textContent = 'Used';
-          keyWrap.appendChild(b);
-        } else if (!nowUsed && badge) {
-          badge.remove();
-        }
-      });
-
-      for (const [group, templates] of Object.entries(data || {})) {
-        const groupWrapper = document.createElement('div');
-        groupWrapper.className = 'relative group submenu-wrapper';
-        groupWrapper.innerHTML = `
-          <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-            <span>${group}</span>
-            <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-          </button>
-          <div class="template-panel"></div>
-        `;
-
-        const panelRight = groupWrapper.querySelector('.template-panel');
-        Object.assign(panelRight.style, {
-          fontFamily: 'inherit',
-          fontSize: '0.875rem',
-          lineHeight: '1.25rem',
-          padding: '0.5rem',
-          maxWidth: '500px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #d1d5db',
-          borderRadius: '0.375rem',
-          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-          zIndex: '9999',
-          position: 'fixed',
-          display: 'none',
-          whiteSpace: 'normal',
-          color: '#374151'
+          wrap.addEventListener('mouseleave', () => {
+            panel.style.display = 'none';
+          });
         });
-
-        for (const [label, { subject = '', message, disabled = false }] of Object.entries(templates)) {
-          const item = document.createElement('div');
-          item.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-          item.textContent = label;
-          if (disabled) {
-            item.setAttribute('aria-disabled', 'true');
-            item.style.opacity = '.55';
-            item.style.cursor = 'not-allowed';
-          }
-
-          let cleaned = '';
-          let handler = () => {};
-          if (!disabled && type === 'email') {
-            cleaned = typeof message === 'string' ? cleanMessageEmail(message) : '';
-            handler = async () => {
-              const activeTab = document.querySelector('.nav-link.active');
-              const emailTab = document.querySelector('#email-tab');
-              if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
-                emailTab.click();
-                await new Promise(resolve => setTimeout(resolve, 1500));
-              }
-              const composer = document.querySelector('#message-composer');
-              const subjectField = composer?.querySelector('#subject');
-              const editor = composer?.querySelector('.tiptap.ProseMirror');
-              if (subjectField) setInputValue(subjectField, subject, 'email-template');
-              if (editor) editor.innerHTML = cleaned.split('\n').map(p => `<p>${p}</p>`).join('');
-              const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-              const contactId = row?.id || '';
-              markSeen('email', contactId, group, label);
-              floatingModal.remove();
-              wrapper.classList.add('hidden');
-            };
-          }
-          if (!disabled && type === 'sms') {
-            cleaned = typeof message === 'string' ? cleanMessageText(message) : '';
-            handler = async () => {
-              let activeTab = document.querySelector('.nav-link.active');
-              const smsTab = document.querySelector('#sms-tab');
-              if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
-                smsTab.click();
-                await new Promise(resolve => setTimeout(resolve, 250));
-              }
-              const input = document.querySelector('#text-message');
-              const sendButton = document.querySelector('#send-sms');
-              if (!input) return;
-              setInputValue(input, cleaned, 'smsMsg');
-              activeTab = document.querySelector('.nav-link.active');
-              const checkbox = wrapper.querySelector('#tm-auto-send');
-              if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') setTimeout(() => sendButton.click(), 100);
-              const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-              const contactId = row?.id || '';
-              markSeen('sms', contactId, group, label);
-              floatingModal.remove();
-              wrapper.classList.add('hidden');
-            };
-          }
-          if (!disabled && type === 'voicemail') {
-            cleaned = typeof message === 'string' ? cleanMessageText(message) : '';
-            handler = () => {
-              const textarea = document.querySelector('#voicemail-note');
-              if (textarea) setInputValue(textarea, cleaned, 'vm-template');
-              const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-              const contactId = row?.id || '';
-              markSeen('voicemail', contactId, group, label);
-              floatingModal.remove();
-              wrapper.classList.add('hidden');
-            };
-          }
-
-          item.addEventListener('click', handler);
-
-          if (floatingModal && typeof floatingModal.attachHover === 'function') {
-            const preview = String(cleaned || '').replace(/\n/g, '<br>');
-            floatingModal.attachHover(item, preview, handler);
-          }
-
-          panelRight.appendChild(item);
-        }
-
-        wrapper.appendChild(groupWrapper);
-
-        groupWrapper.addEventListener('mouseenter', () => {
-          const rect = groupWrapper.querySelector('button').getBoundingClientRect();
-          panelRight.style.top = `${rect.top + window.scrollY}px`;
-          panelRight.style.left = `${rect.right + window.scrollX}px`;
-          panelRight.style.display = 'block';
-        });
-        groupWrapper.addEventListener('mouseleave', () => { panelRight.style.display = 'none'; });
       });
     }
   } catch (err) {
@@ -4553,304 +4409,485 @@ async function addTemplateMenu({
   }
 }
 
-async function addQuickNotesMenu() {
-    if (!ENABLE_MENU_BUTTONS) return;
-    if (document.getElementById('tb_addnote_menu')) return;
-    if (!document.getElementById("notes-tab")) return;
-    if (!document.getElementById('notification_banner-top_bar')) return;
+async function addTemplateMenu({
+  menuId = 'tb_template_menu',
+  menuLabel = 'Templates',
+  rightOf = 'tb_tasks',
+  type = null
+} = {}) {
+  if (!ENABLE_MENU_BUTTONS) return;
 
-    const voicemailBtn = document.getElementById('tb_voicemail_menu');
-    if (!voicemailBtn || !voicemailBtn.parentNode) return;
+  try {
+    const prevMenu = document.getElementById(rightOf);
+    const notesTab = document.getElementById('notes-tab');
+    const existingMenu = document.getElementById(menuId);
 
-    const noteButton = document.createElement('a');
-    noteButton.id = 'tb_addnote_menu';
-    noteButton.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-    noteButton.setAttribute('aria-label', 'Add Note Menu');
-    noteButton.style.lineHeight = '1.6rem';
-    noteButton.style.zIndex = '1000';
-    noteButton.innerHTML = `
-        <span class="flex items-center select-none">
-            Quick Notes
-            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-        </span>
-        <div role="menu" aria-orientation="vertical" tabindex="-1"
-            class="hidden origin-top-right absolute right-0 mt-2 w-96 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40">
-        </div>
-    `;
+    if (!prevMenu || !notesTab) return;
 
-    // ✅ Create floating modal that follows cursor
-    const floatingModal = createFloatingModal({
-        id: 'quicknotes-modal',
-        styles: {
-            backgroundColor: '#f9f9f9',
-            border: '1px solid #ccc'
-        },
-        onUpdatePosition: (e, modal) => {
-            // Optional extra behavior on mouse move
-        }
-    });
-
-
-    const dropdown = noteButton.querySelector('div[role="menu"]');
-    dropdown.style.width = '26rem';
-    dropdown.style.left = '0';
-
-    async function renderNoteOptions() {
-        try {
-            closeOtherMenus('tb_addnote_menu');
-            dropdown.innerHTML = '';
-
-            const userInfo = await getUserData();
-            if (!userInfo) return;
-
-            let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
-            let outboundCallCount = document.querySelector("#outboundCallCount").innerText;
-            const counts = await extractContactData();
-            console.log('counts', counts);
-
-            const smsText = counts.sms.outbound.count === "DND"
-            ? "SMS (DND)"
-            : counts.sms.outbound.today.count
-            ? `Sent SMS (Total: ${counts.sms.outbound.count})`
-            : `No SMS sent (Total: ${counts.sms.outbound.count})`;
-
-            const emailText = sellerEmail
-            ? (counts.email.outbound.today.count
-               ? `Sent email (Total: ${counts.email.outbound.count})`
-               : `No email sent (Total: ${counts.email.outbound.count})`)
-            : "Cannot email (no email address)";
-
-            const noteOptions = [];
-
-            let dispo = await getDisposition();
-          
-            // Check if dispo is empty or "Move to Contacted"
-            if (dispo === "Unable to reach") {
-                noteOptions.push({
-                    name: 'Lost Follow-Up',
-                    text: `${dispo} call back. No answer.`,
-                    nextAccount: true,
-                    autoSave: true
-                });
-            }
-
-
-            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
-                //if (counts.calls.outbound.count >= 2 && (counts.sms.outbound.count >= 2 || counts.sms.outbound.count === "DND")) {
-              if (counts.calls.outbound.count >= 5) {
-                    noteOptions.push({
-                        name: 'Move to Unable to Reach',
-                        text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.voicemail.outbound.count}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
-                        dispo: 'Unable to reach',
-                        nextAccount: true,
-                        autoSave: true
-                    });
-                }
-            }
-
-            if (counts.voicemail.outbound.count === 0) {
-                noteOptions.push({
-                    name: 'Left Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                });
-            } else {
-                noteOptions.push({
-                    name: 'Left Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                });
-            }
-
-            noteOptions.push(
-                {
-                    name: 'No Voicemail Left',
-                    text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Could Not Leave Voicemail',
-                    text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
-                    dispo: 'Move to Contacted',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Standard Questions',
-                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nCMV: \nOur Offer: \nTimeline: \n\nRepairs: \nRenovations: \n`,
-                    autoSave: false
-                },
-                {
-                    name: 'Post Purchase Notes',
-                    text: `Purchase price: $ \nName of seller: \nProperty address: \n - Long/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \n - If tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
-                    autoSave: false
-                },
-                {
-                    name: 'Made Contact',
-                    text: `Call attempt #${counts.calls.outbound.count}\nMade contact.`,
-                    autoSave: false
-                },
-                {
-                    name: 'Appointment set',
-                    text: "Appointment set.",
-                    autoSave: false
-                },
-                {
-                    name: 'Call blocked',
-                    text: "Blocked by screening service",
-                    dispo: 'Unable to reach',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Rental Questions',
-                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilites: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
-                    autoSave: false
-                },
-                sellerEmail ? {
-                    name: 'Contract Sent',
-                    text: `Contract sent to ${sellerEmail}. <br><font size=-1 color=red>(Automatically moves to 'Move to Intial Offer Made')</font>`,
-                    dispo: `Move to Initial Offer Made`,
-                    autoSave: false
-                } : null,
-                {
-                    name: 'Not Looking to Sell',
-                    text: "Contact explicitly expressed they are not looking to sell <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
-                    dispo: 'Fake Lead',
-                    nextAccount: true,
-                    autoSave: true
-                },
-                {
-                    name: 'Does Not Wish to Proceed',
-                    text: "Seller does not wish to proceed.\nREASON:",
-                    autoSave: false
-                },
-                {
-                    name: 'DNC',
-                    text: "Seller is on the DNC list. <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
-                    dispo: 'Fake Lead',
-                    nextAccount: true,
-                    autoSave: true
-                }
-            );
-
-            const cleanNotes = noteOptions.filter(Boolean).map(note => ({
-                name: note.name,
-                text: note.text.trim(),
-                dispo: note.dispo || null,
-                nextAccount: note.nextAccount || null,
-                autoSave: note.autoSave
-            }));
-
-            cleanNotes.forEach(({ name, text, dispo, nextAccount, autoSave }) => {
-                const noteButtonItem = document.createElement('button');
-                noteButtonItem.className = 'block w-full text-left px-4 py-2 text-sm text-gray-700';
-                noteButtonItem.innerHTML = name;
-
-                floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
-
-                noteButtonItem.addEventListener('click', () => {
-                    const textareaSelector = 'textarea[class*="input__textarea-el"]';
-                    const saveButtonSelector = "#notes-form-save-btn";
-
-                    function setTextareaValue(el, newText) {
-                        el.value = newText;
-                        el.dispatchEvent(new Event("input", { bubbles: true }));
-                        el.dispatchEvent(new Event("change", { bubbles: true }));
-                    }
-
-                    function handleNoteInsert(el, noteText) {
-                        const existingText = el.value.trim();
-                        if (existingText.includes(noteText)) return;
-
-                        // const autoSaveBlockers = ["standard questions", "rental questions", "does not wish to proceed"];
-                        // const haltAutoSave = autoSaveBlockers.some(str => noteText.toLowerCase().includes(str));
-
-                        let finalText = existingText ? existingText + "\n\n" + noteText : noteText;
-                        finalText = finalText.replace(/ <br><font[^>]*>(.*?)<\/font>/gi, "");
-
-                        setTextareaValue(el, finalText);
-
-                        // if (haltAutoSave) return;
-                        if (!autoSave) return;
-
-                        if (!existingText) {
-                            const saveButton = document.querySelector(saveButtonSelector);
-                            if (saveButton) {
-                                setTimeout(() => saveButton.click(), 100);
-                                if (dispo) {
-                                    // setDisposition(dispo);
-                                }
-                                if (nextAccount) {
-                                    clickToNextContact();
-                                }
-                                if (finalText.toLowerCase().includes("contract sent to ")) {
-                                    alert('Reminder: Add CMV to notes');
-                                }
-                            }
-                        }
-                    }
-
-                    const textarea = document.querySelector(textareaSelector);
-                    if (textarea) {
-                        handleNoteInsert(textarea, text);
-                    } else {
-                        const addNoteButton = document.getElementById("add-note-button");
-                        if (addNoteButton) {
-                            addNoteButton.click();
-                            setTimeout(() => {
-                                const newTextarea = document.querySelector(textareaSelector);
-                                if (newTextarea) {
-                                    handleNoteInsert(newTextarea, text);
-                                } else {
-                                    cWarn("Textarea still not found after 250ms.");
-                                }
-                            }, 250);
-                        }
-                    }
-                });
-
-                dropdown.appendChild(noteButtonItem);
-            });
-
-        } finally {
-            // optional cleanup
-        }
+    if (existingMenu && type === 'email') {
+      const emailInput = document.querySelector('[name="contact.email"]');
+      if (emailInput && emailInput.value.trim() === '') {
+        attachTooltip(existingMenu, true, 'No Email Address');
+      } else {
+        detachTooltip(existingMenu);
+      }
     }
 
-    noteButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const isOpen = !dropdown.classList.contains('hidden');
-        if (isOpen) {
-            dropdown.classList.add('hidden');
-        } else {
-            renderNoteOptions();
-            dropdown.classList.remove('hidden');
+    if (!existingMenu) {
+      const menuLink = document.createElement('a');
+      menuLink.id = menuId;
+      menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+      menuLink.setAttribute('aria-label', menuLabel);
+      menuLink.style.lineHeight = '1.6rem';
+
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none">
+          ${menuLabel}
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+        <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
+      `;
+
+      prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
+
+      const wrapper = menuLink.querySelector('.template-dropdown');
+      wrapper.style.width = '13rem';
+      wrapper.style.left = '0';
+
+      // local helpers for panel tracking
+      const SEEN_TTL = 56 * 24 * 60 * 60 * 1000;
+      const seenKey = (t, contactId, group, label) => `tmSeen:${t}:${contactId}:${group}:${label}`;
+      const hasSeen = (t, contactId, group, label) => {
+        const raw = localStorage.getItem(seenKey(t, contactId, group, label));
+        if (!raw) return false;
+        try {
+          const d = JSON.parse(raw);
+          if (!d?.ts || Date.now() - d.ts > SEEN_TTL) {
+            localStorage.removeItem(seenKey(t, contactId, group, label));
+            return false;
+          }
+          return !!d.seen;
+        } catch {
+          localStorage.removeItem(seenKey(t, contactId, group, label));
+          return false;
         }
-    });
+      };
+      const markSeen = (t, contactId, group, label) => { try { localStorage.setItem(seenKey(t, contactId, group, label), JSON.stringify({ seen:true, ts:Date.now() })); } catch {} };
+      const unmarkSeen = (t, contactId, group, label) => { try { localStorage.removeItem(seenKey(t, contactId, group, label)); } catch {} };
+      const pruneOld = () => {
+        const now = Date.now();
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith('tmSeen:')) continue;
+          try {
+            const d = JSON.parse(localStorage.getItem(k));
+            if (!d?.ts || now - d.ts > SEEN_TTL) localStorage.removeItem(k);
+          } catch { localStorage.removeItem(k); }
+        }
+      };
 
-    dropdown.addEventListener('mouseenter', () => {
-        dropdown.classList.remove('hidden');
-    });
+      menuLink.addEventListener('click', async e => {
+        e.preventDefault();
+        closeOtherMenus(menuId);
 
-    noteButton.addEventListener('mouseleave', () => {
-        setTimeout(() => {
-            if (!dropdown.matches(':hover') && !noteButton.matches(':hover')) {
-                dropdown.classList.add('hidden');
+        const isOpen = !wrapper.classList.contains('hidden');
+        if (isOpen) {
+          wrapper.classList.add('hidden');
+          wrapper.innerHTML = '';
+          return;
+        }
+
+        wrapper.classList.remove('hidden');
+        wrapper.innerHTML = '';
+
+        if (type === 'sms') {
+          const autoSendCheckboxWrapper = document.createElement('div');
+          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+
+          const checkboxLabel = document.createElement('label');
+          checkboxLabel.textContent = 'Auto-send Text Message';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'mr-2';
+          checkboxLabel.prepend(checkbox);
+
+          autoSendCheckboxWrapper.appendChild(checkboxLabel);
+          wrapper.appendChild(autoSendCheckboxWrapper);
+          autoSendCheckboxWrapper.addEventListener('click', evt => evt.stopPropagation());
+
+          const storedAutoSendState = localStorage.getItem('autoSendChecked');
+          checkbox.checked = storedAutoSendState === 'true';
+          checkbox.addEventListener('change', () => {
+            localStorage.setItem('autoSendChecked', checkbox.checked);
+          });
+        }
+
+        let floatingModal = document.getElementById(`${type}-modal`);
+        if (!floatingModal) {
+          floatingModal = createFloatingModal({
+            id: `${type}-modal`,
+            styles: {
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem'
             }
-        }, 100);
-    });
+          });
+        }
 
-    voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
+        // Build menu data
+        menuData = await getMenuData(type);
+
+        // Panel styles once
+        if (!document.getElementById('tm-panel-styles')) {
+          const css = `
+            .contact-data{display:flex;flex-direction:column;background:#fff;min-width:320px;max-width:520px}
+            .contact-data .cd-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px}
+            .contact-data .cd-card{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px}
+            .contact-data .cd-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px}
+            .cd-grid{display:grid;grid-template-columns:1fr;gap:8px}
+            .menu-item{display:flex;flex-direction:column;gap:4px;border-radius:6px;padding:6px;cursor:pointer}
+            .menu-item .cd-key{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:8px}
+            .menu-item .cd-used{font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:1px 6px}
+            .menu-item .cd-val{font-size:14px;color:#111827;white-space:pre-wrap}
+          `;
+          const s = document.createElement('style');
+          s.id = 'tm-panel-styles';
+          s.textContent = css;
+          document.head.appendChild(s);
+        }
+
+        // Contact id for per-contact “Used”
+        const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+        const contactId = row?.id || '';
+        pruneOld();
+
+        // Build inline panel from menuData
+        const panel = document.createElement('div');
+        panel.className = 'tm-panel';
+        panel.style.cssText = 'padding:8px;border-top:1px solid #e5e7eb;max-width:520px;';
+        wrapper.appendChild(panel);
+
+        function renderPanel() {
+          const groups = Object.entries(menuData || {}).map(([groupName, templates]) => {
+            const items = Object.entries(templates).map(([label, payload]) => {
+              const disabled = !!payload.disabled;
+              const subj = payload.subject || '';
+              const msg = payload.message || '';
+              const used = contactId && hasSeen(type, contactId, groupName, label);
+              const preview = (type === 'email') ? String(msg).replace(/\n/g, '<br>') : String(msg);
+
+              return `
+                <div class="menu-item" data-group="${encodeURIComponent(groupName)}" data-label="${encodeURIComponent(label)}"
+                     ${disabled ? 'aria-disabled="true"' : ''}>
+                  <div class="cd-key">
+                    <span>${label}${subj ? ` — ${subj}` : ''}</span>
+                    ${used ? '<span class="cd-used">Used</span>' : ''}
+                  </div>
+                  <div class="cd-val">${preview || '<em style="color:#6b7280">Unavailable (missing info)</em>'}</div>
+                </div>
+              `;
+            }).join('');
+
+            return `
+              <div class="cd-card">
+                <div class="cd-label">${groupName}</div>
+                <div class="cd-grid">${items}</div>
+              </div>
+            `;
+          }).join('');
+
+          panel.innerHTML = `
+            <div class="contact-data">
+              <div class="cd-body">
+                ${groups}
+              </div>
+            </div>
+          `;
+
+          // Item click handlers (respect disabled)
+          panel.querySelectorAll('.menu-item').forEach(itemEl => {
+            const disabled = itemEl.getAttribute('aria-disabled') === 'true';
+            if (disabled) return;
+
+            const groupName = decodeURIComponent(itemEl.getAttribute('data-group') || '');
+            const label = decodeURIComponent(itemEl.getAttribute('data-label') || '');
+            const payload = (menuData[groupName] || {})[label] || {};
+            const subject = payload.subject || '';
+            const message = payload.message || '';
+
+            itemEl.addEventListener('click', async () => {
+              if (type === 'sms') {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(r => setTimeout(r, 250));
+                }
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanMessageText(message), 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+              }
+
+              if (type === 'email') {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(r => setTimeout(r, 1500));
+                }
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) editor.innerHTML = cleanMessageEmail(message).split('\n').map(p => `<p>${p}</p>`).join('');
+              }
+
+              if (type === 'voicemail') {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) setInputValue(textarea, cleanMessageText(message), 'vm-template');
+              }
+
+              // toggle Used
+              const already = hasSeen(type, contactId, groupName, label);
+              if (already) unmarkSeen(type, contactId, groupName, label);
+              else markSeen(type, contactId, groupName, label);
+
+              const badge = itemEl.querySelector('.cd-used');
+              const nowUsed = hasSeen(type, contactId, groupName, label);
+              if (nowUsed && !badge) {
+                const b = document.createElement('span'); b.className='cd-used'; b.textContent='Used';
+                itemEl.querySelector('.cd-key').appendChild(b);
+              } else if (!nowUsed && badge) {
+                badge.remove();
+              }
+            });
+          });
+
+          // Extra: Voicemail “Days” quick-pick from your 10 VM scripts
+          if (type === 'voicemail' && menuData['Voicemail Scripts']) {
+            const vmEntries = Object.entries(menuData['Voicemail Scripts']);
+            const msgs = vmEntries.map(([_, p]) => p.message || '').filter(Boolean);
+            if (msgs.length >= 10) {
+              const body = panel.querySelector('.cd-body');
+              const mkDay = (dayIdx, a, b) => `
+                <div class="cd-card">
+                  <div class="cd-label">Day ${dayIdx}</div>
+                  <div class="cd-grid">
+                    <div class="menu-item" data-day="${dayIdx}" data-which="1">
+                      <div class="cd-key">Voicemail #1</div>
+                      <div class="cd-val">${msgs[a]}</div>
+                    </div>
+                    <div class="menu-item" data-day="${dayIdx}" data-which="2">
+                      <div class="cd-key">Voicemail #2</div>
+                      <div class="cd-val">${msgs[b]}</div>
+                    </div>
+                  </div>
+                </div>`;
+              body.insertAdjacentHTML('afterbegin', [
+                mkDay(5, 8, 9),
+                mkDay(4, 6, 7),
+                mkDay(3, 4, 5),
+                mkDay(2, 2, 3),
+                mkDay(1, 0, 1)
+              ].join(''));
+
+              panel.querySelectorAll('.menu-item[data-day]').forEach(el => {
+                el.addEventListener('click', () => {
+                  const textarea = document.querySelector('#voicemail-note');
+                  const val = el.querySelector('.cd-val')?.textContent || '';
+                  if (textarea) setInputValue(textarea, val, 'vm-template');
+
+                  const day = el.getAttribute('data-day');
+                  const which = el.getAttribute('data-which');
+                  const dayKey = `Day${day}#${which}`;
+                  const used = hasSeen('voicemail', contactId, 'Days', dayKey);
+                  if (used) unmarkSeen('voicemail', contactId, 'Days', dayKey);
+                  else markSeen('voicemail', contactId, 'Days', dayKey);
+                  el.style.background = hasSeen('voicemail', contactId, 'Days', dayKey) ? 'lightgrey' : '';
+                });
+              });
+            }
+          }
+        }
+
+        // initial render
+        renderPanel();
+
+        // Keep panel synced while open
+        const mo = new MutationObserver(() => {
+          renderPanel();
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+
+        // Build your existing right-flyout submenu items (kept as-is, but we also mark “Used” on click)
+        for (const [group, templates] of Object.entries(menuData || {})) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="template-panel"></div>
+          `;
+
+          const panelRight = groupWrapper.querySelector('.template-panel');
+
+          for (const [label, { subject = '', message, disabled = false }] of Object.entries(templates)) {
+            const buttonItem = document.createElement('div');
+            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            buttonItem.textContent = label;
+            if (disabled) {
+              buttonItem.setAttribute('aria-disabled', 'true');
+              buttonItem.style.opacity = '.55';
+              buttonItem.style.cursor = 'not-allowed';
+            }
+
+            let cleanedMessage = '';
+            let handleClick = () => console.warn(`Unhandled or disabled template type: ${type}`);
+
+            if (!disabled && type === 'email') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
+              handleClick = async () => {
+                const activeTab = document.querySelector('.nav-link.active');
+                const emailTab = document.querySelector('#email-tab');
+                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
+                  emailTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+
+                const composer = document.querySelector('#message-composer');
+                const subjectField = composer?.querySelector('#subject');
+                const editor = composer?.querySelector('.tiptap.ProseMirror');
+
+                if (subjectField) setInputValue(subjectField, subject, 'email-template');
+                if (editor) {
+                  editor.innerHTML = cleanedMessage.split('\n').map(p => `<p>${p}</p>`).join('');
+                }
+
+                // mark Used
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('email', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (!disabled && type === 'sms') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = async () => {
+                let activeTab = document.querySelector('.nav-link.active');
+                const smsTab = document.querySelector('#sms-tab');
+
+                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
+                  smsTab.click();
+                  await new Promise(resolve => setTimeout(resolve, 250));
+                }
+
+                const input = document.querySelector('#text-message');
+                const sendButton = document.querySelector('#send-sms');
+                if (!input) return;
+
+                setInputValue(input, cleanedMessage, 'smsMsg');
+
+                activeTab = document.querySelector('.nav-link.active');
+                const checkbox = wrapper.querySelector('input[type="checkbox"]');
+                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
+                  setTimeout(() => sendButton.click(), 100);
+                }
+
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('sms', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            if (!disabled && type === 'voicemail') {
+              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+              handleClick = () => {
+                const textarea = document.querySelector('#voicemail-note');
+                if (textarea) {
+                  setInputValue(textarea, cleanedMessage, 'vm-template');
+                }
+
+                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
+                const contactId = row?.id || '';
+                markSeen('voicemail', contactId, group, label);
+
+                floatingModal.remove();
+                wrapper.classList.add('hidden');
+              };
+            }
+
+            buttonItem.addEventListener('click', handleClick);
+
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(cleanedMessage || '').replace(/\n/g, '<br>');
+              floatingModal.attachHover(buttonItem, preview, handleClick);
+            }
+
+            panelRight.appendChild(buttonItem);
+          }
+
+          wrapper.appendChild(groupWrapper);
+        }
+
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panelRight = wrap.querySelector('.template-panel');
+
+          Object.assign(panelRight.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '500px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '9999',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
+
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panelRight.style.top = `${rect.top + window.scrollY}px`;
+            panelRight.style.left = `${rect.right + window.scrollX}px`;
+            panelRight.style.display = 'block';
+          });
+
+          wrap.addEventListener('mouseleave', () => {
+            panelRight.style.display = 'none';
+          });
+        });
+      });
+    }
+  } catch (err) {
+    cErr(`Error in ${menuId}: ${err}`);
+  }
 }
+
 
 function getFirebaseIdToken() {
 return new Promise((resolve, reject) => {
@@ -7663,6 +7700,646 @@ function pinPopoverTo(popoverEl, anchorEl, opts = {}) {
   scanAllRows();
 }
 
+function attachEmailHandlers() {
+  // Avoid double-injection
+  if (window.__emailHandlersAttached) return;
+  window.__emailHandlersAttached = true;
+
+  if (!location.href.includes("/contacts/smart_list/")) return;
+
+  const qs = (s, r = document) => r.querySelector(s);
+
+  // -------------------- Auth / API --------------------
+  async function getAuthTokenAndLocationId() {
+    const idb = await new Promise((res, rej) => {
+      const r = indexedDB.open("firebaseLocalStorageDb");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
+    const idToken = val?.stsTokenManager?.accessToken || "";
+    const parts = location.pathname.split("/");
+    const locationId = parts[parts.indexOf("location") + 1];
+    return { idToken, locationId };
+  }
+
+  async function fetchConversationId({ contactId }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
+    return conv?.id || conv?._id || "";
+  }
+
+  async function fetchConversationsByContact({ contactId, limit = 50 }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const params = new URLSearchParams({ locationId, contactId, limit: String(limit) }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    return Array.isArray(data?.conversations) ? data.conversations : (data?.items || []);
+  }
+
+  async function fetchMessages({ conversationId, limit = 100 }) {
+    const { idToken } = await getAuthTokenAndLocationId();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+  }
+
+  // -------------------- Utils --------------------
+function toEmailHtml(input, contentType) {
+  const s = String(input ?? "");
+  const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(s);
+  if (isHtml) return s;
+
+  const esc = s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const withSpaces = esc.replace(/ {2,}/g, m => "&nbsp;".repeat(m.length - 1) + " ");
+
+  // Replace ONLY single \n with <br>, keep double \n\n as <br><br>
+  const normalized = withSpaces.replace(/\r\n/g, "\n");
+  return normalized
+    .split(/\n\n/)                 // preserve blank lines as paragraph breaks
+    .map(chunk => chunk.replace(/\n/g, "<br>")) // single \n → <br>
+    .join("<br><br>");
+}
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+  function isBlankHtml(html) {
+    if (html == null) return true;
+    const s = String(html)
+      .replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    return s.length === 0;
+  }
+  function wrapEmailHtml(inner) {
+    // keep it minimal; no borders/styles that could leak into recipients
+    return `<html><head><meta charset="utf-8"></head><body>${inner}</body></html>`;
+  }
+
+  // -------------------- Modal (bigger) --------------------
+  function buildEmailModal() {
+    let overlay = qs("#email-modal-overlay");
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.id = "email-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
+
+    const modal = document.createElement("div");
+    modal.style.cssText = "width:90%;max-width:1200px;max-height:90vh;overflow:auto;background:#fff;border-radius:10px;margin:5vh auto;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h3 style="margin:0;font-size:18px;">
+          <span id="email-title-prefix">Email</span>
+          <span id="email-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
+        </h3>
+        <button id="email-close" style="border:0;background:transparent;font-size:20px;cursor:pointer;">×</button>
+      </div>
+
+      <div id="email-history" style="border:1px solid #e5e7eb;border-radius:10px;height:380px;overflow:auto;padding:10px;margin-bottom:12px;background:#f8fafc;">
+        <div id="email-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
+        <div id="email-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
+        <div id="email-history-empty" style="display:none;font-size:12px;color:#667085;">No emails yet.</div>
+        <div id="email-history-list"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          From
+          <input id="email-from" type="text" placeholder="Your Name <you@example.com>" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          To
+          <input id="email-to" type="email" placeholder="recipient@example.com" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+      </div>
+
+      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;margin-bottom:8px;">
+        Subject
+        <input id="email-subject" type="text" placeholder="Subject" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+      </label>
+
+      <div id="email-toolbar" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;">
+        <button type="button" data-cmd="bold" class="tb">B</button>
+        <button type="button" data-cmd="italic" class="tb">I</button>
+        <button type="button" data-cmd="underline" class="tb">U</button>
+        <button type="button" data-cmd="insertUnorderedList" class="tb">• List</button>
+        <button type="button" data-cmd="insertOrderedList" class="tb">1. List</button>
+        <button type="button" id="tb-link" class="tb">Link</button>
+        <button type="button" id="tb-clear" class="tb">Clear</button>
+        <button type="button" id="tb-signature" class="tb">Add signature</button>
+      </div>
+      <style>
+        #email-toolbar .tb { padding:6px 10px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer }
+        #email-editor:empty:before { content: attr(data-placeholder); color:#98a2b3; }
+      </style>
+
+      <div id="email-editor" contenteditable="true"
+           style="min-height:220px;border:1px solid #d0d5dd;border-radius:6px;padding:12px;font-size:14px;line-height:1.5;background:#fff;outline:none;"
+           data-placeholder="Type your email…"></div>
+
+      <div id="email-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+        <button id="email-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
+        <button id="email-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Toolbar wiring
+    const editor = qs("#email-editor", overlay);
+    const tb = qs("#email-toolbar", overlay);
+
+    // execCommand is still the simplest way for a lightweight inline WYSIWYG
+    function exec(cmd, val = null) { document.execCommand(cmd, false, val); }
+
+    tb.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const cmd = btn.getAttribute("data-cmd");
+      if (!cmd) return;
+      editor.focus();
+      exec(cmd);
+    });
+
+    qs("#tb-link", overlay).addEventListener("click", () => {
+      editor.focus();
+      let url = prompt("Enter URL:");
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+      exec("createLink", url);
+    });
+
+    qs("#tb-clear", overlay).addEventListener("click", () => {
+      // fully clear editor
+      editor.innerHTML = "";
+      editor.focus();
+    });
+
+    qs("#tb-signature", overlay).addEventListener("click", () => {
+      editor.focus();
+      const sigHtml = [
+        '<div style="margin-top:16px;">',
+        'Kind regards,<br>',
+        '<strong>Mike Levy</strong> | Property Acquisition Officer<br>',
+        'Cash Land Buyer USA<br>',
+        '📧 <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a><br>',
+        '📞 <a href="tel:+13025877490">(302) 587-7490</a><br>',
+        '<a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener">www.cashlandbuyerusa.com</a>',
+        '</div>'
+      ].join("");
+      // insert at caret
+      document.execCommand("insertHTML", false, sigHtml);
+    });
+
+    // paste as plain text (so you control formatting)
+    editor.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+      document.execCommand("insertText", false, text);
+    });
+
+    const hide = () => { overlay.style.display = "none"; };
+    qs("#email-close", overlay).onclick = hide;
+    qs("#email-cancel", overlay).onclick = hide;
+
+    // Send with validation (subject + body required)
+    qs("#email-send", overlay).onclick = async () => {
+      const fromVal  = qs("#email-from", overlay).value.trim();
+      const toVal    = qs("#email-to", overlay).value.trim();
+      const subject  = qs("#email-subject", overlay).value.trim();
+      const htmlBody = editor.innerHTML; // WYSIWYG HTML
+      const contactId = overlay.dataset.contactId || "";
+      const err = qs("#email-error", overlay);
+      err.style.display = "none"; err.textContent = "";
+
+      if (!contactId) {
+        err.textContent = "Missing contact id for this row.";
+        err.style.display = "block";
+        return;
+      }
+      if (!fromVal) {
+        err.textContent = "From is required.";
+        err.style.display = "block";
+        qs("#email-from", overlay).focus();
+        return;
+      }
+      if (!toVal) {
+        err.textContent = "To is required.";
+        err.style.display = "block";
+        qs("#email-to", overlay).focus();
+        return;
+      }
+      if (!subject) {
+        err.textContent = "Subject is required.";
+        err.style.display = "block";
+        qs("#email-subject", overlay).focus();
+        return;
+      }
+      if (isBlankHtml(htmlBody)) {
+        err.textContent = "Message body is required.";
+        err.style.display = "block";
+        editor.focus();
+        return;
+      }
+
+      qs("#email-send", overlay).disabled = true;
+      qs("#email-send", overlay).textContent = "Sending…";
+      try {
+        await sendEmailRequest({
+          contactId,
+          subject,
+          html: wrapEmailHtml(htmlBody),
+          emailFrom: fromVal
+        });
+        editor.innerHTML = "";
+        await loadEmailHistory(overlay);
+      } catch (e) {
+        err.textContent = String(e.message || e);
+        err.style.display = "block";
+      } finally {
+        qs("#email-send", overlay).disabled = false;
+        qs("#email-send", overlay).textContent = "Send";
+      }
+    };
+
+    return overlay;
+  }
+
+  // -------------------- Send --------------------
+  async function sendEmailRequest({ contactId, subject, html, emailFrom, attachments = [], emailReplyMode = "reply_all", fromOneToOneConversation = true }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    let userId = "";
+    try {
+      const u = typeof getUserData === "function" ? await getUserData() : null;
+      userId = u?.myUserId || u?.userId || "";
+    } catch {}
+    const payload = {
+      contactId,
+      subject,
+      html,
+      emailFrom,
+      userId,
+      attachments,
+      type: "Email",
+      channel: "email",
+      locationId,
+      emailReplyMode,
+      fromOneToOneConversation
+    };
+    const r = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    return r.json();
+  }
+
+  // -------------------- History (meta.email authoritative) --------------------
+  function isEmailFromMeta(m) {
+    // accept when meta.email present and either subject exists or it's an email type/content
+    return !!(m?.meta?.email && (m.meta.email.subject || m.contentType === "text/html" || m.type === 3));
+  }
+
+  function normalizeEmailMessage(m) {
+    const me = (m && m.meta && m.meta.email) || {};
+    const str = v => (typeof v === "string" ? v : "");
+
+    return {
+      subject: str(me.subject) || "(no subject)",
+      direction: String(me.direction || m.direction || m.messageDirection || "").toLowerCase(), // inbound|outbound
+      html: toEmailHtml(m.body || "", m.contentType),
+      createdAt: me.lastMessageTimestamp || me.firstMessageTimestamp || m.userMessageTime || m.dateAdded || m.dateUpdated || null,
+      fromName: str(me.name),
+      fromEmail: str(me.email)
+    };
+  }
+
+  function renderEmailCards(overlay, emails) {
+    const list = overlay.querySelector("#email-history-list");
+    const box  = overlay.querySelector("#email-history");
+    list.innerHTML = "";
+
+    const frag = document.createDocumentFragment();
+
+    emails
+      .slice()
+      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+      .forEach(m => {
+        const outbound = (m.direction === "outbound");
+
+        const cardWrap = document.createElement("div");
+        cardWrap.style.cssText = `
+          display:flex;
+          margin:10px 0;
+          ${outbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}
+        `;
+
+        const card = document.createElement("article");
+        card.style.cssText = `
+          width:80%;
+          border:1px solid #e5e7eb;
+          border-radius:10px;
+          background:#fff;
+          overflow:hidden;
+          box-shadow:0 1px 2px rgba(0,0,0,.04);
+        `;
+
+        // Subject header (blue)
+        const header = document.createElement("div");
+        header.style.cssText = `
+          background:#155EEF;
+          color:#fff;
+          padding:10px 12px;
+          font-weight:600;
+          font-size:14px;
+        `;
+        header.textContent = m.subject || "(no subject)";
+
+        // Meta line: from (left) | date (right)
+        const meta = document.createElement("div");
+        meta.style.cssText = `
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          padding:8px 12px;
+          background:#f7f7fb;
+          color:#475467;
+          font-size:12px;
+        `;
+        const fromSpan = document.createElement("span");
+        fromSpan.textContent = [m.fromName, m.fromEmail].filter(Boolean).join(" · ") || "Unknown sender";
+
+        const dateSpan = document.createElement("span");
+        dateSpan.textContent = m.createdAt ? new Date(m.createdAt).toLocaleString() : "";
+
+        meta.appendChild(fromSpan);
+        meta.appendChild(dateSpan);
+
+        // Body: preserve HTML or convert \n → <br>
+        const body = document.createElement("div");
+        body.style.cssText = `
+          padding:12px;
+          font-size:14px;
+          line-height:1.55;
+          color:#111827;
+          background:#fff;
+        `;
+        if (m.html && String(m.html).trim()) {
+          body.innerHTML = m.html;
+        } else {
+          const missing = document.createElement("div");
+          missing.textContent = "Email content not found";
+          missing.style.cssText = "font-style:italic;color:#9CA3AF;";
+          body.appendChild(missing);
+        }
+
+        card.appendChild(header);
+        card.appendChild(meta);
+        card.appendChild(body);
+
+        // Align card
+        if (outbound) card.style.marginLeft = "auto";
+        else card.style.marginRight = "auto";
+
+        cardWrap.appendChild(card);
+        frag.appendChild(cardWrap);
+      });
+
+    list.appendChild(frag);
+    if (box) box.scrollTop = box.scrollHeight;
+  }
+
+  async function loadEmailHistory(overlay) {
+    const loading = overlay.querySelector("#email-history-loading");
+    const err = overlay.querySelector("#email-history-error");
+    const empty = overlay.querySelector("#email-history-empty");
+    const list = overlay.querySelector("#email-history-list");
+
+    loading.style.display = "block";
+    err.style.display = "none";
+    empty.style.display = "none";
+    list.innerHTML = "";
+
+    const contactId = overlay.dataset.contactId || "";
+    if (!contactId) {
+      loading.style.display = "none";
+      err.textContent = "Missing contact id.";
+      err.style.display = "block";
+      return;
+    }
+
+    try {
+      let ids = [];
+      const convs = await fetchConversationsByContact({ contactId, limit: 50 });
+      ids = Array.isArray(convs) ? convs.map(c => c && c.id).filter(Boolean) : [];
+      if (!ids.length) {
+        const singleId = await fetchConversationId({ contactId });
+        if (!singleId) {
+          loading.style.display = "none";
+          empty.style.display = "block";
+          return;
+        }
+        ids = [singleId];
+      }
+
+      const settled = await Promise.allSettled(ids.map(id => fetchMessages({ conversationId: id, limit: 100 })));
+      const all = settled.flatMap(res => {
+        if (res.status !== "fulfilled") return [];
+        const raw = res.value;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.messages?.messages)) return raw.messages.messages;
+        if (Array.isArray(raw?.messages)) return raw.messages;
+        if (Array.isArray(raw?.items)) return raw.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (raw && typeof raw === "object") {
+          const k = Object.keys(raw).find(key => Array.isArray(raw[key]));
+          return k ? raw[k] : [];
+        }
+        return [];
+      });
+
+      const emailOnly = all.filter(isEmailFromMeta).map(normalizeEmailMessage);
+
+      loading.style.display = "none";
+      if (!emailOnly.length) {
+        empty.style.display = "block";
+        return;
+      }
+
+      renderEmailCards(overlay, emailOnly);
+    } catch (e) {
+      loading.style.display = "none";
+      err.textContent = String(e?.message || e);
+      err.style.display = "block";
+    }
+  }
+
+  // -------------------- Wire up buttons in table --------------------
+  function hasEmailInRow(tr) {
+    // try Email column first
+    const emailCell = tr.querySelector('td[data-title="Email"]');
+    const text = (emailCell?.textContent || "").trim();
+    const mailto = emailCell?.querySelector('a[href^="mailto:"]')?.getAttribute("href");
+    const emailRegex = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+    return emailRegex.test(text) || (mailto && emailRegex.test(mailto));
+  }
+
+  function getEmailFromRow(tr) {
+    const emailCell = tr.querySelector('td[data-title="Email"]');
+    const link = emailCell?.querySelector('a[href^="mailto:"]');
+    if (link) {
+      const href = link.getAttribute("href") || "";
+      const m = href.match(/mailto:([^?]+)/i);
+      if (m) return m[1];
+    }
+    const text = (emailCell?.textContent || "").trim();
+    const m2 = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+    return m2 ? m2[0] : "";
+  }
+
+  function ensureRowButton(tr) {
+    if (tr.querySelector('.email-envelope-action')) return; // one already exists - skip adding a second
+
+    // Only add if row has an email address
+    if (!hasEmailInRow(tr)) return;
+
+    const msgIcon = tr.querySelector('.fa-solid.fa-message');
+    if (!msgIcon) return;
+
+    const emailIcon = document.createElement("i");
+    emailIcon.className = "fa-solid fa-envelope email-envelope-action";
+    emailIcon.style.cssText = "color: rgba(21, 94, 239, 0.9); cursor: pointer; margin-left: 8px;";
+    msgIcon.insertAdjacentElement("afterend", emailIcon);
+
+    emailIcon.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+
+      const rowId = tr.id ? tr.id.trim() : "";
+
+      // name
+      let nameCell =
+        tr.querySelector('td[data-title="Name"]') ||
+        tr.querySelector('td[data-title="Client"]') ||
+        tr.querySelector("td .name") ||
+        tr.querySelector("td a");
+      const nameSource = nameCell?.querySelector('a[title]') || nameCell?.querySelector('a') || nameCell;
+      const rawName = (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
+      const cleaned = rawName.replace(/\s+/g, " ").trim();
+      const parts = cleaned.split(" ").filter(Boolean);
+      const first = parts[0] || "";
+      const last = parts.slice(1).join(" ") || "";
+
+      const overlay = buildEmailModal();
+      // title meta
+      const metaEl = qs("#email-title-meta", overlay);
+      if (metaEl) {
+        const nameHtml =
+          (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
+          (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
+        const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
+        metaEl.innerHTML = `${nameHtml}${idHtml}`;
+      }
+
+      overlay.dataset.contactId = rowId || "";
+      const emailVal = getEmailFromRow(tr);
+      qs("#email-to", overlay).value = emailVal;
+
+      try {
+        const u = typeof getUserData === "function" ? await getUserData() : null;
+        const myName = u?.myFirstName && u?.myLastName ? `${u.myFirstName} ${u.myLastName}` : (u?.myFirstName || u?.myName || "");
+        const myEmail = u?.myEmail || "";
+        if (myEmail) qs("#email-from", overlay).value = myName ? `${myName} <${myEmail}>` : myEmail;
+      } catch {}
+
+      qs("#email-subject", overlay).value = "";
+      qs("#email-editor", overlay).innerHTML = "";
+
+      const histLoading = qs("#email-history-loading", overlay);
+      const histErr = qs("#email-history-error", overlay);
+      const histEmpty = qs("#email-history-empty", overlay);
+      const histList = qs("#email-history-list", overlay);
+      histLoading.style.display = "block";
+      histErr.style.display = "none";
+      histEmpty.style.display = "none";
+      histList.innerHTML = "";
+
+      overlay.style.display = "block";
+      loadEmailHistory(overlay);
+    }, true);
+  }
+
+  // Attach to existing rows
+  document.querySelectorAll('tr[id]').forEach(ensureRowButton);
+
+  // If table updates dynamically, you can observe mutations:
+  const tbl = document.querySelector('table') || document.body;
+  const mo = new MutationObserver(muts => {
+    for (const m of muts) {
+      m.addedNodes && m.addedNodes.forEach(n => {
+        if (n.nodeType === 1 && n.matches && n.matches('tr[id]')) ensureRowButton(n);
+        if (n.nodeType === 1) n.querySelectorAll && n.querySelectorAll('tr[id]').forEach(ensureRowButton);
+      });
+    }
+  });
+  mo.observe(tbl, { childList: true, subtree: true });
+}
 
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
