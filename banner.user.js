@@ -350,7 +350,7 @@ Kind regards,
 <strong>${myFullName}</strong>
 Property Acquisition Officer  |  Cash Land Buyer USA
 📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>
-📞 ${myTele}\n
+📞 ${myTele}
 <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`;
 
     menuData = {
