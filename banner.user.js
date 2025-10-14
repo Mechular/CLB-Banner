@@ -7272,15 +7272,34 @@ function attachEmailHandlers() {
     if (!/^https?:\/\//i.test(url)) url = "https://" + url;
     exec("createLink", url);
   }
-  function getSignatureHtml() {
+  function getSignatureHtml() { 
+    const userInfo = await getUserData().catch(() => null);
+    if (!userInfo) return;
+  
+    let myFullName = '';
+    let myFirstName = '';
+    let myLastName = '';
+    let myInitials = '';
+    let myEmail = '';
+    let myTele = '';
+  
+    if (userInfo && userInfo.myFirstName) {
+      myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
+      myFirstName = userInfo.myFirstName;
+      myLastName = userInfo.myLastName;
+      myInitials = userInfo.myInitials;
+      myEmail = userInfo.myEmail;
+      myTele = userInfo.myTele;
+    }
+    
     return `
 <div style="margin-top:10px;">
-  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
+  <div><strong>${myFullName}</strong> | Property Acquisition Officer</div>
   <div>Cash Land Buyer USA</div>
   <div>
-    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
+    <a href="mailto:${myEmail}">${myEmail}</a> ·
     <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
-    (302) 587-7490
+    ${myTele}
   </div>
 </div>`;
   }
