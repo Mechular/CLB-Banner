@@ -7272,7 +7272,7 @@ function attachEmailHandlers() {
     if (!/^https?:\/\//i.test(url)) url = "https://" + url;
     exec("createLink", url);
   }
-  function getSignatureHtml() { 
+  async function getSignatureHtml() { 
     const userInfo = await getUserData().catch(() => null);
     if (!userInfo) return;
   
