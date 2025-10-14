@@ -431,7 +431,7 @@ Property Acquisition Officer  |  Cash Land Buyer USA
 
   if (commType === 'voicemail') {
     menuData = {
-        'VM #1': makeItem(
+        'Day #1, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -442,7 +442,7 @@ Please call me at ${CALLBACK_NUMBER} when you get a moment. Looking forward to h
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #2': makeItem(
+        'Day #1, VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -453,7 +453,7 @@ Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soo
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #3': makeItem(
+        'Day #2, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -464,7 +464,7 @@ Call me at ${CALLBACK_NUMBER} and we can go over your options. Thank you.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #4': makeItem(
+        'Day #2, VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -475,7 +475,7 @@ Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forw
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #5': makeItem(
+        'Day #3, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -486,7 +486,7 @@ Give me a quick call at ${CALLBACK_NUMBER} and we’ll see if we're a fit. Talk 
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #6': makeItem(
+        'Day #3, VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -497,7 +497,7 @@ You can reach me at ${CALLBACK_NUMBER}. Talk soon.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #7': makeItem(
+        'Day #4, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -508,7 +508,7 @@ Please call me today at ${CALLBACK_NUMBER}. Thank you.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #8': makeItem(
+        'Day #4, VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -519,7 +519,7 @@ Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #9': makeItem(
+        'Day #5, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
@@ -529,7 +529,7 @@ If you’re serious about selling, call me today at ${CALLBACK_NUMBER} and we ca
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'VM #10': makeItem(
+        'Day #5, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
             const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
