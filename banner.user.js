@@ -7378,7 +7378,7 @@ function attachEmailHandlers() {
       const action = btn.getAttribute("data-action");
       if (cmd) { editor.focus(); document.execCommand(cmd, false, null); }
       if (btn.id === "tb-link")   { editor.focus(); makeLink(); }
-      if (btn.id === "tb-addsig") { editor.focus(); document.execCommand("insertHTML", false, getSignatureHtml()); }
+      if (btn.id === "tb-addsig") { editor.focus(); document.execCommand("insertHTML", false, await getSignatureHtml()); }
       if (action === "clear-editor") { editor.innerHTML = ""; }
     });
     editor.addEventListener("paste", (e) => {
