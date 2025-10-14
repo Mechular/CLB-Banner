@@ -7272,32 +7272,18 @@ function attachEmailHandlers() {
     if (!/^https?:\/\//i.test(url)) url = "https://" + url;
     exec("createLink", url);
   }
-  async function getSignatureHtml() { 
-    const userInfo = await getUserData().catch(() => null);
-    if (!userInfo) return '';
-  
-    const {
-      myFirstName = '',
-      myLastName = '',
-      myInitials = '',
-      myEmail = '',
-      myTele = '',
-    } = userInfo;
-  
-    const myFullName = myFirstName && myLastName ? `${myFirstName} ${myLastName}` : '';
-  
+  function getSignatureHtml() {
     return `
-  <div style="margin-top:10px;">
-    <div><strong>${myFullName}</strong> | Property Acquisition Officer</div>
-    <div>Cash Land Buyer USA</div>
-    <div>
-      <a href="mailto:${myEmail}">${myEmail}</a> ·
-      <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
-      ${myTele}
-    </div>
-  </div>`;
+<div style="margin-top:10px;">
+  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
+  <div>Cash Land Buyer USA</div>
+  <div>
+    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
+    <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
+    (302) 587-7490
+  </div>
+</div>`;
   }
-
 
   // --------------------- Modal (single instance) ---------------------
   function buildEmailModal() {
@@ -7378,7 +7364,7 @@ function attachEmailHandlers() {
       const action = btn.getAttribute("data-action");
       if (cmd) { editor.focus(); document.execCommand(cmd, false, null); }
       if (btn.id === "tb-link")   { editor.focus(); makeLink(); }
-      if (btn.id === "tb-addsig") { editor.focus(); document.execCommand("insertHTML", false, await getSignatureHtml()); }
+      if (btn.id === "tb-addsig") { editor.focus(); document.execCommand("insertHTML", false, getSignatureHtml()); }
       if (action === "clear-editor") { editor.innerHTML = ""; }
     });
     editor.addEventListener("paste", (e) => {
