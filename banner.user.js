@@ -7091,7 +7091,7 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
-  async function addEmailTemplateMenu() {
+  async function attachEmailHandlers() {
     try {
       const cancelBtn = overlay.querySelector('#email-cancel');
       const sendBtn   = overlay.querySelector('#email-send');
