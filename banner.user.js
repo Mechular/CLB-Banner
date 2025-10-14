@@ -7091,333 +7091,14 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
-  async function attachEmailHandlers() {
-    try {
-      const cancelBtn = overlay.querySelector('#email-cancel');
-      const sendBtn   = overlay.querySelector('#email-send');
-      if (!cancelBtn || !sendBtn) return;
-  
-      const actionRow = sendBtn.closest('div');
-      if (!actionRow) return;
-  
-      const oldMenu = overlay.querySelector('#email_tb_template_menu');
-      if (oldMenu) oldMenu.remove();
-      const oldSpacer = overlay.querySelector('#email_tb_template_spacer');
-      if (oldSpacer) oldSpacer.remove();
-  
-      const menuLink = document.createElement('a');
-      menuLink.id = 'email_tb_template_menu';
-      menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
-      menuLink.setAttribute('aria-label', 'Email Templates');
-      menuLink.style.display = 'inline-flex';
-      menuLink.style.alignItems = 'center';
-      menuLink.style.lineHeight = '1.6rem';
-      menuLink.style.userSelect = 'none';
-      menuLink.innerHTML = `
-        <span class="flex items-center select-none">
-          Email Templates
-          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </span>
-      `;
-  
-      const spacer = document.createElement('div');
-      spacer.id = 'email_tb_template_spacer';
-      spacer.style.flex = '1 1 auto';
-  
-      actionRow.insertBefore(menuLink, actionRow.firstChild);
-      actionRow.insertBefore(spacer, cancelBtn);
-  
-      let wrapper = null;
-      let outsideHandler = null;
-      let escHandler = null;
-  
-      function createDropdown() {
-        const div = document.createElement('div');
-        div.setAttribute('role', 'menu');
-        div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
-        div.style.width = '16rem';
-        div.style.left = '0';
-        div.style.zIndex = '1000003';
-        menuLink.appendChild(div);
-        return div;
-      }
-  
-      function hideAllPanels() {
-        if (!wrapper) return;
-        wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
-        const modal = document.getElementById('email-template-hover');
-        if (modal) modal.style.display = 'none';
-      }
-  
-      function closeDropdown() {
-        hideAllPanels();
-        if (!wrapper) return;
-        wrapper.classList.add('hidden');
-        wrapper.setAttribute('hidden', '');
-        wrapper.style.display = 'none';
-        menuLink.setAttribute('aria-expanded', 'false');
-        teardownGlobalClosers();
-      }
-  
-      function openDropdown() {
-        wrapper.classList.remove('hidden');
-        wrapper.removeAttribute('hidden');
-        wrapper.style.display = '';
-        menuLink.setAttribute('aria-expanded', 'true');
-  
-        outsideHandler = (ev) => {
-          if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
-        };
-        escHandler = (ev) => {
-          if (ev.key === 'Escape') closeDropdown();
-        };
-        document.addEventListener('mousedown', outsideHandler, true);
-        document.addEventListener('keydown', escHandler, true);
-      }
-  
-      function teardownGlobalClosers() {
-        if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
-        if (escHandler) document.removeEventListener('keydown', escHandler, true);
-        outsideHandler = null;
-        escHandler = null;
-      }
-  
-      wrapper = createDropdown();
-  
-      // Helper: detect html vs text and set the editor
-      function setEditorHtmlFromMessage(msg) {
-        const editor = overlay.querySelector('#email-editor');
-        if (!editor) return;
-        const raw = String(msg ?? '');
-        const looksHtml = /<[a-z][\s\S]*>/i.test(raw);
-        editor.innerHTML = looksHtml ? raw : raw.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
-      }
-  
-      // Optional hover preview support if your global helper exists
-      function getFloatingModal() {
-        let fm = document.getElementById('email-template-hover');
-        if (typeof createFloatingModal === 'function') {
-          if (!fm) {
-            fm = createFloatingModal({
-              id: 'email-template-hover',
-              styles: {
-                position: 'fixed',
-                backgroundColor: '#f9f9f9',
-                border: '1px solid #ccc',
-                minWidth: '20rem',
-                maxWidth: '20rem',
-                zIndex: '1000005',
-                pointerEvents: 'none'
-              }
-            });
-          } else {
-            fm.style.position = 'fixed';
-            fm.style.zIndex = '1000005';
-            fm.style.pointerEvents = 'none';
-          }
-        }
-        return fm || null;
-      }
-  
-      menuLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-  
-        const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
-        if (!isHidden) {
-          closeDropdown();
-          return;
-        }
-  
-        openDropdown();
-        wrapper.innerHTML = '';
-  
-        // Load only email-specific templates
-        let data;
-        try {
-          data = await getMenuData('email'); // uses your provided getMenuData
-        } catch {
-          data = null;
-        }
-        if (!data || !Object.keys(data).length) {
-          const empty = document.createElement('div');
-          empty.className = 'px-4 py-2 text-sm text-gray-500';
-          empty.textContent = 'No templates available';
-          wrapper.appendChild(empty);
-          return;
-        }
-  
-        const floatingModal = getFloatingModal();
-  
-        // Build grouped menu
-        for (const [group, templates] of Object.entries(data)) {
-          const groupWrapper = document.createElement('div');
-          groupWrapper.className = 'relative group submenu-wrapper';
-          groupWrapper.innerHTML = `
-            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-              <span>${group}</span>
-              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-            </button>
-            <div class="hidden template-panel"></div>
-          `;
-          const panel = groupWrapper.querySelector('.template-panel');
-  
-          for (const [label, tpl] of Object.entries(templates)) {
-            const item = document.createElement('div');
-            item.className = 'menu-item text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-            item.textContent = label;
-  
-            // Disable if template lacks required context (getMenuData already marks it)
-            if (tpl && tpl.disabled) {
-              item.setAttribute('aria-disabled', 'true');
-              item.style.opacity = '.55';
-              item.style.pointerEvents = 'auto';
-            }
-  
-            function applyTemplate() {
-              if (tpl && tpl.disabled) return;
-              const subjectEl = overlay.querySelector('#email-subject');
-              if (subjectEl && typeof tpl?.subject === 'string') subjectEl.value = tpl.subject;
-              if (typeof tpl?.message === 'string') setEditorHtmlFromMessage(tpl.message);
-              closeDropdown();
-            }
-  
-            item.addEventListener('click', (ev) => {
-              ev.preventDefault();
-              ev.stopPropagation();
-              if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-              applyTemplate();
-            });
-  
-            if (floatingModal && typeof floatingModal.attachHover === 'function') {
-              const preview = String(tpl?.message || '').replace(/\n/g, '<br>');
-              floatingModal.attachHover(item, preview, applyTemplate);
-            } else {
-              const previewTxt = String(tpl?.message || '').replace(/\s+/g, ' ').slice(0, 200);
-              if (previewTxt) item.title = previewTxt;
-            }
-  
-            panel.appendChild(item);
-          }
-  
-          wrapper.appendChild(groupWrapper);
-        }
-  
-        // Position submenus next to group buttons
-        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
-          const button = wrap.querySelector('button');
-          const panel = wrap.querySelector('.template-panel');
-  
-          Object.assign(panel.style, {
-            fontFamily: 'inherit',
-            fontSize: '0.875rem',
-            lineHeight: '1.25rem',
-            padding: '0.5rem',
-            maxWidth: '480px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-            zIndex: '1000004',
-            position: 'fixed',
-            display: 'none',
-            whiteSpace: 'normal',
-            color: '#374151'
-          });
-  
-          wrap.addEventListener('mouseenter', () => {
-            const rect = button.getBoundingClientRect();
-            panel.style.top = `${rect.top + window.scrollY}px`;
-            panel.style.left = `${rect.right + window.scrollX}px`;
-            panel.style.display = 'block';
-          });
-  
-          wrap.addEventListener('mouseleave', () => {
-            panel.style.display = 'none';
-          });
-        });
-      });
-    } catch {}
-  }
-   
-  // --------------------- Utils ---------------------
-  function escapeHtml(s) {
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  }
+function attachEmailHandlers() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
 
-  // Plain-text -> HTML with preserved newlines and autolinks. If it’s already HTML, return as-is.
-  function toEmailHtml(input, contentType) {
-    const raw = String(input ?? "");
-    const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(raw);
-    if (isHtml) return raw;
+  const qs  = (s, r=document) => r.querySelector(s);
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
 
-    let esc = raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    esc = esc.replace(/\r\n/g, "\n");
-    // auto-link emails & urls
-    esc = esc
-      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, m => `<a href="mailto:${m}">${m}</a>`)
-      .replace(/\bhttps?:\/\/[^\s<]+/gi, m => `<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`);
-    // preserve every newline (no paragraph lumping)
-    return esc.replace(/\n/g, "<br>");
-  }
-
-  function wrapEmailHtml(inner) {
-    const css = ".ProseMirror p.custom-newline, .custom-list p.custom-newline {margin:0!important;}";
-    return `<html><head><style>${css}</style></head><body><div class="ProseMirror">${inner}</div></body></html>`;
-  }
-
-  // --------------------- Styles (once) ---------------------
-  if (!qs("#email-card-styles")) {
-    const style = document.createElement("style");
-    style.id = "email-card-styles";
-    style.textContent = `
-      /* Cards + alignment */
-      .email-bucket { display:flex; margin:10px 0; }
-      .email-bucket.outbound { justify-content:flex-end; }
-      .email-bucket.inbound  { justify-content:flex-start; }
-
-      .email-card { 
-        border:1px solid #d0d5dd; border-radius:10px; overflow:hidden; background:#fff; 
-        box-shadow:0 1px 2px rgba(0,0,0,.04); 
-        max-width:80%;
-      }
-      .email-card .email-header { background:#155EEF; color:#fff; padding:10px 14px; font-weight:700; }
-      .email-card .email-meta { display:flex; justify-content:space-between; gap:12px; padding:8px 14px; background:#f3f4f6; color:#6b7280; font-size:12px; }
-      .email-card .email-body { background:#fff; padding:12px 14px; line-height:1.6; white-space:normal; }
-      .email-card .email-body a { text-decoration:underline; }
-      .email-card .email-missing { color:#b42318; font-style:normal; font-weight:600; }
-
-      /* Editor + toolbar */
-      #email-toolbar .tb { padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer; }
-      #email-editor[contenteditable="true"] { min-height:220px; border:1px solid #d0d5dd; border-radius:6px; padding:10px; font-size:14px; line-height:1.5; background:#fff; outline:none; }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // --------------------- WYSIWYG helpers ---------------------
-  function exec(cmd, val=null) { document.execCommand(cmd, false, val); }
-  function makeLink() {
-    let url = prompt("Enter URL:");
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-    exec("createLink", url);
-  }
-  function getSignatureHtml() {
-    return `
-<div style="margin-top:10px;">
-  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
-  <div>Cash Land Buyer USA</div>
-  <div>
-    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
-    <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
-    (302) 587-7490
-  </div>
-</div>`;
-  }
-
-  // --------------------- Modal (single instance) ---------------------
-  function buildEmailModal() {
+  // --------------------- Modal must exist before wiring the menu ---------------------
+  const overlay = (function buildEmailModal() {
     let overlay = qs("#email-modal-overlay");
     if (overlay) return overlay;
 
@@ -7426,7 +7107,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
 
     const modal = document.createElement("div");
-    // Bigger modal
     modal.style.cssText = "width:90%;max-width:1200px;background:#fff;border-radius:8px;margin:6vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
     modal.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -7437,7 +7117,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
         <button id="email-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
       </div>
 
-      <!-- Taller history -->
       <div id="email-history" style="border:1px solid #e5e7eb;border-radius:8px;height:380px;overflow:auto;padding:8px;margin-bottom:12px;background:#fafafa;">
         <div id="email-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
         <div id="email-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
@@ -7546,9 +7225,308 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     };
 
     return overlay;
+  })();
+
+  // --------------------- Email Templates dropdown (matches SMS UX) ---------------------
+  (function wireEmailTemplateMenu() {
+    const cancelBtn = overlay.querySelector('#email-cancel');
+    const sendBtn   = overlay.querySelector('#email-send');
+    if (!cancelBtn || !sendBtn) return;
+
+    const actionRow = sendBtn.closest('div');
+    if (!actionRow) return;
+
+    const oldMenu = overlay.querySelector('#email_tb_template_menu');
+    if (oldMenu) oldMenu.remove();
+    const oldSpacer = overlay.querySelector('#email_tb_template_spacer');
+    if (oldSpacer) oldSpacer.remove();
+
+    const menuLink = document.createElement('a');
+    menuLink.id = 'email_tb_template_menu';
+    menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
+    menuLink.setAttribute('aria-label', 'Email Templates');
+    menuLink.style.display = 'inline-flex';
+    menuLink.style.alignItems = 'center';
+    menuLink.style.lineHeight = '1.6rem';
+    menuLink.style.userSelect = 'none';
+    menuLink.innerHTML = `
+      <span class="flex items-center select-none">
+        Email Templates
+        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </span>
+    `;
+
+    const spacer = document.createElement('div');
+    spacer.id = 'email_tb_template_spacer';
+    spacer.style.flex = '1 1 auto';
+
+    actionRow.insertBefore(menuLink, actionRow.firstChild);
+    actionRow.insertBefore(spacer, cancelBtn);
+
+    let wrapper = createDropdown();
+    let outsideHandler = null;
+    let escHandler = null;
+
+    function createDropdown() {
+      const div = document.createElement('div');
+      div.setAttribute('role', 'menu');
+      div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
+      div.style.width = '16rem';
+      div.style.left = '0';
+      div.style.zIndex = '1000003';
+      menuLink.appendChild(div);
+      return div;
+    }
+
+    function hideAllPanels() {
+      if (!wrapper) return;
+      wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
+      const modal = document.getElementById('email-template-hover');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function closeDropdown() {
+      hideAllPanels();
+      if (!wrapper) return;
+      wrapper.classList.add('hidden');
+      wrapper.setAttribute('hidden', '');
+      wrapper.style.display = 'none';
+      menuLink.setAttribute('aria-expanded', 'false');
+      teardownGlobalClosers();
+    }
+
+    function openDropdown() {
+      wrapper.classList.remove('hidden');
+      wrapper.removeAttribute('hidden');
+      wrapper.style.display = '';
+      menuLink.setAttribute('aria-expanded', 'true');
+
+      outsideHandler = (ev) => {
+        if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+      };
+      escHandler = (ev) => {
+        if (ev.key === 'Escape') closeDropdown();
+      };
+      document.addEventListener('mousedown', outsideHandler, true);
+      document.addEventListener('keydown', escHandler, true);
+    }
+
+    function teardownGlobalClosers() {
+      if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
+      if (escHandler) document.removeEventListener('keydown', escHandler, true);
+      outsideHandler = null;
+      escHandler = null;
+    }
+
+    function setEditorHtmlFromMessage(msg) {
+      const editor = overlay.querySelector('#email-editor');
+      if (!editor) return;
+      const raw = String(msg ?? '');
+      const looksHtml = /<[a-z][\s\S]*>/i.test(raw);
+      editor.innerHTML = looksHtml ? raw : raw.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
+    }
+
+    function getFloatingModal() {
+      let fm = document.getElementById('email-template-hover');
+      if (typeof createFloatingModal === 'function') {
+        if (!fm) {
+          fm = createFloatingModal({
+            id: 'email-template-hover',
+            styles: {
+              position: 'fixed',
+              backgroundColor: '#f9f9f9',
+              border: '1px solid #ccc',
+              minWidth: '20rem',
+              maxWidth: '20rem',
+              zIndex: '1000005',
+              pointerEvents: 'none'
+            }
+          });
+        } else {
+          fm.style.position = 'fixed';
+          fm.style.zIndex = '1000005';
+          fm.style.pointerEvents = 'none';
+        }
+      }
+      return fm || null;
+    }
+
+    menuLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
+      if (!isHidden) {
+        closeDropdown();
+        return;
+      }
+
+      openDropdown();
+      wrapper.innerHTML = '';
+
+      let data;
+      try { data = await getMenuData('email'); } catch { data = null; }
+
+      if (!data || !Object.keys(data).length) {
+        const empty = document.createElement('div');
+        empty.className = 'px-4 py-2 text-sm text-gray-500';
+        empty.textContent = 'No templates available';
+        wrapper.appendChild(empty);
+        return;
+      }
+
+      const floatingModal = getFloatingModal();
+
+      for (const [group, templates] of Object.entries(data)) {
+        const groupWrapper = document.createElement('div');
+        groupWrapper.className = 'relative group submenu-wrapper';
+        groupWrapper.innerHTML = `
+          <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+            <span>${group}</span>
+            <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+          </button>
+          <div class="hidden template-panel"></div>
+        `;
+        const panel = groupWrapper.querySelector('.template-panel');
+
+        for (const [label, tpl] of Object.entries(templates)) {
+          const item = document.createElement('div');
+          item.className = 'menu-item text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+          item.textContent = label;
+
+          if (tpl && tpl.disabled) {
+            item.setAttribute('aria-disabled', 'true');
+            item.style.opacity = '.55';
+            item.style.pointerEvents = 'auto';
+          }
+
+          function applyTemplate() {
+            if (tpl && tpl.disabled) return;
+            const subjectEl = overlay.querySelector('#email-subject');
+            if (subjectEl && typeof tpl?.subject === 'string') subjectEl.value = tpl.subject;
+            if (typeof tpl?.message === 'string') setEditorHtmlFromMessage(tpl.message);
+            closeDropdown();
+          }
+
+          item.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+            applyTemplate();
+          });
+
+          if (floatingModal && typeof floatingModal.attachHover === 'function') {
+            const preview = String(tpl?.message || '').replace(/\n/g, '<br>');
+            floatingModal.attachHover(item, preview, applyTemplate);
+          } else {
+            const previewTxt = String(tpl?.message || '').replace(/\s+/g, ' ').slice(0, 200);
+            if (previewTxt) item.title = previewTxt;
+          }
+
+          panel.appendChild(item);
+        }
+
+        wrapper.appendChild(groupWrapper);
+      }
+
+      wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+        const button = wrap.querySelector('button');
+        const panel = wrap.querySelector('.template-panel');
+
+        Object.assign(panel.style, {
+          fontFamily: 'inherit',
+          fontSize: '0.875rem',
+          lineHeight: '1.25rem',
+          padding: '0.5rem',
+          maxWidth: '480px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #d1d5db',
+          borderRadius: '0.375rem',
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+          zIndex: '1000004',
+          position: 'fixed',
+          display: 'none',
+          whiteSpace: 'normal',
+          color: '#374151'
+        });
+
+        wrap.addEventListener('mouseenter', () => {
+          const rect = button.getBoundingClientRect();
+          panel.style.top = `${rect.top + window.scrollY}px`;
+          panel.style.left = `${rect.right + window.scrollX}px`;
+          panel.style.display = 'block';
+        });
+
+        wrap.addEventListener('mouseleave', () => {
+          panel.style.display = 'none';
+        });
+      });
+    });
+  })();
+
+  // --------------------- Utils used by modal + history ---------------------
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+  function toEmailHtml(input, contentType) {
+    const raw = String(input ?? "");
+    const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(raw);
+    if (isHtml) return raw;
+    let esc = raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    esc = esc.replace(/\r\n/g, "\n");
+    esc = esc
+      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, m => `<a href="mailto:${m}">${m}</a>`)
+      .replace(/\bhttps?:\/\/[^\s<]+/gi, m => `<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`);
+    return esc.replace(/\n/g, "<br>");
+  }
+  function wrapEmailHtml(inner) {
+    const css = ".ProseMirror p.custom-newline, .custom-list p.custom-newline {margin:0!important;}";
+    return `<html><head><style>${css}</style></head><body><div class="ProseMirror">${inner}</div></body></html>`;
   }
 
-  // --------------------- Email normalization from meta.email ---------------------
+  // --------------------- One-time styles ---------------------
+  if (!qs("#email-card-styles")) {
+    const style = document.createElement("style");
+    style.id = "email-card-styles";
+    style.textContent = `
+      .email-bucket { display:flex; margin:10px 0; }
+      .email-bucket.outbound { justify-content:flex-end; }
+      .email-bucket.inbound  { justify-content:flex-start; }
+      .email-card { border:1px solid #d0d5dd; border-radius:10px; overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); max-width:80%; }
+      .email-card .email-header { background:#155EEF; color:#fff; padding:10px 14px; font-weight:700; }
+      .email-card .email-meta { display:flex; justify-content:space-between; gap:12px; padding:8px 14px; background:#f3f4f6; color:#6b7280; font-size:12px; }
+      .email-card .email-body { background:#fff; padding:12px 14px; line-height:1.6; white-space:normal; }
+      .email-card .email-body a { text-decoration:underline; }
+      .email-card .email-missing { color:#b42318; font-style:normal; font-weight:600; }
+      #email-toolbar .tb { padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer; }
+      #email-editor[contenteditable="true"] { min-height:220px; border:1px solid #d0d5dd; border-radius:6px; padding:10px; font-size:14px; line-height:1.5; background:#fff; outline:none; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // --------------------- WYSIWYG helpers ---------------------
+  function exec(cmd, val=null) { document.execCommand(cmd, false, val); }
+  function makeLink() {
+    let url = prompt("Enter URL:");
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    exec("createLink", url);
+  }
+  function getSignatureHtml() {
+    return `
+<div style="margin-top:10px;">
+  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
+  <div>Cash Land Buyer USA</div>
+  <div>
+    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
+    <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
+    (302) 587-7490
+  </div>
+</div>`;
+  }
+
+  // --------------------- Email normalization ---------------------
   function isEmailFromMeta(m) {
     return !!(m?.meta?.email && (m.meta.email.subject || m.contentType === "text/html" || m.type === 3));
   }
@@ -7557,7 +7535,7 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     const str = v => (typeof v === "string" ? v : "");
     return {
       subject: str(me.subject) || "(no subject)",
-      direction: String(me.direction || m.direction || m.messageDirection || "").toLowerCase(), // inbound|outbound
+      direction: String(me.direction || m.direction || m.messageDirection || "").toLowerCase(),
       bodyRaw: m.body || "",
       contentType: m.contentType || "",
       createdAt: me.lastMessageTimestamp || me.firstMessageTimestamp || m.userMessageTime || m.dateAdded || m.dateUpdated || null,
@@ -7566,19 +7544,19 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     };
   }
 
-  async function loadEmailHistory(overlay) {
-    const loading = overlay.querySelector("#email-history-loading");
-    const err = overlay.querySelector("#email-history-error");
-    const empty = overlay.querySelector("#email-history-empty");
-    const list = overlay.querySelector("#email-history-list");
-    const box = overlay.querySelector("#email-history");
+  async function loadEmailHistory(overlayEl) {
+    const loading = overlayEl.querySelector("#email-history-loading");
+    const err = overlayEl.querySelector("#email-history-error");
+    const empty = overlayEl.querySelector("#email-history-empty");
+    const list = overlayEl.querySelector("#email-history-list");
+    const box = overlayEl.querySelector("#email-history");
 
     loading.style.display = "block";
     err.style.display = "none";
     empty.style.display = "none";
     list.innerHTML = "";
 
-    const contactId = overlay.dataset.contactId || "";
+    const contactId = overlayEl.dataset.contactId || "";
     if (!contactId) {
       loading.style.display = "none";
       err.textContent = "Missing contact id.";
@@ -7615,8 +7593,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
         }
         return [];
       });
-
-      console.log(all);
 
       const emailOnly = all.filter(isEmailFromMeta).map(normalizeEmailMessage);
 
@@ -7675,10 +7651,7 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     }
   }
 
-  // --------------------- Wire up table ---------------------
-  const overlay = buildEmailModal();
-
-  // Extract email text from a <tr>
+  // --------------------- Wire up table: add envelope, open modal, preload data ---------------------
   function getEmailFromRow(tr) {
     const emailCell = tr.querySelector('td[data-title="Email"]');
     if (!emailCell) return "";
@@ -7687,7 +7660,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
     return match ? match[0] : "";
   }
 
-  // Insert an envelope icon after the fa-message icon IFF the row has an email address.
   qsa("tr[id]").forEach(tr => {
     const email = getEmailFromRow(tr);
     if (!email) return;
@@ -7712,7 +7684,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 
       const rowId = tr && tr.id ? tr.id.trim() : "";
 
-      // Name (best-effort)
       let nameCell =
         tr.querySelector('td[data-title="Name"]') ||
         tr.querySelector('td[data-title="Client"]') ||
@@ -7751,7 +7722,6 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
       qs("#email-subject", overlay).value = "";
       qs("#email-editor", overlay).innerHTML = "";
 
-      // reset history box
       qs("#email-history-loading", overlay).style.display = "block";
       qs("#email-history-error", overlay).style.display = "none";
       qs("#email-history-empty", overlay).style.display = "none";
