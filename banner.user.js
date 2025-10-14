@@ -7091,6 +7091,547 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
+function attachEmailHandlers() {
+  if (!location.href.includes("/contacts/smart_list/")) return;
+
+  const qs  = (s, r=document) => r.querySelector(s);
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+  // --------------------- Auth & API ---------------------
+  async function getAuthTokenAndLocationId() {
+    const idb = await new Promise((res, rej) => {
+      const r = indexedDB.open("firebaseLocalStorageDb");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const rows = await new Promise((res, rej) => {
+      const tx = idb.transaction("firebaseLocalStorage", "readonly");
+      const os = tx.objectStore("firebaseLocalStorage");
+      const rq = os.getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    const row = rows.find(r => /authUser/.test(r.fbase_key));
+    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
+    const idToken = val?.stsTokenManager?.accessToken || "";
+
+    const parts = location.pathname.split("/");
+    const locationId = parts[parts.indexOf("location") + 1];
+
+    return { idToken, locationId };
+  }
+
+  async function fetchConversationId({ contactId }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
+    return conv?.id || conv?._id || "";
+  }
+
+  async function fetchConversationsByContact({ contactId, limit = 50 }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    const params = new URLSearchParams({ locationId, contactId, limit: String(limit) }).toString();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    return Array.isArray(data?.conversations) ? data.conversations : (data?.items || []);
+  }
+
+  async function fetchMessages({ conversationId, limit = 100 }) {
+    const { idToken } = await getAuthTokenAndLocationId();
+    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      }
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+  }
+
+  async function sendEmailRequest({ contactId, subject, html, emailFrom, attachments = [], emailReplyMode = "reply_all", fromOneToOneConversation = true }) {
+    const { idToken, locationId } = await getAuthTokenAndLocationId();
+    let userId = "";
+    try {
+      const u = typeof getUserData === "function" ? await getUserData() : null;
+      userId = u?.myUserId || u?.userId || "";
+    } catch {}
+    const payload = {
+      contactId,
+      subject,
+      html,
+      emailFrom,
+      userId,
+      attachments,
+      type: "Email",
+      channel: "email",
+      locationId,
+      emailReplyMode,
+      fromOneToOneConversation
+    };
+    const r = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "token-id": idToken,
+        "version": "2021-07-28",
+        "channel": "APP",
+        "source": "WEB_USER"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    return r.json();
+  }
+
+  // --------------------- Utils ---------------------
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  // Plain-text -> HTML with preserved newlines and autolinks. If it’s already HTML, return as-is.
+  function toEmailHtml(input, contentType) {
+    const raw = String(input ?? "");
+    const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(raw);
+    if (isHtml) return raw;
+
+    let esc = raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    esc = esc.replace(/\r\n/g, "\n");
+    // auto-link emails & urls
+    esc = esc
+      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, m => `<a href="mailto:${m}">${m}</a>`)
+      .replace(/\bhttps?:\/\/[^\s<]+/gi, m => `<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`);
+    // preserve every newline (no paragraph lumping)
+    return esc.replace(/\n/g, "<br>");
+  }
+
+  function wrapEmailHtml(inner) {
+    const css = ".ProseMirror p.custom-newline, .custom-list p.custom-newline {margin:0!important;}";
+    return `<html><head><style>${css}</style></head><body><div class="ProseMirror">${inner}</div></body></html>`;
+  }
+
+  // --------------------- Styles (once) ---------------------
+  if (!qs("#email-card-styles")) {
+    const style = document.createElement("style");
+    style.id = "email-card-styles";
+    style.textContent = `
+      /* Cards + alignment */
+      .email-bucket { display:flex; margin:10px 0; }
+      .email-bucket.outbound { justify-content:flex-end; }
+      .email-bucket.inbound  { justify-content:flex-start; }
+
+      .email-card { 
+        border:1px solid #d0d5dd; border-radius:10px; overflow:hidden; background:#fff; 
+        box-shadow:0 1px 2px rgba(0,0,0,.04); 
+        max-width:80%;
+      }
+      .email-card .email-header { background:#155EEF; color:#fff; padding:10px 14px; font-weight:700; }
+      .email-card .email-meta { display:flex; justify-content:space-between; gap:12px; padding:8px 14px; background:#f3f4f6; color:#6b7280; font-size:12px; }
+      .email-card .email-body { background:#fff; padding:12px 14px; line-height:1.6; white-space:normal; }
+      .email-card .email-body a { text-decoration:underline; }
+      .email-card .email-missing { color:#b42318; font-style:normal; font-weight:600; }
+
+      /* Editor + toolbar */
+      #email-toolbar .tb { padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer; }
+      #email-editor[contenteditable="true"] { min-height:220px; border:1px solid #d0d5dd; border-radius:6px; padding:10px; font-size:14px; line-height:1.5; background:#fff; outline:none; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // --------------------- WYSIWYG helpers ---------------------
+  function exec(cmd, val=null) { document.execCommand(cmd, false, val); }
+  function makeLink() {
+    let url = prompt("Enter URL:");
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    exec("createLink", url);
+  }
+  function getSignatureHtml() {
+    return `
+<div style="margin-top:10px;">
+  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
+  <div>Cash Land Buyer USA</div>
+  <div>
+    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
+    <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
+    (302) 587-7490
+  </div>
+</div>`;
+  }
+
+  // --------------------- Modal (single instance) ---------------------
+  function buildEmailModal() {
+    let overlay = qs("#email-modal-overlay");
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.id = "email-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
+
+    const modal = document.createElement("div");
+    // Bigger modal
+    modal.style.cssText = "width:90%;max-width:1200px;background:#fff;border-radius:8px;margin:6vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;font-size:16px;">
+          <span id="email-title-prefix">Email</span>
+          <span id="email-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
+        </h3>
+        <button id="email-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
+      </div>
+
+      <!-- Taller history -->
+      <div id="email-history" style="border:1px solid #e5e7eb;border-radius:8px;height:380px;overflow:auto;padding:8px;margin-bottom:12px;background:#fafafa;">
+        <div id="email-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
+        <div id="email-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
+        <div id="email-history-empty" style="display:none;font-size:12px;color:#667085;">No emails yet.</div>
+        <div id="email-history-list"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          From
+          <input id="email-from" type="text" placeholder="Your Name <you@example.com>" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+          To
+          <input id="email-to" type="email" placeholder="recipient@example.com" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+        </label>
+      </div>
+
+      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;margin-bottom:8px;">
+        Subject
+        <input id="email-subject" type="text" placeholder="Subject" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+      </label>
+
+      <div id="email-toolbar" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;">
+        <button type="button" data-cmd="bold" class="tb">B</button>
+        <button type="button" data-cmd="italic" class="tb">I</button>
+        <button type="button" data-cmd="underline" class="tb">U</button>
+        <button type="button" data-cmd="insertUnorderedList" class="tb">• List</button>
+        <button type="button" data-cmd="insertOrderedList" class="tb">1. List</button>
+        <button type="button" id="tb-link" class="tb">Link</button>
+        <button type="button" id="tb-addsig" class="tb">Add Signature</button>
+        <button type="button" data-action="clear-editor" class="tb">Clear</button>
+      </div>
+
+      <div id="email-editor" contenteditable="true"
+           style="min-height:220px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;line-height:1.5;background:#fff;outline:none;"
+           data-placeholder="Type your email…"></div>
+
+      <div id="email-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+        <button id="email-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
+        <button id="email-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Toolbar wiring
+    const editor = qs("#email-editor", overlay);
+    const tb = qs("#email-toolbar", overlay);
+    tb.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const cmd = btn.getAttribute("data-cmd");
+      const action = btn.getAttribute("data-action");
+      if (cmd) { editor.focus(); document.execCommand(cmd, false, null); }
+      if (btn.id === "tb-link")   { editor.focus(); makeLink(); }
+      if (btn.id === "tb-addsig") { editor.focus(); document.execCommand("insertHTML", false, getSignatureHtml()); }
+      if (action === "clear-editor") { editor.innerHTML = ""; }
+    });
+    editor.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+      document.execCommand("insertText", false, text);
+    });
+
+    // Show/Hide
+    const hide = () => { overlay.style.display = "none"; };
+    qs("#email-close", overlay).onclick = hide;
+    qs("#email-cancel", overlay).onclick = hide;
+
+    // Send
+    qs("#email-send", overlay).onclick = async () => {
+      const fromVal = qs("#email-from", overlay).value.trim();
+      const toVal = qs("#email-to", overlay).value.trim();
+      const subject = qs("#email-subject", overlay).value.trim();
+      const htmlBody = editor.innerHTML.trim();
+      const contactId = overlay.dataset.contactId || "";
+      const err = qs("#email-error", overlay);
+      err.style.display = "none"; err.textContent = "";
+
+      if (!fromVal || !toVal || !subject || !htmlBody || !contactId) {
+        err.textContent = !contactId ? "Missing contact id for this row." : "From, To, Subject, and Body are required.";
+        err.style.display = "block";
+        return;
+      }
+
+      qs("#email-send", overlay).disabled = true;
+      qs("#email-send", overlay).textContent = "Sending…";
+      try {
+        await sendEmailRequest({
+          contactId,
+          subject,
+          html: wrapEmailHtml(htmlBody),
+          emailFrom: fromVal
+        });
+        editor.innerHTML = "";
+        await loadEmailHistory(overlay);
+      } catch (e) {
+        err.textContent = String(e.message || e);
+        err.style.display = "block";
+      } finally {
+        qs("#email-send", overlay).disabled = false;
+        qs("#email-send", overlay).textContent = "Send";
+      }
+    };
+
+    return overlay;
+  }
+
+  // --------------------- Email normalization from meta.email ---------------------
+  function isEmailFromMeta(m) {
+    return !!(m?.meta?.email && (m.meta.email.subject || m.contentType === "text/html" || m.type === 3));
+  }
+  function normalizeEmailMessage(m) {
+    const me = (m && m.meta && m.meta.email) || {};
+    const str = v => (typeof v === "string" ? v : "");
+    return {
+      subject: str(me.subject) || "(no subject)",
+      direction: String(me.direction || m.direction || m.messageDirection || "").toLowerCase(), // inbound|outbound
+      bodyRaw: m.body || "",
+      contentType: m.contentType || "",
+      createdAt: me.lastMessageTimestamp || me.firstMessageTimestamp || m.userMessageTime || m.dateAdded || m.dateUpdated || null,
+      fromName: str(me.name),
+      fromEmail: str(me.email)
+    };
+  }
+
+  async function loadEmailHistory(overlay) {
+    const loading = overlay.querySelector("#email-history-loading");
+    const err = overlay.querySelector("#email-history-error");
+    const empty = overlay.querySelector("#email-history-empty");
+    const list = overlay.querySelector("#email-history-list");
+    const box = overlay.querySelector("#email-history");
+
+    loading.style.display = "block";
+    err.style.display = "none";
+    empty.style.display = "none";
+    list.innerHTML = "";
+
+    const contactId = overlay.dataset.contactId || "";
+    if (!contactId) {
+      loading.style.display = "none";
+      err.textContent = "Missing contact id.";
+      err.style.display = "block";
+      return;
+    }
+
+    try {
+      let ids = [];
+      const convs = await fetchConversationsByContact({ contactId, limit: 50 });
+      ids = Array.isArray(convs) ? convs.map(c => c && c.id).filter(Boolean) : [];
+      if (!ids.length) {
+        const singleId = await fetchConversationId({ contactId });
+        if (!singleId) {
+          loading.style.display = "none";
+          empty.style.display = "block";
+          return;
+        }
+        ids = [singleId];
+      }
+
+      const settled = await Promise.allSettled(ids.map(id => fetchMessages({ conversationId: id, limit: 100 })));
+      const all = settled.flatMap(res => {
+        if (res.status !== "fulfilled") return [];
+        const raw = res.value;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.messages?.messages)) return raw.messages.messages;
+        if (Array.isArray(raw?.messages)) return raw.messages;
+        if (Array.isArray(raw?.items)) return raw.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (raw && typeof raw === "object") {
+          const k = Object.keys(raw).find(key => Array.isArray(raw[key]));
+          return k ? raw[k] : [];
+        }
+        return [];
+      });
+
+      console.log(all);
+
+      const emailOnly = all.filter(isEmailFromMeta).map(normalizeEmailMessage);
+
+      loading.style.display = "none";
+      list.innerHTML = "";
+
+      if (!emailOnly.length) {
+        empty.style.display = "block";
+        return;
+      }
+      empty.style.display = "none";
+
+      const frag = document.createDocumentFragment();
+      emailOnly
+        .slice()
+        .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+        .forEach(m => {
+          const bucket = document.createElement("div");
+          bucket.className = `email-bucket ${m.direction === "outbound" ? "outbound" : "inbound"}`;
+
+          const card = document.createElement("div");
+          card.className = "email-card";
+
+          const header = document.createElement("div");
+          header.className = "email-header";
+          header.textContent = m.subject || "(no subject)";
+
+          const metaBar = document.createElement("div");
+          metaBar.className = "email-meta";
+          const left = document.createElement("div");
+          left.textContent = [m.fromName, m.fromEmail].filter(Boolean).join(" ");
+          const right = document.createElement("div");
+          right.textContent = m.createdAt ? new Date(m.createdAt).toLocaleString() : "";
+          metaBar.appendChild(left);
+          metaBar.appendChild(right);
+
+          const bodyEl = document.createElement("div");
+          bodyEl.className = "email-body";
+          const htmlOut = toEmailHtml(m.bodyRaw, m.contentType);
+          bodyEl.innerHTML = htmlOut || `<em class="email-missing">Email content not found</em>`;
+
+          card.appendChild(header);
+          card.appendChild(metaBar);
+          card.appendChild(bodyEl);
+          bucket.appendChild(card);
+          frag.appendChild(bucket);
+        });
+
+      list.appendChild(frag);
+      if (box) box.scrollTop = box.scrollHeight;
+
+    } catch (e) {
+      loading.style.display = "none";
+      err.textContent = String(e?.message || e);
+      err.style.display = "block";
+    }
+  }
+
+  // --------------------- Wire up table ---------------------
+  const overlay = buildEmailModal();
+
+  // Extract email text from a <tr>
+  function getEmailFromRow(tr) {
+    const emailCell = tr.querySelector('td[data-title="Email"]');
+    if (!emailCell) return "";
+    const text = (emailCell.textContent || "").trim();
+    const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    return match ? match[0] : "";
+  }
+
+  // Insert an envelope icon after the fa-message icon IFF the row has an email address.
+  qsa("tr[id]").forEach(tr => {
+    const email = getEmailFromRow(tr);
+    if (!email) return;
+
+    const actions = tr.querySelector(".call-actions");
+    if (!actions) return;
+
+    const msgIcon = actions.querySelector(".fa-solid.fa-message, .fa-message");
+    if (!msgIcon) return;
+
+    if (actions.querySelector(".email-envelope-action")) return;
+
+    const env = document.createElement("i");
+    env.className = "fa-solid fa-envelope email-envelope-action";
+    env.style.cssText = "color: rgba(21,94,239,.9); cursor: pointer; margin-left: 8px;";
+    msgIcon.after(env);
+
+    env.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+
+      const rowId = tr && tr.id ? tr.id.trim() : "";
+
+      // Name (best-effort)
+      let nameCell =
+        tr.querySelector('td[data-title="Name"]') ||
+        tr.querySelector('td[data-title="Client"]') ||
+        tr.querySelector("td .name") ||
+        tr.querySelector("td a");
+      const nameSource =
+        (nameCell && nameCell.querySelector('a[title]')) ||
+        (nameCell && nameCell.querySelector('a')) ||
+        nameCell;
+      const rawName =
+        (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
+      const cleaned = rawName.replace(/\s+/g, " ").trim();
+      const parts = cleaned.split(" ").filter(Boolean);
+      const first = parts[0] || "";
+      const last = parts.slice(1).join(" ") || "";
+
+      const metaEl = qs("#email-title-meta", overlay);
+      if (metaEl) {
+        const nameHtml =
+          (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
+          (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
+        const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
+        metaEl.innerHTML = `${nameHtml}${idHtml}`;
+      }
+
+      overlay.dataset.contactId = rowId || "";
+      qs("#email-to", overlay).value = email;
+
+      try {
+        const u = typeof getUserData === "function" ? await getUserData() : null;
+        const myName = u?.myFirstName && u?.myLastName ? `${u.myFirstName} ${u.myLastName}` : (u?.myFirstName || u?.myName || "");
+        const myEmail = u?.myEmail || "";
+        if (myEmail) qs("#email-from", overlay).value = myName ? `${myName} <${myEmail}>` : myEmail;
+      } catch {}
+
+      qs("#email-subject", overlay).value = "";
+      qs("#email-editor", overlay).innerHTML = "";
+
+      // reset history box
+      qs("#email-history-loading", overlay).style.display = "block";
+      qs("#email-history-error", overlay).style.display = "none";
+      qs("#email-history-empty", overlay).style.display = "none";
+      qs("#email-history-list", overlay).innerHTML = "";
+
+      overlay.style.display = "block";
+      loadEmailHistory(overlay);
+    }, true);
+  });
+}
+
 function attachContactDataHandlers() {
   const ROW_SELECTOR = 'tr[id], tr[data-contact-id]';
   const MSG_ICON_SELECTOR = '.call-actions .fa-solid.fa-message, .call-actions .fa-message, i.fa-message';
@@ -7675,6 +8216,7 @@ async function autoDispoCall() {
             attachPhoneDialHandlers();
             attachMessageHandlers();
             attachContactDataHandlers();
+            attachEmailHandlers();
           
             populateCallQueue();
             moveCallBtn();
