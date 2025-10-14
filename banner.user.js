@@ -346,6 +346,7 @@ Let me know immediately and I will make sure you get a fair deal.`,
 
   if (commType === 'email') {
     const signature = `
+    
 Kind regards,
 <strong>${myFullName}</strong>
 Property Acquisition Officer  |  Cash Land Buyer USA
