@@ -45,37 +45,43 @@ async function getMenuData(commType) {
 
   const userInfo = await getUserData().catch(() => null);
   if (!userInfo) return;
-
-  const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-
+  
+  const path = location?.pathname || '';
+  const isSmartList = /\/v2\/location\/[^/]+\/contacts\/smart_list(\/|$)/i.test(path);
+  const isContactDetail = /\/v2\/location\/[^/]+\/contacts\/detail(\/|$)/i.test(path);
+  
+  const row = isSmartList
+    ? (document.querySelector('#sms-title-meta')?.closest('tr') || null)
+    : null;
+  
   const sellerFirstName = document.querySelector('#prospectFirstName')
     ? document.querySelector('#prospectFirstName').textContent.trim()
     : (document.querySelector('[name="contact.first_name"]')
         ? document.querySelector('[name="contact.first_name"]').value.trim()
         : '');
-
+  
   const sellerLastName = document.querySelector('#prospectLastName')
     ? document.querySelector('#prospectLastName').textContent.trim()
     : '';
-
+  
   const sellerEmail = document.querySelector('[name="contact.email"]')
     ? document.querySelector('[name="contact.email"]').value.trim()
     : '';
-
+  
   const addressCell = row
     ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
         ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
         : null)
     : null;
-
+  
   const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
-
+  
   const propertyAddressLine1 = fullAddressFromRow
     ? fullAddressFromRow.split(',')[0].trim()
     : (document.querySelector('[name="contact.street_address"]')
         ? document.querySelector('[name="contact.street_address"]').value.trim()
         : '');
-
+  
   const safePropertyAddress = (typeof propertyAddressLine1 !== 'undefined' && propertyAddressLine1)
     ? propertyAddressLine1
     : 'your property';
