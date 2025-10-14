@@ -7274,35 +7274,30 @@ function attachEmailHandlers() {
   }
   async function getSignatureHtml() { 
     const userInfo = await getUserData().catch(() => null);
-    if (!userInfo) return;
+    if (!userInfo) return '';
   
-    let myFullName = '';
-    let myFirstName = '';
-    let myLastName = '';
-    let myInitials = '';
-    let myEmail = '';
-    let myTele = '';
+    const {
+      myFirstName = '',
+      myLastName = '',
+      myInitials = '',
+      myEmail = '',
+      myTele = '',
+    } = userInfo;
   
-    if (userInfo && userInfo.myFirstName) {
-      myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
-      myFirstName = userInfo.myFirstName;
-      myLastName = userInfo.myLastName;
-      myInitials = userInfo.myInitials;
-      myEmail = userInfo.myEmail;
-      myTele = userInfo.myTele;
-    }
-    
+    const myFullName = myFirstName && myLastName ? `${myFirstName} ${myLastName}` : '';
+  
     return `
-<div style="margin-top:10px;">
-  <div><strong>${myFullName}</strong> | Property Acquisition Officer</div>
-  <div>Cash Land Buyer USA</div>
-  <div>
-    <a href="mailto:${myEmail}">${myEmail}</a> ·
-    <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
-    ${myTele}
-  </div>
-</div>`;
+  <div style="margin-top:10px;">
+    <div><strong>${myFullName}</strong> | Property Acquisition Officer</div>
+    <div>Cash Land Buyer USA</div>
+    <div>
+      <a href="mailto:${myEmail}">${myEmail}</a> ·
+      <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
+      ${myTele}
+    </div>
+  </div>`;
   }
+
 
   // --------------------- Modal (single instance) ---------------------
   function buildEmailModal() {
