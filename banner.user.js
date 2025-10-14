@@ -7091,125 +7091,256 @@ metaEl.innerHTML = `${nameHtml}${idHtml}`;
 });
 }
 
-function attachEmailHandlers() {
-  if (!location.href.includes("/contacts/smart_list/")) return;
-
-  const qs  = (s, r=document) => r.querySelector(s);
-  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
-
-  // --------------------- Auth & API ---------------------
-  async function getAuthTokenAndLocationId() {
-    const idb = await new Promise((res, rej) => {
-      const r = indexedDB.open("firebaseLocalStorageDb");
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    const rows = await new Promise((res, rej) => {
-      const tx = idb.transaction("firebaseLocalStorage", "readonly");
-      const os = tx.objectStore("firebaseLocalStorage");
-      const rq = os.getAll();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error);
-    });
-    const row = rows.find(r => /authUser/.test(r.fbase_key));
-    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
-    const idToken = val?.stsTokenManager?.accessToken || "";
-
-    const parts = location.pathname.split("/");
-    const locationId = parts[parts.indexOf("location") + 1];
-
-    return { idToken, locationId };
-  }
-
-  async function fetchConversationId({ contactId }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
-    return conv?.id || conv?._id || "";
-  }
-
-  async function fetchConversationsByContact({ contactId, limit = 50 }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const params = new URLSearchParams({ locationId, contactId, limit: String(limit) }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    return Array.isArray(data?.conversations) ? data.conversations : (data?.items || []);
-  }
-
-  async function fetchMessages({ conversationId, limit = 100 }) {
-    const { idToken } = await getAuthTokenAndLocationId();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
-  }
-
-  async function sendEmailRequest({ contactId, subject, html, emailFrom, attachments = [], emailReplyMode = "reply_all", fromOneToOneConversation = true }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    let userId = "";
+  async function addEmailTemplateMenu() {
     try {
-      const u = typeof getUserData === "function" ? await getUserData() : null;
-      userId = u?.myUserId || u?.userId || "";
+      const cancelBtn = overlay.querySelector('#email-cancel');
+      const sendBtn   = overlay.querySelector('#email-send');
+      if (!cancelBtn || !sendBtn) return;
+  
+      const actionRow = sendBtn.closest('div');
+      if (!actionRow) return;
+  
+      const oldMenu = overlay.querySelector('#email_tb_template_menu');
+      if (oldMenu) oldMenu.remove();
+      const oldSpacer = overlay.querySelector('#email_tb_template_spacer');
+      if (oldSpacer) oldSpacer.remove();
+  
+      const menuLink = document.createElement('a');
+      menuLink.id = 'email_tb_template_menu';
+      menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
+      menuLink.setAttribute('aria-label', 'Email Templates');
+      menuLink.style.display = 'inline-flex';
+      menuLink.style.alignItems = 'center';
+      menuLink.style.lineHeight = '1.6rem';
+      menuLink.style.userSelect = 'none';
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none">
+          Email Templates
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </span>
+      `;
+  
+      const spacer = document.createElement('div');
+      spacer.id = 'email_tb_template_spacer';
+      spacer.style.flex = '1 1 auto';
+  
+      actionRow.insertBefore(menuLink, actionRow.firstChild);
+      actionRow.insertBefore(spacer, cancelBtn);
+  
+      let wrapper = null;
+      let outsideHandler = null;
+      let escHandler = null;
+  
+      function createDropdown() {
+        const div = document.createElement('div');
+        div.setAttribute('role', 'menu');
+        div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
+        div.style.width = '16rem';
+        div.style.left = '0';
+        div.style.zIndex = '1000003';
+        menuLink.appendChild(div);
+        return div;
+      }
+  
+      function hideAllPanels() {
+        if (!wrapper) return;
+        wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
+        const modal = document.getElementById('email-template-hover');
+        if (modal) modal.style.display = 'none';
+      }
+  
+      function closeDropdown() {
+        hideAllPanels();
+        if (!wrapper) return;
+        wrapper.classList.add('hidden');
+        wrapper.setAttribute('hidden', '');
+        wrapper.style.display = 'none';
+        menuLink.setAttribute('aria-expanded', 'false');
+        teardownGlobalClosers();
+      }
+  
+      function openDropdown() {
+        wrapper.classList.remove('hidden');
+        wrapper.removeAttribute('hidden');
+        wrapper.style.display = '';
+        menuLink.setAttribute('aria-expanded', 'true');
+  
+        outsideHandler = (ev) => {
+          if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+        };
+        escHandler = (ev) => {
+          if (ev.key === 'Escape') closeDropdown();
+        };
+        document.addEventListener('mousedown', outsideHandler, true);
+        document.addEventListener('keydown', escHandler, true);
+      }
+  
+      function teardownGlobalClosers() {
+        if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
+        if (escHandler) document.removeEventListener('keydown', escHandler, true);
+        outsideHandler = null;
+        escHandler = null;
+      }
+  
+      wrapper = createDropdown();
+  
+      // Helper: detect html vs text and set the editor
+      function setEditorHtmlFromMessage(msg) {
+        const editor = overlay.querySelector('#email-editor');
+        if (!editor) return;
+        const raw = String(msg ?? '');
+        const looksHtml = /<[a-z][\s\S]*>/i.test(raw);
+        editor.innerHTML = looksHtml ? raw : raw.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
+      }
+  
+      // Optional hover preview support if your global helper exists
+      function getFloatingModal() {
+        let fm = document.getElementById('email-template-hover');
+        if (typeof createFloatingModal === 'function') {
+          if (!fm) {
+            fm = createFloatingModal({
+              id: 'email-template-hover',
+              styles: {
+                position: 'fixed',
+                backgroundColor: '#f9f9f9',
+                border: '1px solid #ccc',
+                minWidth: '20rem',
+                maxWidth: '20rem',
+                zIndex: '1000005',
+                pointerEvents: 'none'
+              }
+            });
+          } else {
+            fm.style.position = 'fixed';
+            fm.style.zIndex = '1000005';
+            fm.style.pointerEvents = 'none';
+          }
+        }
+        return fm || null;
+      }
+  
+      menuLink.addEventListener('click', async (e) => {
+        e.preventDefault();
+  
+        const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
+        if (!isHidden) {
+          closeDropdown();
+          return;
+        }
+  
+        openDropdown();
+        wrapper.innerHTML = '';
+  
+        // Load only email-specific templates
+        let data;
+        try {
+          data = await getMenuData('email'); // uses your provided getMenuData
+        } catch {
+          data = null;
+        }
+        if (!data || !Object.keys(data).length) {
+          const empty = document.createElement('div');
+          empty.className = 'px-4 py-2 text-sm text-gray-500';
+          empty.textContent = 'No templates available';
+          wrapper.appendChild(empty);
+          return;
+        }
+  
+        const floatingModal = getFloatingModal();
+  
+        // Build grouped menu
+        for (const [group, templates] of Object.entries(data)) {
+          const groupWrapper = document.createElement('div');
+          groupWrapper.className = 'relative group submenu-wrapper';
+          groupWrapper.innerHTML = `
+            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+              <span>${group}</span>
+              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+            </button>
+            <div class="hidden template-panel"></div>
+          `;
+          const panel = groupWrapper.querySelector('.template-panel');
+  
+          for (const [label, tpl] of Object.entries(templates)) {
+            const item = document.createElement('div');
+            item.className = 'menu-item text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+            item.textContent = label;
+  
+            // Disable if template lacks required context (getMenuData already marks it)
+            if (tpl && tpl.disabled) {
+              item.setAttribute('aria-disabled', 'true');
+              item.style.opacity = '.55';
+              item.style.pointerEvents = 'auto';
+            }
+  
+            function applyTemplate() {
+              if (tpl && tpl.disabled) return;
+              const subjectEl = overlay.querySelector('#email-subject');
+              if (subjectEl && typeof tpl?.subject === 'string') subjectEl.value = tpl.subject;
+              if (typeof tpl?.message === 'string') setEditorHtmlFromMessage(tpl.message);
+              closeDropdown();
+            }
+  
+            item.addEventListener('click', (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+              applyTemplate();
+            });
+  
+            if (floatingModal && typeof floatingModal.attachHover === 'function') {
+              const preview = String(tpl?.message || '').replace(/\n/g, '<br>');
+              floatingModal.attachHover(item, preview, applyTemplate);
+            } else {
+              const previewTxt = String(tpl?.message || '').replace(/\s+/g, ' ').slice(0, 200);
+              if (previewTxt) item.title = previewTxt;
+            }
+  
+            panel.appendChild(item);
+          }
+  
+          wrapper.appendChild(groupWrapper);
+        }
+  
+        // Position submenus next to group buttons
+        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+          const button = wrap.querySelector('button');
+          const panel = wrap.querySelector('.template-panel');
+  
+          Object.assign(panel.style, {
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: '1.25rem',
+            padding: '0.5rem',
+            maxWidth: '480px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: '1000004',
+            position: 'fixed',
+            display: 'none',
+            whiteSpace: 'normal',
+            color: '#374151'
+          });
+  
+          wrap.addEventListener('mouseenter', () => {
+            const rect = button.getBoundingClientRect();
+            panel.style.top = `${rect.top + window.scrollY}px`;
+            panel.style.left = `${rect.right + window.scrollX}px`;
+            panel.style.display = 'block';
+          });
+  
+          wrap.addEventListener('mouseleave', () => {
+            panel.style.display = 'none';
+          });
+        });
+      });
     } catch {}
-    const payload = {
-      contactId,
-      subject,
-      html,
-      emailFrom,
-      userId,
-      attachments,
-      type: "Email",
-      channel: "email",
-      locationId,
-      emailReplyMode,
-      fromOneToOneConversation
-    };
-    const r = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    return r.json();
   }
-
+   
   // --------------------- Utils ---------------------
   function escapeHtml(s) {
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
