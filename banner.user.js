@@ -13,6 +13,7 @@ const CALL_RULES = {
 let menuData = {};
 
 async function getMenuData(commType) {
+  // Local helpers and styles are scoped inside this function
   function injectMenuHoverStyles() {
     if (document.getElementById('menu-disabled-style')) return;
     const style = document.createElement('style');
@@ -34,6 +35,7 @@ async function getMenuData(commType) {
   function makeItem(getMessage, requiredKeys, ctx) {
     const disabled = !hasAll(ctx, requiredKeys);
     const result = getMessage(ctx);
+    // Allow both string and {subject, message}
     return typeof result === 'string'
       ? { disabled, message: disabled ? '' : result }
       : { disabled, subject: disabled ? '' : result.subject, message: disabled ? '' : result.message };
@@ -61,7 +63,9 @@ async function getMenuData(commType) {
     : '';
 
   const addressCell = row
-    ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]') || null)
+    ? (row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
+        ? row.querySelector('td[data-title="Address_Full"] div, td[data-title="Address_Full"], td[data-title*="Address" i] div, td[data-title*="Address" i]')
+        : null)
     : null;
 
   const fullAddressFromRow = addressCell ? addressCell.textContent.trim() : '';
@@ -84,7 +88,7 @@ async function getMenuData(commType) {
   let myTele = '';
 
   if (userInfo && userInfo.myFirstName) {
-    myFullName = `${userInfo.myFirstName} ${userInfo.myLastName}`;
+    myFullName = userInfo.myFirstName + ' ' + userInfo.myLastName;
     myFirstName = userInfo.myFirstName;
     myLastName = userInfo.myLastName;
     myInitials = userInfo.myInitials;
@@ -92,21 +96,6 @@ async function getMenuData(commType) {
     myTele = userInfo.myTele;
   }
 
-  // helpers for VM street label (match Rocketly behavior)
-  function streetFromAddress(full) {
-    if (!full) return '';
-    const i = full.indexOf(',');
-    return i > 0 ? full.slice(0, i).trim() : full.trim();
-  }
-  function stripLeadingStreetNumbers(line) {
-    return line ? line.replace(/^\s*(?:\d{1,6}[A-Za-z]?)(?:-\d{1,6}[A-Za-z]?)?\s+/, '') : '';
-  }
-  function streetLabelFromAddress(full) {
-    const base = streetFromAddress(full);
-    return base ? stripLeadingStreetNumbers(base) : '';
-  }
-
-  // Fill VM fields so items are enabled and render correctly
   const ctx = {
     sellerFirstName,
     sellerLastName,
@@ -119,15 +108,16 @@ async function getMenuData(commType) {
     myInitials,
     myEmail,
     myTele,
-
-    first: sellerFirstName || undefined,
-    fullAddress: fullAddressFromRow || undefined,
-    streetLabelFromAddress,                 // function
-    CALLER_NAME: myFirstName || myFullName, // fallback to full name if needed
-    CALLBACK_NUMBER: myTele                 // phone from user profile
+    // These are referenced by voicemail templates. If your app sets them elsewhere,
+    // they’ll be picked up by requiredKeys checks.
+    first: undefined,
+    fullAddress: undefined,
+    streetLabelFromAddress: undefined,
+    CALLER_NAME: undefined,
+    CALLBACK_NUMBER: undefined
   };
 
-  if (commType === 'sms') {
+  if (commType === "sms") {
     menuData = {
       'Initial Outreach': {
         'No Contact #0 (Generic)': makeItem(
@@ -148,11 +138,10 @@ async function getMenuData(commType) {
           ['sellerFirstName', 'safePropertyAddress', 'myFirstName'],
           ctx
         ),
-        // fixed to use address + name
         'No Contact #3 (Time is running out)': makeItem(
-          ({ sellerFirstName, safePropertyAddress }) =>
-            `We're running out of time to decide about buying ${safePropertyAddress}, ${sellerFirstName}. Please contact me ASAP.`,
-          ['sellerFirstName', 'safePropertyAddress'],
+          ({ sellerFirstName }) =>
+            `We're running out of time to decide about buying your property ${sellerFirstName}. Please contact me ASAP.`,
+          ['sellerFirstName'],
           ctx
         ),
         'No Contact #4 (Time is almost up)': makeItem(
@@ -361,7 +350,7 @@ Kind regards,
 <strong>${myFullName}</strong>
 Property Acquisition Officer  |  Cash Land Buyer USA
 📧 <a target="_blank" rel="noopener noreferrer nofollow" href="mailto:${myEmail}">${myEmail}</a>
-📞 ${myTele}
+📞 ${myTele}\n
 <a target="_blank" rel="noopener noreferrer nofollow" href="http://www.cashlandbuyerusa.com">www.cashlandbuyerusa.com</a>`;
 
     menuData = {
@@ -419,11 +408,11 @@ Property Acquisition Officer  |  Cash Land Buyer USA
       },
       'Advisor Change': {
         'Advisor Change #1': makeItem(
-          ({ sellerFirstName, myFullName, myTele, safePropertyAddress }) => ({
+          ({ sellerFirstName, myFullName, myTele }) => ({
             subject: `Change of hands regarding ${safePropertyAddress}`,
             message: `Hello ${sellerFirstName},\n\nYou were previously working with my co-worker to sell your property. My name is ${myFullName} and I work for Cash Land Buyer USA. I'll be looking after you going forward.\n\nLet me know if you have any questions or concerns.\n\nYou can call or text me at ${myTele}.${signature}`
           }),
-          ['sellerFirstName', 'myFullName', 'myTele', 'safePropertyAddress'],
+          ['sellerFirstName', 'myFullName', 'myTele'],
           ctx
         )
       },
@@ -4409,485 +4398,304 @@ async function addTemplateMenu({
   }
 }
 
-async function addTemplateMenu({
-  menuId = 'tb_template_menu',
-  menuLabel = 'Templates',
-  rightOf = 'tb_tasks',
-  type = null
-} = {}) {
-  if (!ENABLE_MENU_BUTTONS) return;
+async function addQuickNotesMenu() {
+    if (!ENABLE_MENU_BUTTONS) return;
+    if (document.getElementById('tb_addnote_menu')) return;
+    if (!document.getElementById("notes-tab")) return;
+    if (!document.getElementById('notification_banner-top_bar')) return;
 
-  try {
-    const prevMenu = document.getElementById(rightOf);
-    const notesTab = document.getElementById('notes-tab');
-    const existingMenu = document.getElementById(menuId);
+    const voicemailBtn = document.getElementById('tb_voicemail_menu');
+    if (!voicemailBtn || !voicemailBtn.parentNode) return;
 
-    if (!prevMenu || !notesTab) return;
-
-    if (existingMenu && type === 'email') {
-      const emailInput = document.querySelector('[name="contact.email"]');
-      if (emailInput && emailInput.value.trim() === '') {
-        attachTooltip(existingMenu, true, 'No Email Address');
-      } else {
-        detachTooltip(existingMenu);
-      }
-    }
-
-    if (!existingMenu) {
-      const menuLink = document.createElement('a');
-      menuLink.id = menuId;
-      menuLink.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
-      menuLink.setAttribute('aria-label', menuLabel);
-      menuLink.style.lineHeight = '1.6rem';
-
-      menuLink.innerHTML = `
+    const noteButton = document.createElement('a');
+    noteButton.id = 'tb_addnote_menu';
+    noteButton.className = 'group text-left mx-1 pb-2 md:pb-3 text-sm font-medium topmenu-navitem cursor-pointer relative px-2';
+    noteButton.setAttribute('aria-label', 'Add Note Menu');
+    noteButton.style.lineHeight = '1.6rem';
+    noteButton.style.zIndex = '1000';
+    noteButton.innerHTML = `
         <span class="flex items-center select-none">
-          ${menuLabel}
-          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+            Quick Notes
+            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
         </span>
-        <div role="menu" class="hidden template-dropdown origin-top-right absolute right-0 mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40"></div>
-      `;
+        <div role="menu" aria-orientation="vertical" tabindex="-1"
+            class="hidden origin-top-right absolute right-0 mt-2 w-96 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40">
+        </div>
+    `;
 
-      prevMenu.parentNode.insertBefore(menuLink, prevMenu.nextSibling);
+    // ✅ Create floating modal that follows cursor
+    const floatingModal = createFloatingModal({
+        id: 'quicknotes-modal',
+        styles: {
+            backgroundColor: '#f9f9f9',
+            border: '1px solid #ccc'
+        },
+        onUpdatePosition: (e, modal) => {
+            // Optional extra behavior on mouse move
+        }
+    });
 
-      const wrapper = menuLink.querySelector('.template-dropdown');
-      wrapper.style.width = '13rem';
-      wrapper.style.left = '0';
 
-      // local helpers for panel tracking
-      const SEEN_TTL = 56 * 24 * 60 * 60 * 1000;
-      const seenKey = (t, contactId, group, label) => `tmSeen:${t}:${contactId}:${group}:${label}`;
-      const hasSeen = (t, contactId, group, label) => {
-        const raw = localStorage.getItem(seenKey(t, contactId, group, label));
-        if (!raw) return false;
+    const dropdown = noteButton.querySelector('div[role="menu"]');
+    dropdown.style.width = '26rem';
+    dropdown.style.left = '0';
+
+    async function renderNoteOptions() {
         try {
-          const d = JSON.parse(raw);
-          if (!d?.ts || Date.now() - d.ts > SEEN_TTL) {
-            localStorage.removeItem(seenKey(t, contactId, group, label));
-            return false;
-          }
-          return !!d.seen;
-        } catch {
-          localStorage.removeItem(seenKey(t, contactId, group, label));
-          return false;
-        }
-      };
-      const markSeen = (t, contactId, group, label) => { try { localStorage.setItem(seenKey(t, contactId, group, label), JSON.stringify({ seen:true, ts:Date.now() })); } catch {} };
-      const unmarkSeen = (t, contactId, group, label) => { try { localStorage.removeItem(seenKey(t, contactId, group, label)); } catch {} };
-      const pruneOld = () => {
-        const now = Date.now();
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const k = localStorage.key(i);
-          if (!k || !k.startsWith('tmSeen:')) continue;
-          try {
-            const d = JSON.parse(localStorage.getItem(k));
-            if (!d?.ts || now - d.ts > SEEN_TTL) localStorage.removeItem(k);
-          } catch { localStorage.removeItem(k); }
-        }
-      };
+            closeOtherMenus('tb_addnote_menu');
+            dropdown.innerHTML = '';
 
-      menuLink.addEventListener('click', async e => {
-        e.preventDefault();
-        closeOtherMenus(menuId);
+            const userInfo = await getUserData();
+            if (!userInfo) return;
 
-        const isOpen = !wrapper.classList.contains('hidden');
-        if (isOpen) {
-          wrapper.classList.add('hidden');
-          wrapper.innerHTML = '';
-          return;
-        }
+            let sellerEmail = document.querySelector('[name="contact.email"]')?.value || "";
+            let outboundCallCount = document.querySelector("#outboundCallCount").innerText;
+            const counts = await extractContactData();
+            console.log('counts', counts);
 
-        wrapper.classList.remove('hidden');
-        wrapper.innerHTML = '';
+            const smsText = counts.sms.outbound.count === "DND"
+            ? "SMS (DND)"
+            : counts.sms.outbound.today.count
+            ? `Sent SMS (Total: ${counts.sms.outbound.count})`
+            : `No SMS sent (Total: ${counts.sms.outbound.count})`;
 
-        if (type === 'sms') {
-          const autoSendCheckboxWrapper = document.createElement('div');
-          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+            const emailText = sellerEmail
+            ? (counts.email.outbound.today.count
+               ? `Sent email (Total: ${counts.email.outbound.count})`
+               : `No email sent (Total: ${counts.email.outbound.count})`)
+            : "Cannot email (no email address)";
 
-          const checkboxLabel = document.createElement('label');
-          checkboxLabel.textContent = 'Auto-send Text Message';
+            const noteOptions = [];
 
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.className = 'mr-2';
-          checkboxLabel.prepend(checkbox);
-
-          autoSendCheckboxWrapper.appendChild(checkboxLabel);
-          wrapper.appendChild(autoSendCheckboxWrapper);
-          autoSendCheckboxWrapper.addEventListener('click', evt => evt.stopPropagation());
-
-          const storedAutoSendState = localStorage.getItem('autoSendChecked');
-          checkbox.checked = storedAutoSendState === 'true';
-          checkbox.addEventListener('change', () => {
-            localStorage.setItem('autoSendChecked', checkbox.checked);
-          });
-        }
-
-        let floatingModal = document.getElementById(`${type}-modal`);
-        if (!floatingModal) {
-          floatingModal = createFloatingModal({
-            id: `${type}-modal`,
-            styles: {
-              backgroundColor: '#f9f9f9',
-              border: '1px solid #ccc',
-              minWidth: '20rem',
-              maxWidth: '20rem'
-            }
-          });
-        }
-
-        // Build menu data
-        menuData = await getMenuData(type);
-
-        // Panel styles once
-        if (!document.getElementById('tm-panel-styles')) {
-          const css = `
-            .contact-data{display:flex;flex-direction:column;background:#fff;min-width:320px;max-width:520px}
-            .contact-data .cd-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px}
-            .contact-data .cd-card{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:12px}
-            .contact-data .cd-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px}
-            .cd-grid{display:grid;grid-template-columns:1fr;gap:8px}
-            .menu-item{display:flex;flex-direction:column;gap:4px;border-radius:6px;padding:6px;cursor:pointer}
-            .menu-item .cd-key{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:8px}
-            .menu-item .cd-used{font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:1px 6px}
-            .menu-item .cd-val{font-size:14px;color:#111827;white-space:pre-wrap}
-          `;
-          const s = document.createElement('style');
-          s.id = 'tm-panel-styles';
-          s.textContent = css;
-          document.head.appendChild(s);
-        }
-
-        // Contact id for per-contact “Used”
-        const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-        const contactId = row?.id || '';
-        pruneOld();
-
-        // Build inline panel from menuData
-        const panel = document.createElement('div');
-        panel.className = 'tm-panel';
-        panel.style.cssText = 'padding:8px;border-top:1px solid #e5e7eb;max-width:520px;';
-        wrapper.appendChild(panel);
-
-        function renderPanel() {
-          const groups = Object.entries(menuData || {}).map(([groupName, templates]) => {
-            const items = Object.entries(templates).map(([label, payload]) => {
-              const disabled = !!payload.disabled;
-              const subj = payload.subject || '';
-              const msg = payload.message || '';
-              const used = contactId && hasSeen(type, contactId, groupName, label);
-              const preview = (type === 'email') ? String(msg).replace(/\n/g, '<br>') : String(msg);
-
-              return `
-                <div class="menu-item" data-group="${encodeURIComponent(groupName)}" data-label="${encodeURIComponent(label)}"
-                     ${disabled ? 'aria-disabled="true"' : ''}>
-                  <div class="cd-key">
-                    <span>${label}${subj ? ` — ${subj}` : ''}</span>
-                    ${used ? '<span class="cd-used">Used</span>' : ''}
-                  </div>
-                  <div class="cd-val">${preview || '<em style="color:#6b7280">Unavailable (missing info)</em>'}</div>
-                </div>
-              `;
-            }).join('');
-
-            return `
-              <div class="cd-card">
-                <div class="cd-label">${groupName}</div>
-                <div class="cd-grid">${items}</div>
-              </div>
-            `;
-          }).join('');
-
-          panel.innerHTML = `
-            <div class="contact-data">
-              <div class="cd-body">
-                ${groups}
-              </div>
-            </div>
-          `;
-
-          // Item click handlers (respect disabled)
-          panel.querySelectorAll('.menu-item').forEach(itemEl => {
-            const disabled = itemEl.getAttribute('aria-disabled') === 'true';
-            if (disabled) return;
-
-            const groupName = decodeURIComponent(itemEl.getAttribute('data-group') || '');
-            const label = decodeURIComponent(itemEl.getAttribute('data-label') || '');
-            const payload = (menuData[groupName] || {})[label] || {};
-            const subject = payload.subject || '';
-            const message = payload.message || '';
-
-            itemEl.addEventListener('click', async () => {
-              if (type === 'sms') {
-                let activeTab = document.querySelector('.nav-link.active');
-                const smsTab = document.querySelector('#sms-tab');
-                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
-                  smsTab.click();
-                  await new Promise(r => setTimeout(r, 250));
-                }
-                const input = document.querySelector('#text-message');
-                const sendButton = document.querySelector('#send-sms');
-                if (!input) return;
-
-                setInputValue(input, cleanMessageText(message), 'smsMsg');
-
-                activeTab = document.querySelector('.nav-link.active');
-                const checkbox = wrapper.querySelector('input[type="checkbox"]');
-                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
-                  setTimeout(() => sendButton.click(), 100);
-                }
-              }
-
-              if (type === 'email') {
-                const activeTab = document.querySelector('.nav-link.active');
-                const emailTab = document.querySelector('#email-tab');
-                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
-                  emailTab.click();
-                  await new Promise(r => setTimeout(r, 1500));
-                }
-                const composer = document.querySelector('#message-composer');
-                const subjectField = composer?.querySelector('#subject');
-                const editor = composer?.querySelector('.tiptap.ProseMirror');
-                if (subjectField) setInputValue(subjectField, subject, 'email-template');
-                if (editor) editor.innerHTML = cleanMessageEmail(message).split('\n').map(p => `<p>${p}</p>`).join('');
-              }
-
-              if (type === 'voicemail') {
-                const textarea = document.querySelector('#voicemail-note');
-                if (textarea) setInputValue(textarea, cleanMessageText(message), 'vm-template');
-              }
-
-              // toggle Used
-              const already = hasSeen(type, contactId, groupName, label);
-              if (already) unmarkSeen(type, contactId, groupName, label);
-              else markSeen(type, contactId, groupName, label);
-
-              const badge = itemEl.querySelector('.cd-used');
-              const nowUsed = hasSeen(type, contactId, groupName, label);
-              if (nowUsed && !badge) {
-                const b = document.createElement('span'); b.className='cd-used'; b.textContent='Used';
-                itemEl.querySelector('.cd-key').appendChild(b);
-              } else if (!nowUsed && badge) {
-                badge.remove();
-              }
-            });
-          });
-
-          // Extra: Voicemail “Days” quick-pick from your 10 VM scripts
-          if (type === 'voicemail' && menuData['Voicemail Scripts']) {
-            const vmEntries = Object.entries(menuData['Voicemail Scripts']);
-            const msgs = vmEntries.map(([_, p]) => p.message || '').filter(Boolean);
-            if (msgs.length >= 10) {
-              const body = panel.querySelector('.cd-body');
-              const mkDay = (dayIdx, a, b) => `
-                <div class="cd-card">
-                  <div class="cd-label">Day ${dayIdx}</div>
-                  <div class="cd-grid">
-                    <div class="menu-item" data-day="${dayIdx}" data-which="1">
-                      <div class="cd-key">Voicemail #1</div>
-                      <div class="cd-val">${msgs[a]}</div>
-                    </div>
-                    <div class="menu-item" data-day="${dayIdx}" data-which="2">
-                      <div class="cd-key">Voicemail #2</div>
-                      <div class="cd-val">${msgs[b]}</div>
-                    </div>
-                  </div>
-                </div>`;
-              body.insertAdjacentHTML('afterbegin', [
-                mkDay(5, 8, 9),
-                mkDay(4, 6, 7),
-                mkDay(3, 4, 5),
-                mkDay(2, 2, 3),
-                mkDay(1, 0, 1)
-              ].join(''));
-
-              panel.querySelectorAll('.menu-item[data-day]').forEach(el => {
-                el.addEventListener('click', () => {
-                  const textarea = document.querySelector('#voicemail-note');
-                  const val = el.querySelector('.cd-val')?.textContent || '';
-                  if (textarea) setInputValue(textarea, val, 'vm-template');
-
-                  const day = el.getAttribute('data-day');
-                  const which = el.getAttribute('data-which');
-                  const dayKey = `Day${day}#${which}`;
-                  const used = hasSeen('voicemail', contactId, 'Days', dayKey);
-                  if (used) unmarkSeen('voicemail', contactId, 'Days', dayKey);
-                  else markSeen('voicemail', contactId, 'Days', dayKey);
-                  el.style.background = hasSeen('voicemail', contactId, 'Days', dayKey) ? 'lightgrey' : '';
+            let dispo = await getDisposition();
+          
+            // Check if dispo is empty or "Move to Contacted"
+            if (dispo === "Unable to reach") {
+                noteOptions.push({
+                    name: 'Lost Follow-Up',
+                    text: `${dispo} call back. No answer.`,
+                    nextAccount: true,
+                    autoSave: true
                 });
-              });
             }
-          }
+
+
+            if (dispo === "" || dispo === "Move to Contacted" || dispo === "Move to Final Contact" || dispo === "Move to Hot Lead" || dispo === "Move to Nutured" || dispo === "Move to Initial Offer Made" || dispo === "Wholesaler") {
+                //if (counts.calls.outbound.count >= 2 && (counts.sms.outbound.count >= 2 || counts.sms.outbound.count === "DND")) {
+              if (counts.calls.outbound.count >= 5) {
+                    noteOptions.push({
+                        name: 'Move to Unable to Reach',
+                        text: `Call attempt #${counts.calls.outbound.count} - Unable to reach.\nTotal Voicemail: ${counts.voicemail.outbound.count}\nTotal SMS: ${counts.sms.outbound.count}\nTotal Email: ${counts.email.outbound.count} <br><font size=-1 color=red>(Automatically moves to 'Unable to reach')</font>`,
+                        dispo: 'Unable to reach',
+                        nextAccount: true,
+                        autoSave: true
+                    });
+                }
+            }
+
+            if (counts.voicemail.outbound.count === 0) {
+                noteOptions.push({
+                    name: 'Left Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: 1)\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                });
+            } else {
+                noteOptions.push({
+                    name: 'Left Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nLeft voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                });
+            }
+
+            noteOptions.push(
+                {
+                    name: 'No Voicemail Left',
+                    text: `Call attempt #${counts.calls.outbound.count}\nNo voicemail left (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Could Not Leave Voicemail',
+                    text: `Call attempt #${counts.calls.outbound.count}\nCould not leave voicemail (Total: ${counts.voicemail.outbound.count})\n${smsText}\n${emailText}`,
+                    dispo: 'Move to Contacted',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Standard Questions',
+                    text: `Motivation Level: \nMotivation Reason(s): \n Asking Price: \nCMV: \nOur Offer: \nTimeline: \n\nRepairs: \nRenovations: \n`,
+                    autoSave: false
+                },
+                {
+                    name: 'Post Purchase Notes',
+                    text: `Purchase price: $ \nName of seller: \nProperty address: \n - Long/Lat: \nCondition of the property: \nPictures: \+/- value factors: \nVacant: \n - If tenant occupied, are they staying? \nHow do we access the property: \nDetails added to deal tracker: `,
+                    autoSave: false
+                },
+                {
+                    name: 'Made Contact',
+                    text: `Call attempt #${counts.calls.outbound.count}\nMade contact.`,
+                    autoSave: false
+                },
+                {
+                    name: 'Appointment set',
+                    text: "Appointment set.",
+                    autoSave: false
+                },
+                {
+                    name: 'Call blocked',
+                    text: "Blocked by screening service",
+                    dispo: 'Unable to reach',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Rental Questions',
+                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilites: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
+                    autoSave: false
+                },
+                sellerEmail ? {
+                    name: 'Contract Sent',
+                    text: `Contract sent to ${sellerEmail}. <br><font size=-1 color=red>(Automatically moves to 'Move to Intial Offer Made')</font>`,
+                    dispo: `Move to Initial Offer Made`,
+                    autoSave: false
+                } : null,
+                {
+                    name: 'Not Looking to Sell',
+                    text: "Contact explicitly expressed they are not looking to sell <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
+                    dispo: 'Fake Lead',
+                    nextAccount: true,
+                    autoSave: true
+                },
+                {
+                    name: 'Does Not Wish to Proceed',
+                    text: "Seller does not wish to proceed.\nREASON:",
+                    autoSave: false
+                },
+                {
+                    name: 'DNC',
+                    text: "Seller is on the DNC list. <br><font size=-1 color=red>(Automatically moves to 'Fake Lead')</font>",
+                    dispo: 'Fake Lead',
+                    nextAccount: true,
+                    autoSave: true
+                }
+            );
+
+            const cleanNotes = noteOptions.filter(Boolean).map(note => ({
+                name: note.name,
+                text: note.text.trim(),
+                dispo: note.dispo || null,
+                nextAccount: note.nextAccount || null,
+                autoSave: note.autoSave
+            }));
+
+            cleanNotes.forEach(({ name, text, dispo, nextAccount, autoSave }) => {
+                const noteButtonItem = document.createElement('button');
+                noteButtonItem.className = 'block w-full text-left px-4 py-2 text-sm text-gray-700';
+                noteButtonItem.innerHTML = name;
+
+                floatingModal.attachHover(noteButtonItem, text.replace(/\n/g, '<br>'));
+
+                noteButtonItem.addEventListener('click', () => {
+                    const textareaSelector = 'textarea[class*="input__textarea-el"]';
+                    const saveButtonSelector = "#notes-form-save-btn";
+
+                    function setTextareaValue(el, newText) {
+                        el.value = newText;
+                        el.dispatchEvent(new Event("input", { bubbles: true }));
+                        el.dispatchEvent(new Event("change", { bubbles: true }));
+                    }
+
+                    function handleNoteInsert(el, noteText) {
+                        const existingText = el.value.trim();
+                        if (existingText.includes(noteText)) return;
+
+                        // const autoSaveBlockers = ["standard questions", "rental questions", "does not wish to proceed"];
+                        // const haltAutoSave = autoSaveBlockers.some(str => noteText.toLowerCase().includes(str));
+
+                        let finalText = existingText ? existingText + "\n\n" + noteText : noteText;
+                        finalText = finalText.replace(/ <br><font[^>]*>(.*?)<\/font>/gi, "");
+
+                        setTextareaValue(el, finalText);
+
+                        // if (haltAutoSave) return;
+                        if (!autoSave) return;
+
+                        if (!existingText) {
+                            const saveButton = document.querySelector(saveButtonSelector);
+                            if (saveButton) {
+                                setTimeout(() => saveButton.click(), 100);
+                                if (dispo) {
+                                    // setDisposition(dispo);
+                                }
+                                if (nextAccount) {
+                                    clickToNextContact();
+                                }
+                                if (finalText.toLowerCase().includes("contract sent to ")) {
+                                    alert('Reminder: Add CMV to notes');
+                                }
+                            }
+                        }
+                    }
+
+                    const textarea = document.querySelector(textareaSelector);
+                    if (textarea) {
+                        handleNoteInsert(textarea, text);
+                    } else {
+                        const addNoteButton = document.getElementById("add-note-button");
+                        if (addNoteButton) {
+                            addNoteButton.click();
+                            setTimeout(() => {
+                                const newTextarea = document.querySelector(textareaSelector);
+                                if (newTextarea) {
+                                    handleNoteInsert(newTextarea, text);
+                                } else {
+                                    cWarn("Textarea still not found after 250ms.");
+                                }
+                            }, 250);
+                        }
+                    }
+                });
+
+                dropdown.appendChild(noteButtonItem);
+            });
+
+        } finally {
+            // optional cleanup
         }
-
-        // initial render
-        renderPanel();
-
-        // Keep panel synced while open
-        const mo = new MutationObserver(() => {
-          renderPanel();
-        });
-        mo.observe(document.body, { childList: true, subtree: true });
-
-        // Build your existing right-flyout submenu items (kept as-is, but we also mark “Used” on click)
-        for (const [group, templates] of Object.entries(menuData || {})) {
-          const groupWrapper = document.createElement('div');
-          groupWrapper.className = 'relative group submenu-wrapper';
-          groupWrapper.innerHTML = `
-            <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-              <span>${group}</span>
-              <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-            </button>
-            <div class="template-panel"></div>
-          `;
-
-          const panelRight = groupWrapper.querySelector('.template-panel');
-
-          for (const [label, { subject = '', message, disabled = false }] of Object.entries(templates)) {
-            const buttonItem = document.createElement('div');
-            buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-            buttonItem.textContent = label;
-            if (disabled) {
-              buttonItem.setAttribute('aria-disabled', 'true');
-              buttonItem.style.opacity = '.55';
-              buttonItem.style.cursor = 'not-allowed';
-            }
-
-            let cleanedMessage = '';
-            let handleClick = () => console.warn(`Unhandled or disabled template type: ${type}`);
-
-            if (!disabled && type === 'email') {
-              cleanedMessage = typeof message === 'string' ? cleanMessageEmail(message) : '';
-              handleClick = async () => {
-                const activeTab = document.querySelector('.nav-link.active');
-                const emailTab = document.querySelector('#email-tab');
-                if (activeTab && activeTab.innerText.trim() !== 'Email' && emailTab) {
-                  emailTab.click();
-                  await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-
-                const composer = document.querySelector('#message-composer');
-                const subjectField = composer?.querySelector('#subject');
-                const editor = composer?.querySelector('.tiptap.ProseMirror');
-
-                if (subjectField) setInputValue(subjectField, subject, 'email-template');
-                if (editor) {
-                  editor.innerHTML = cleanedMessage.split('\n').map(p => `<p>${p}</p>`).join('');
-                }
-
-                // mark Used
-                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-                const contactId = row?.id || '';
-                markSeen('email', contactId, group, label);
-
-                floatingModal.remove();
-                wrapper.classList.add('hidden');
-              };
-            }
-
-            if (!disabled && type === 'sms') {
-              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-              handleClick = async () => {
-                let activeTab = document.querySelector('.nav-link.active');
-                const smsTab = document.querySelector('#sms-tab');
-
-                if (activeTab && activeTab.innerText.trim() !== 'SMS' && smsTab) {
-                  smsTab.click();
-                  await new Promise(resolve => setTimeout(resolve, 250));
-                }
-
-                const input = document.querySelector('#text-message');
-                const sendButton = document.querySelector('#send-sms');
-                if (!input) return;
-
-                setInputValue(input, cleanedMessage, 'smsMsg');
-
-                activeTab = document.querySelector('.nav-link.active');
-                const checkbox = wrapper.querySelector('input[type="checkbox"]');
-                if (checkbox?.checked && sendButton && activeTab?.innerText?.trim() === 'SMS') {
-                  setTimeout(() => sendButton.click(), 100);
-                }
-
-                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-                const contactId = row?.id || '';
-                markSeen('sms', contactId, group, label);
-
-                floatingModal.remove();
-                wrapper.classList.add('hidden');
-              };
-            }
-
-            if (!disabled && type === 'voicemail') {
-              cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-              handleClick = () => {
-                const textarea = document.querySelector('#voicemail-note');
-                if (textarea) {
-                  setInputValue(textarea, cleanedMessage, 'vm-template');
-                }
-
-                const row = document.querySelector('#sms-title-meta')?.closest('tr') || null;
-                const contactId = row?.id || '';
-                markSeen('voicemail', contactId, group, label);
-
-                floatingModal.remove();
-                wrapper.classList.add('hidden');
-              };
-            }
-
-            buttonItem.addEventListener('click', handleClick);
-
-            if (floatingModal && typeof floatingModal.attachHover === 'function') {
-              const preview = String(cleanedMessage || '').replace(/\n/g, '<br>');
-              floatingModal.attachHover(buttonItem, preview, handleClick);
-            }
-
-            panelRight.appendChild(buttonItem);
-          }
-
-          wrapper.appendChild(groupWrapper);
-        }
-
-        wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
-          const button = wrap.querySelector('button');
-          const panelRight = wrap.querySelector('.template-panel');
-
-          Object.assign(panelRight.style, {
-            fontFamily: 'inherit',
-            fontSize: '0.875rem',
-            lineHeight: '1.25rem',
-            padding: '0.5rem',
-            maxWidth: '500px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-            zIndex: '9999',
-            position: 'fixed',
-            display: 'none',
-            whiteSpace: 'normal',
-            color: '#374151'
-          });
-
-          wrap.addEventListener('mouseenter', () => {
-            const rect = button.getBoundingClientRect();
-            panelRight.style.top = `${rect.top + window.scrollY}px`;
-            panelRight.style.left = `${rect.right + window.scrollX}px`;
-            panelRight.style.display = 'block';
-          });
-
-          wrap.addEventListener('mouseleave', () => {
-            panelRight.style.display = 'none';
-          });
-        });
-      });
     }
-  } catch (err) {
-    cErr(`Error in ${menuId}: ${err}`);
-  }
-}
 
+    noteButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const isOpen = !dropdown.classList.contains('hidden');
+        if (isOpen) {
+            dropdown.classList.add('hidden');
+        } else {
+            renderNoteOptions();
+            dropdown.classList.remove('hidden');
+        }
+    });
+
+    dropdown.addEventListener('mouseenter', () => {
+        dropdown.classList.remove('hidden');
+    });
+
+    noteButton.addEventListener('mouseleave', () => {
+        setTimeout(() => {
+            if (!dropdown.matches(':hover') && !noteButton.matches(':hover')) {
+                dropdown.classList.add('hidden');
+            }
+        }, 100);
+    });
+
+    voicemailBtn.parentNode.insertBefore(noteButton, voicemailBtn.nextSibling);
+}
 
 function getFirebaseIdToken() {
 return new Promise((resolve, reject) => {
@@ -6490,144 +6298,252 @@ document.querySelectorAll('td[data-title="Phone"]').forEach((phoneCell) => {
 }
 
 function attachMessageHandlers() {
-  if (!location.href.includes("/contacts/smart_list/")) return;
-  
-  let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
-  
-  function block(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
+if (!location.href.includes("/contacts/smart_list/")) return;
+
+let fromMyNumber = document.querySelector(".selected-number")?.getElementsByTagName("p")[0]?.innerText;
+
+function block(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+}
+
+const qs = (s, r = document) => r.querySelector(s);
+
+async function getAuthTokenAndLocationId() {
+  const idb = await new Promise((res, rej) => {
+    const r = indexedDB.open("firebaseLocalStorageDb");
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  const rows = await new Promise((res, rej) => {
+    const tx = idb.transaction("firebaseLocalStorage", "readonly");
+    const os = tx.objectStore("firebaseLocalStorage");
+    const rq = os.getAll();
+    rq.onsuccess = () => res(rq.result || []);
+    rq.onerror = () => rej(rq.error);
+  });
+  const row = rows.find(r => /authUser/.test(r.fbase_key));
+  const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
+  const idToken = val?.stsTokenManager?.accessToken || "";
+
+  const parts = location.pathname.split("/");
+  const locationId = parts[parts.indexOf("location") + 1];
+
+  return { idToken, locationId };
+}
+
+function getContactIdFromModalHeader(overlay) {
+const meta = overlay.querySelector("#sms-title-meta");
+if (!meta) return "";
+const txt = meta.textContent.trim();
+const m = txt.match(/\(([A-Za-z0-9_-]+)\)\s*$/);
+return m ? m[1] : "";
+}
+
+async function searchNotesByContact(locationId, contactId) {
+const idToken = await getFirebaseIdToken();
+const body = {
+  relations: [{ objectKey: "contact", recordId: contactId }],
+  limit: 10,
+  skip: 0,
+  locationId,
+  includeRelationRecords: true,
+  sortBy: "dateAdded",
+  sortOrder: "desc"
+};
+const res = await fetch("https://services.leadconnectorhq.com/notes/search", {
+  method: "POST",
+  headers: {
+    Accept: "application/json, text/plain, */*",
+    "Content-Type": "application/json",
+    "token-id": idToken,
+    channel: "APP",
+    source: "WEB_USER",
+    version: "2021-07-28"
+  },
+  body: JSON.stringify(body)
+});
+if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+const json = await res.json().catch(() => ({}));
+const rawArray = Array.isArray(json) ? json : (json.notes ?? json.items ?? json.results ?? json.data ?? []);
+const notes = (rawArray || []).map(n => {
+  const rel = Array.isArray(n.relations) ? n.relations.find(r => r.objectKey === "contact") : null;
+  const contactRecord = rel && rel.record ? rel.record : null;
+  const lastConversationId = contactRecord?.lastConversationId;
+  return { ...n, lastConversationId };
+});
+const lastConversationId = notes.find(n => n.lastConversationId)?.lastConversationId || null;
+return { notes, lastConversationId };
+}
+
+async function loadSmsHistoryFromModalHeader(overlay) {
+const listBox   = overlay.querySelector("#sms-history-list");
+const loadingEl = overlay.querySelector("#sms-history-loading");
+const emptyEl   = overlay.querySelector("#sms-history-empty");
+const errEl     = overlay.querySelector("#sms-history-error");
+const scrollBox = overlay.querySelector("#sms-history");
+
+loadingEl.style.display = "block";
+emptyEl.style.display   = "none";
+errEl.style.display     = "none";
+listBox.innerHTML       = "";
+
+try {
+  const { locationId } = parseContextFromUrl();
+  const contactId = getContactIdFromModalHeader(overlay);
+  if (!contactId) throw new Error("contactId missing in modal header");
+  if (!locationId) throw new Error("locationId missing in URL");
+
+  const { lastConversationId } = await searchNotesByContact(locationId, contactId);
+  if (!lastConversationId) {
+    loadingEl.style.display = "none";
+    emptyEl.style.display = "block";
+    return;
   }
-  
-  const qs = (s, r = document) => r.querySelector(s);
-  
-  async function getAuthTokenAndLocationId() {
-    const idb = await new Promise((res, rej) => {
-      const r = indexedDB.open("firebaseLocalStorageDb");
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    const rows = await new Promise((res, rej) => {
-      const tx = idb.transaction("firebaseLocalStorage", "readonly");
-      const os = tx.objectStore("firebaseLocalStorage");
-      const rq = os.getAll();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error);
-    });
-    const row = rows.find(r => /authUser/.test(r.fbase_key));
-    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
-    const idToken = val?.stsTokenManager?.accessToken || "";
-  
-    const parts = location.pathname.split("/");
-    const locationId = parts[parts.indexOf("location") + 1];
-  
-    return { idToken, locationId };
+
+  const data = await loadMessages(lastConversationId);
+  const arr =
+    Array.isArray(data?.messages?.messages) ? data.messages.messages
+    : [];
+
+  const smsOnly = arr.filter(m => m.type === 2 || m.channel === "sms" || m.contentType === "text/plain");
+  if (!smsOnly.length) {
+    loadingEl.style.display = "none";
+    emptyEl.style.display = "block";
+    return;
   }
-  
-  function getContactIdFromModalHeader(overlay) {
-  const meta = overlay.querySelector("#sms-title-meta");
-  if (!meta) return "";
-  const txt = meta.textContent.trim();
-  const m = txt.match(/\(([A-Za-z0-9_-]+)\)\s*$/);
-  return m ? m[1] : "";
+
+  const ordered = smsOnly.slice().sort((a,b) =>
+    new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0) - new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0)
+  );
+
+  const frag = document.createDocumentFragment();
+  for (const m of ordered) {
+    const isOutbound = (m.direction || "").toLowerCase() === "outbound";
+    const text = m.body || m.text || "";
+    const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
+
+    const row = document.createElement("div");
+    row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
+
+    const bubble = document.createElement("div");
+    bubble.style.cssText =
+      "padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
+      (isOutbound
+        ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
+        : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
+    bubble.textContent = text || "[empty]";
+    row.appendChild(bubble);
+
+    const meta = document.createElement("div");
+    meta.textContent = ts.toLocaleString();
+    meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
+    if (isOutbound) {
+      meta.style.order = "-1";
+      meta.style.marginRight = "0";
+    } else {
+      meta.style.marginLeft = "0";
+    }
+
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
+    wrap.appendChild(row);
+    wrap.appendChild(meta);
+
+    frag.appendChild(wrap);
   }
-  
-  async function searchNotesByContact(locationId, contactId) {
-  const idToken = await getFirebaseIdToken();
-  const body = {
-    relations: [{ objectKey: "contact", recordId: contactId }],
-    limit: 10,
-    skip: 0,
-    locationId,
-    includeRelationRecords: true,
-    sortBy: "dateAdded",
-    sortOrder: "desc"
-  };
-  const res = await fetch("https://services.leadconnectorhq.com/notes/search", {
-    method: "POST",
+
+  listBox.appendChild(frag);
+  loadingEl.style.display = "none";
+  scrollBox.scrollTop = scrollBox.scrollHeight;
+} catch (e) {
+  loadingEl.style.display = "none";
+  errEl.textContent = String(e.message || e);
+  errEl.style.display = "block";
+}
+}
+
+async function fetchConversationId({ contactId }) {
+  const { idToken, locationId } = await getAuthTokenAndLocationId();
+  const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
+  const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
+    method: "GET",
     headers: {
-      Accept: "application/json, text/plain, */*",
-      "Content-Type": "application/json",
+      "content-type": "application/json",
       "token-id": idToken,
-      channel: "APP",
-      source: "WEB_USER",
-      version: "2021-07-28"
-    },
-    body: JSON.stringify(body)
+      "version": "2021-07-28",
+      "channel": "APP",
+      "source": "WEB_USER"
+    }
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-  const json = await res.json().catch(() => ({}));
-  const rawArray = Array.isArray(json) ? json : (json.notes ?? json.items ?? json.results ?? json.data ?? []);
-  const notes = (rawArray || []).map(n => {
-    const rel = Array.isArray(n.relations) ? n.relations.find(r => r.objectKey === "contact") : null;
-    const contactRecord = rel && rel.record ? rel.record : null;
-    const lastConversationId = contactRecord?.lastConversationId;
-    return { ...n, lastConversationId };
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  const data = await r.json();
+  const conv = Array.isArray(data?.conversations)
+    ? data.conversations[0]
+    : data?.items?.[0] || data?.[0];
+  return conv?.id || conv?._id || "";
+}
+
+async function fetchMessages({ conversationId, limit = 100 }) {
+  const { idToken } = await getAuthTokenAndLocationId();
+  const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
+    method: "GET",
+    headers: {
+      "content-type": "application/json",
+      "token-id": idToken,
+      "version": "2021-07-28",
+      "channel": "APP",
+      "source": "WEB_USER"
+    }
   });
-  const lastConversationId = notes.find(n => n.lastConversationId)?.lastConversationId || null;
-  return { notes, lastConversationId };
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  const data = await r.json();
+  return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
+}
+
+function renderSmsHistory(overlay, messages) {
+  const box = overlay.querySelector("#sms-history");
+  const list = overlay.querySelector("#sms-history-list");
+  const empty = overlay.querySelector("#sms-history-empty");
+  const loading = overlay.querySelector("#sms-history-loading");
+  const err = overlay.querySelector("#sms-history-error");
+
+  loading.style.display = "none";
+  err.style.display = "none";
+  list.innerHTML = "";
+
+  if (!messages?.length) {
+    empty.style.display = "block";
+    return;
   }
-  
-  async function loadSmsHistoryFromModalHeader(overlay) {
-  const listBox   = overlay.querySelector("#sms-history-list");
-  const loadingEl = overlay.querySelector("#sms-history-loading");
-  const emptyEl   = overlay.querySelector("#sms-history-empty");
-  const errEl     = overlay.querySelector("#sms-history-error");
-  const scrollBox = overlay.querySelector("#sms-history");
-  
-  loadingEl.style.display = "block";
-  emptyEl.style.display   = "none";
-  errEl.style.display     = "none";
-  listBox.innerHTML       = "";
-  
-  try {
-    const { locationId } = parseContextFromUrl();
-    const contactId = getContactIdFromModalHeader(overlay);
-    if (!contactId) throw new Error("contactId missing in modal header");
-    if (!locationId) throw new Error("locationId missing in URL");
-  
-    const { lastConversationId } = await searchNotesByContact(locationId, contactId);
-    if (!lastConversationId) {
-      loadingEl.style.display = "none";
-      emptyEl.style.display = "block";
-      return;
-    }
-  
-    const data = await loadMessages(lastConversationId);
-    const arr =
-      Array.isArray(data?.messages?.messages) ? data.messages.messages
-      : [];
-  
-    const smsOnly = arr.filter(m => m.type === 2 || m.channel === "sms" || m.contentType === "text/plain");
-    if (!smsOnly.length) {
-      loadingEl.style.display = "none";
-      emptyEl.style.display = "block";
-      return;
-    }
-  
-    const ordered = smsOnly.slice().sort((a,b) =>
-      new Date(a.createdAt || a.dateAdded || a.dateUpdated || 0) - new Date(b.createdAt || b.dateAdded || b.dateUpdated || 0)
-    );
-  
-    const frag = document.createDocumentFragment();
-    for (const m of ordered) {
-      const isOutbound = (m.direction || "").toLowerCase() === "outbound";
-      const text = m.body || m.text || "";
-      const ts = new Date(m.createdAt || m.dateAdded || m.dateUpdated || Date.now());
-  
+  empty.style.display = "none";
+
+  const frag = document.createDocumentFragment();
+  messages
+    .slice()
+    .sort((a, b) => new Date(a.createdAt || a.createdTime || a.createdOn || 0) - new Date(b.createdAt || b.createdTime || b.createdOn || 0))
+    .forEach(m => {
+      const isOutbound =
+        m.direction === "outbound" ||
+        m.messageDirection === "outbound" ||
+        m.fromMe === true ||
+        m.isMe === true;
+      const text = m.text || m.body || m.message || "";
+      const ts = new Date(m.createdAt || m.createdTime || m.createdOn || Date.now());
+
       const row = document.createElement("div");
       row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
-  
+
       const bubble = document.createElement("div");
       bubble.style.cssText =
         "padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
         (isOutbound
           ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
           : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
-      bubble.textContent = text || "[empty]";
+      bubble.textContent = text || "[unsupported message]";
       row.appendChild(bubble);
-  
+
       const meta = document.createElement("div");
       meta.textContent = ts.toLocaleString();
       meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
@@ -6637,631 +6553,524 @@ function attachMessageHandlers() {
       } else {
         meta.style.marginLeft = "0";
       }
-  
+
       const wrap = document.createElement("div");
       wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
       wrap.appendChild(row);
       wrap.appendChild(meta);
-  
+
       frag.appendChild(wrap);
-    }
-  
-    listBox.appendChild(frag);
-    loadingEl.style.display = "none";
-    scrollBox.scrollTop = scrollBox.scrollHeight;
-  } catch (e) {
-    loadingEl.style.display = "none";
-    errEl.textContent = String(e.message || e);
-    errEl.style.display = "block";
-  }
-  }
-  
-  async function fetchConversationId({ contactId }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
     });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    const conv = Array.isArray(data?.conversations)
-      ? data.conversations[0]
-      : data?.items?.[0] || data?.[0];
-    return conv?.id || conv?._id || "";
-  }
-  
-  async function fetchMessages({ conversationId, limit = 100 }) {
-    const { idToken } = await getAuthTokenAndLocationId();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
-  }
-  
-  function renderSmsHistory(overlay, messages) {
-    const box = overlay.querySelector("#sms-history");
-    const list = overlay.querySelector("#sms-history-list");
-    const empty = overlay.querySelector("#sms-history-empty");
-    const loading = overlay.querySelector("#sms-history-loading");
-    const err = overlay.querySelector("#sms-history-error");
-  
+
+  list.appendChild(frag);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadSmsHistory(overlay) {
+  const loading = overlay.querySelector("#sms-history-loading");
+  const err = overlay.querySelector("#sms-history-error");
+  const empty = overlay.querySelector("#sms-history-empty");
+  const list = overlay.querySelector("#sms-history-list");
+  loading.style.display = "block";
+  err.style.display = "none";
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  const contactId = overlay.dataset.contactId || "";
+  if (!contactId) {
     loading.style.display = "none";
-    err.style.display = "none";
-    list.innerHTML = "";
-  
-    if (!messages?.length) {
+    err.textContent = "Missing contact id.";
+    err.style.display = "block";
+    return;
+  }
+  try {
+    const conversationId = await fetchConversationId({ contactId });
+    if (!conversationId) {
+      loading.style.display = "none";
       empty.style.display = "block";
       return;
     }
-    empty.style.display = "none";
-  
-    const frag = document.createDocumentFragment();
-    messages
-      .slice()
-      .sort((a, b) => new Date(a.createdAt || a.createdTime || a.createdOn || 0) - new Date(b.createdAt || b.createdTime || b.createdOn || 0))
-      .forEach(m => {
-        const isOutbound =
-          m.direction === "outbound" ||
-          m.messageDirection === "outbound" ||
-          m.fromMe === true ||
-          m.isMe === true;
-        const text = m.text || m.body || m.message || "";
-        const ts = new Date(m.createdAt || m.createdTime || m.createdOn || Date.now());
-  
-        const row = document.createElement("div");
-        row.style.cssText = `display:flex; margin:6px 0; ${isOutbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}`;
-  
-        const bubble = document.createElement("div");
-        bubble.style.cssText =
-          "padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.35; white-space:pre-wrap; word-break:break-word; " +
-          (isOutbound
-            ? "background:#155EEF;color:#fff; border-top-right-radius:4px;"
-            : "background:#f2f4f7;color:#111827; border-top-left-radius:4px;");
-        bubble.textContent = text || "[unsupported message]";
-        row.appendChild(bubble);
-  
-        const meta = document.createElement("div");
-        meta.textContent = ts.toLocaleString();
-        meta.style.cssText = "font-size:10px;color:#667085;margin:2px 6px;";
-        if (isOutbound) {
-          meta.style.order = "-1";
-          meta.style.marginRight = "0";
-        } else {
-          meta.style.marginLeft = "0";
-        }
-  
-        const wrap = document.createElement("div");
-        wrap.style.cssText = "display:flex; flex-direction:column; align-items:" + (isOutbound ? "flex-end" : "flex-start") + ";";
-        wrap.appendChild(row);
-        wrap.appendChild(meta);
-  
-        frag.appendChild(wrap);
-      });
-  
-    list.appendChild(frag);
-    box.scrollTop = box.scrollHeight;
+    const messages = await fetchMessages({ conversationId, limit: 50 });
+    renderSmsHistory(overlay, messages);
+  } catch (e) {
+    loading.style.display = "none";
+    err.textContent = String(e.message || e);
+    err.style.display = "block";
   }
-  
-  async function loadSmsHistory(overlay) {
-    const loading = overlay.querySelector("#sms-history-loading");
-    const err = overlay.querySelector("#sms-history-error");
-    const empty = overlay.querySelector("#sms-history-empty");
-    const list = overlay.querySelector("#sms-history-list");
-    loading.style.display = "block";
-    err.style.display = "none";
-    empty.style.display = "none";
-    list.innerHTML = "";
-  
-    const contactId = overlay.dataset.contactId || "";
-    if (!contactId) {
-      loading.style.display = "none";
-      err.textContent = "Missing contact id.";
+}
+
+async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
+  const { idToken, locationId } = await getAuthTokenAndLocationId();
+
+  const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "token-id": idToken,
+      "version": "2021-07-28",
+      "channel": "APP",
+      "source": "WEB_USER"
+    },
+    body: JSON.stringify({
+      contactId,
+      locationId,
+      type: "SMS",
+      channel: "sms",
+      message,
+      attachments: [],
+      fromOneToOneConversation: true,
+      fromNumber,
+      toNumber
+    })
+  });
+
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+function buildSmsModal() {
+  if (qs("#sms-modal-overlay")) return qs("#sms-modal-overlay");
+  const overlay = document.createElement("div");
+  overlay.id = "sms-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
+  const modal = document.createElement("div");
+  modal.style.cssText = "width:75%;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <h3 style="margin:0;font-size:16px;">
+        <span id="sms-title-prefix">Conversation</span>
+        <span id="sms-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
+      </h3>
+      <button id="sms-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
+    </div>
+
+    <div id="sms-history" style="border:1px solid #e5e7eb;border-radius:8px;height:260px;overflow:auto;padding:8px;margin-bottom:10px;background:#fafafa;">
+      <div id="sms-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
+      <div id="sms-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
+      <div id="sms-history-empty" style="display:none;font-size:12px;color:#667085;">No messages yet.</div>
+      <div id="sms-history-list"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+        From
+        <input id="sms-from" type="text" value="${fromMyNumber}" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+      </label>
+      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+        To
+        <input id="sms-to" type="text" placeholder="+1 512-545-4307" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
+      </label>
+    </div>
+    <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
+      Message
+      <textarea id="sms-body" rows="4" placeholder="Type a message" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;resize:vertical;"></textarea>
+    </label>
+    <div id="sms-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+      <button id="sms-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
+      <button id="sms-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+
+async function addTemplateMenu() {
+    if (!ENABLE_MENU_BUTTONS) return;
+    
+    try {
+      const cancelBtn = document.querySelector('#sms-cancel');
+      const sendBtn = document.querySelector('#sms-send');
+      if (!cancelBtn || !sendBtn) return;
+    
+      const actionRow = sendBtn.closest('div');
+      if (!actionRow) return;
+    
+      const oldMenu = document.getElementById('tb_template_menu');
+      if (oldMenu) oldMenu.remove();
+      const oldSpacer = document.getElementById('tb_template_spacer');
+      if (oldSpacer) oldSpacer.remove();
+    
+      const menuLink = document.createElement('a');
+      menuLink.id = 'tb_template_menu';
+      menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
+      menuLink.setAttribute('aria-label', 'SMS Templates');
+      menuLink.style.display = 'inline-flex';
+      menuLink.style.alignItems = 'center';
+      menuLink.style.lineHeight = '1.6rem';
+    
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none" id="menu-l1">
+          SMS Templates
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </span>
+      `;
+    
+      const spacer = document.createElement('div');
+      spacer.id = 'tb_template_spacer';
+      spacer.style.flex = '1 1 auto';
+    
+      actionRow.insertBefore(menuLink, actionRow.firstChild);
+      actionRow.insertBefore(spacer, cancelBtn);
+    
+      let wrapper = null;
+    
+      function createDropdown() {
+        const div = document.createElement('div');
+        div.setAttribute('role', 'menu');
+        div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
+        div.style.width = '13rem';
+        div.style.left = '0';
+        div.style.zIndex = '1000003';
+        menuLink.appendChild(div);
+        return div;
+      }
+    
+      function hideAllPanels() {
+        if (!wrapper) return;
+        wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
+        const modal = document.getElementById('sms-template-hover');
+        if (modal) modal.style.display = 'none';
+      }
+    
+      function closeDropdown() {
+        hideAllPanels();
+        if (!wrapper) return;
+        wrapper.classList.add('hidden');
+        wrapper.setAttribute('hidden', '');
+        wrapper.style.display = 'none';
+        menuLink.setAttribute('aria-expanded', 'false');
+        menuLink.blur();
+        teardownGlobalClosers();
+      }
+    
+      function openDropdown() {
+        wrapper.classList.remove('hidden');
+        wrapper.removeAttribute('hidden');
+        wrapper.style.display = '';
+        menuLink.setAttribute('aria-expanded', 'true');
+    
+        outsideHandler = (ev) => {
+          if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+        };
+        escHandler = (ev) => {
+          if (ev.key === 'Escape') closeDropdown();
+        };
+        document.addEventListener('mousedown', outsideHandler, true);
+        document.addEventListener('keydown', escHandler, true);
+      }
+    
+      wrapper = createDropdown();
+    
+      let outsideHandler = null;
+      let escHandler = null;
+    
+      function teardownGlobalClosers() {
+        if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
+        if (escHandler) document.removeEventListener('keydown', escHandler, true);
+        outsideHandler = null;
+        escHandler = null;
+      }
+    
+      menuLink.addEventListener('click', async (e) => {
+        e.preventDefault();
+    
+        const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
+        if (!isHidden) {
+          closeDropdown();
+          return;
+        }
+    
+        openDropdown();
+        wrapper.innerHTML = '';
+    
+        const autoSendCheckboxWrapper = document.createElement('div');
+        autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+    
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.textContent = 'Auto-send Text Message';
+    
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'mr-2';
+        checkboxLabel.prepend(checkbox);
+    
+        autoSendCheckboxWrapper.appendChild(checkboxLabel);
+        wrapper.appendChild(autoSendCheckboxWrapper);
+        autoSendCheckboxWrapper.addEventListener('click', ev => ev.stopPropagation());
+    
+        const storedAutoSendState = localStorage.getItem('autoSendChecked');
+        checkbox.checked = storedAutoSendState === 'true';
+        checkbox.addEventListener('change', () => {
+          localStorage.setItem('autoSendChecked', checkbox.checked);
+        });
+    
+        try {
+          const userInfo = await getUserData();
+          if (!userInfo) return;
+          
+          menuData = await getMenuData('sms');
+          
+          let floatingModal = document.getElementById('sms-template-hover');
+          if (!floatingModal) {
+            floatingModal = createFloatingModal({
+              id: 'sms-template-hover',
+              styles: {
+                position: 'fixed',
+                backgroundColor: '#f9f9f9',
+                border: '1px solid #ccc',
+                minWidth: '20rem',
+                maxWidth: '20rem',
+                zIndex: '1000005',
+                pointerEvents: 'none'
+              }
+            });
+          } else {
+            floatingModal.style.position = 'fixed';
+            floatingModal.style.zIndex = '1000005';
+            floatingModal.style.pointerEvents = 'none';
+          }
+    
+          for (const [group, templates] of Object.entries(menuData)) {
+            const groupWrapper = document.createElement('div');
+            groupWrapper.className = 'relative group submenu-wrapper';
+            groupWrapper.innerHTML = `
+              <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+                <span>${group}</span>
+                <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+              </button>
+              <div class="hidden template-panel"></div>
+            `;
+    
+            const panel = groupWrapper.querySelector('.template-panel');
+    
+            for (const [label, { message }] of Object.entries(templates)) {
+              const buttonItem = document.createElement('div');
+              buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+              buttonItem.textContent = label;
+    
+              const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+    
+              function selectTemplate() {
+                const input = document.querySelector('#sms-body');
+                const sendButton = document.querySelector('#sms-send');
+                if (!input) return;
+    
+                setInputValue(input, cleanedMessage, 'smsMsg');
+                if (checkbox?.checked && sendButton) setTimeout(() => sendButton.click(), 100);
+    
+                closeDropdown(); // hide all menus including menu-l1 dropdown
+              }
+    
+              buttonItem.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+                selectTemplate();
+              });
+    
+              if (floatingModal && typeof floatingModal.attachHover === 'function') {
+                const preview = String(cleanedMessage).replace(/\n/g, '<br>');
+                floatingModal.attachHover(buttonItem, preview, selectTemplate);
+              } else {
+                buttonItem.title = cleanedMessage.replace(/\s+/g, ' ').slice(0, 200);
+              }
+    
+              panel.appendChild(buttonItem);
+            }
+    
+            wrapper.appendChild(groupWrapper);
+          }
+    
+          wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+            const button = wrap.querySelector('button');
+            const panel = wrap.querySelector('.template-panel');
+    
+            Object.assign(panel.style, {
+              fontFamily: 'inherit',
+              fontSize: '0.875rem',
+              lineHeight: '1.25rem',
+              padding: '0.5rem',
+              maxWidth: '500px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.375rem',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+              zIndex: '1000004',
+              position: 'fixed',
+              display: 'none',
+              whiteSpace: 'normal',
+              color: '#374151'
+            });
+    
+            wrap.addEventListener('mouseenter', () => {
+              const rect = button.getBoundingClientRect();
+              panel.style.top = `${rect.top + window.scrollY}px`;
+              panel.style.left = `${rect.right + window.scrollX}px`;
+              panel.style.display = 'block';
+            });
+    
+            wrap.addEventListener('mouseleave', () => {
+              panel.style.display = 'none';
+            });
+          });
+        } finally {}
+      });
+    } catch (err) {
+      cErr(`Error in tb_template_menu: ${err}`);
+    }
+}
+
+  addTemplateMenu();
+
+  const hide = () => { overlay.style.display = "none"; };
+  qs("#sms-close", overlay).onclick = hide;
+  qs("#sms-cancel", overlay).onclick = hide;
+
+  qs("#sms-send", overlay).onclick = async () => {
+    let fromNumber = qs("#sms-from", overlay).value.trim();
+    let toNumber   = qs("#sms-to", overlay).value.trim();
+    const message  = qs("#sms-body", overlay).value.trim();
+    const contactId  = overlay.dataset.contactId || "";
+    const err = qs("#sms-error", overlay);
+    err.style.display = "none"; err.textContent = "";
+
+    if (toNumber && !toNumber.startsWith("+")) {
+      toNumber = `+1${toNumber.replace(/\D/g, "")}`;
+      qs("#sms-to", overlay).value = toNumber;
+    } else if (toNumber && !toNumber.startsWith("+1")) {
+      toNumber = `+1${toNumber.replace(/^\+?/, "").replace(/\D/g, "")}`;
+      qs("#sms-to", overlay).value = toNumber;
+    }
+
+    if (!fromNumber || !toNumber || !message || !contactId) {
+      err.textContent = !contactId
+        ? "Missing contact id for this row."
+        : "From, To, and Message are required.";
       err.style.display = "block";
       return;
     }
+
+    qs("#sms-send", overlay).disabled = true;
+    qs("#sms-send", overlay).textContent = "Sending…";
     try {
-      const conversationId = await fetchConversationId({ contactId });
-      if (!conversationId) {
-        loading.style.display = "none";
-        empty.style.display = "block";
-        return;
-      }
-      const messages = await fetchMessages({ conversationId, limit: 50 });
-      renderSmsHistory(overlay, messages);
+      await sendSmsRequest({ contactId, message, fromNumber, toNumber });
+      qs("#sms-body", overlay).value = "";
+      await loadSmsHistoryFromModalHeader(overlay);
     } catch (e) {
-      loading.style.display = "none";
       err.textContent = String(e.message || e);
       err.style.display = "block";
+    } finally {
+      qs("#sms-send", overlay).disabled = false;
+      qs("#sms-send", overlay).textContent = "Send";
     }
+  };
+
+  return overlay;
+}
+
+const overlay = buildSmsModal();
+
+document.querySelectorAll('td[data-title="Phone"]').forEach((cell) => {
+  const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
+  if (!phoneDiv) return;
+
+  let actions = cell.querySelector(".call-actions");
+  if (!actions) {
+    actions = document.createElement("div");
+    actions.className = "call-actions";
+    actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
+    cell.appendChild(actions);
   }
-  
-  async function sendSmsRequest({ contactId, message, fromNumber, toNumber }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-  
-    const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      },
-      body: JSON.stringify({
-        contactId,
-        locationId,
-        type: "SMS",
-        channel: "sms",
-        message,
-        attachments: [],
-        fromOneToOneConversation: true,
-        fromNumber,
-        toNumber
-      })
-    });
-  
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-    return res.json();
+
+  let msgIcon = cell.querySelector(".fa-solid.fa-message");
+  if (!msgIcon) {
+    msgIcon = document.createElement("i");
+    msgIcon.className = "fa-solid fa-message";
   }
-  
-  function buildSmsModal() {
-    if (qs("#sms-modal-overlay")) return qs("#sms-modal-overlay");
-    const overlay = document.createElement("div");
-    overlay.id = "sms-modal-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
-    const modal = document.createElement("div");
-    modal.style.cssText = "width:75%;background:#fff;border-radius:8px;margin:10vh auto;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
-    modal.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <h3 style="margin:0;font-size:16px;">
-          <span id="sms-title-prefix">Conversation</span>
-          <span id="sms-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
-        </h3>
-        <button id="sms-close" style="border:0;background:transparent;font-size:18px;cursor:pointer;">×</button>
-      </div>
-  
-      <div id="sms-history" style="border:1px solid #e5e7eb;border-radius:8px;height:260px;overflow:auto;padding:8px;margin-bottom:10px;background:#fafafa;">
-        <div id="sms-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
-        <div id="sms-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
-        <div id="sms-history-empty" style="display:none;font-size:12px;color:#667085;">No messages yet.</div>
-        <div id="sms-history-list"></div>
-      </div>
-  
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
-        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
-          From
-          <input id="sms-from" type="text" value="${fromMyNumber}" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
-        </label>
-        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
-          To
-          <input id="sms-to" type="text" placeholder="+1 512-545-4307" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
-        </label>
-      </div>
-      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
-        Message
-        <textarea id="sms-body" rows="4" placeholder="Type a message" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:10px;font-size:14px;resize:vertical;"></textarea>
-      </label>
-      <div id="sms-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
-        <button id="sms-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
-        <button id="sms-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
-      </div>
-    `;
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-  
-  
-  async function addTemplateMenu() {
-      if (!ENABLE_MENU_BUTTONS) return;
-      
-      try {
-        const cancelBtn = document.querySelector('#sms-cancel');
-        const sendBtn = document.querySelector('#sms-send');
-        if (!cancelBtn || !sendBtn) return;
-      
-        const actionRow = sendBtn.closest('div');
-        if (!actionRow) return;
-      
-        const oldMenu = document.getElementById('tb_template_menu');
-        if (oldMenu) oldMenu.remove();
-        const oldSpacer = document.getElementById('tb_template_spacer');
-        if (oldSpacer) oldSpacer.remove();
-      
-        const menuLink = document.createElement('a');
-        menuLink.id = 'tb_template_menu';
-        menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
-        menuLink.setAttribute('aria-label', 'SMS Templates');
-        menuLink.style.display = 'inline-flex';
-        menuLink.style.alignItems = 'center';
-        menuLink.style.lineHeight = '1.6rem';
-      
-        menuLink.innerHTML = `
-          <span class="flex items-center select-none" id="menu-l1">
-            SMS Templates
-            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </span>
-        `;
-      
-        const spacer = document.createElement('div');
-        spacer.id = 'tb_template_spacer';
-        spacer.style.flex = '1 1 auto';
-      
-        actionRow.insertBefore(menuLink, actionRow.firstChild);
-        actionRow.insertBefore(spacer, cancelBtn);
-      
-        let wrapper = null;
-      
-        function createDropdown() {
-          const div = document.createElement('div');
-          div.setAttribute('role', 'menu');
-          div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
-          div.style.width = '13rem';
-          div.style.left = '0';
-          div.style.zIndex = '1000003';
-          menuLink.appendChild(div);
-          return div;
-        }
-      
-        function hideAllPanels() {
-          if (!wrapper) return;
-          wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
-          const modal = document.getElementById('sms-template-hover');
-          if (modal) modal.style.display = 'none';
-        }
-      
-        function closeDropdown() {
-          hideAllPanels();
-          if (!wrapper) return;
-          wrapper.classList.add('hidden');
-          wrapper.setAttribute('hidden', '');
-          wrapper.style.display = 'none';
-          menuLink.setAttribute('aria-expanded', 'false');
-          menuLink.blur();
-          teardownGlobalClosers();
-        }
-      
-        function openDropdown() {
-          wrapper.classList.remove('hidden');
-          wrapper.removeAttribute('hidden');
-          wrapper.style.display = '';
-          menuLink.setAttribute('aria-expanded', 'true');
-      
-          outsideHandler = (ev) => {
-            if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
-          };
-          escHandler = (ev) => {
-            if (ev.key === 'Escape') closeDropdown();
-          };
-          document.addEventListener('mousedown', outsideHandler, true);
-          document.addEventListener('keydown', escHandler, true);
-        }
-      
-        wrapper = createDropdown();
-      
-        let outsideHandler = null;
-        let escHandler = null;
-      
-        function teardownGlobalClosers() {
-          if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
-          if (escHandler) document.removeEventListener('keydown', escHandler, true);
-          outsideHandler = null;
-          escHandler = null;
-        }
-      
-        menuLink.addEventListener('click', async (e) => {
-          e.preventDefault();
-      
-          const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
-          if (!isHidden) {
-            closeDropdown();
-            return;
-          }
-      
-          openDropdown();
-          wrapper.innerHTML = '';
-      
-          const autoSendCheckboxWrapper = document.createElement('div');
-          autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
-      
-          const checkboxLabel = document.createElement('label');
-          checkboxLabel.textContent = 'Auto-send Text Message';
-      
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.className = 'mr-2';
-          checkboxLabel.prepend(checkbox);
-      
-          autoSendCheckboxWrapper.appendChild(checkboxLabel);
-          wrapper.appendChild(autoSendCheckboxWrapper);
-          autoSendCheckboxWrapper.addEventListener('click', ev => ev.stopPropagation());
-      
-          const storedAutoSendState = localStorage.getItem('autoSendChecked');
-          checkbox.checked = storedAutoSendState === 'true';
-          checkbox.addEventListener('change', () => {
-            localStorage.setItem('autoSendChecked', checkbox.checked);
-          });
-      
-          try {
-            const userInfo = await getUserData();
-            if (!userInfo) return;
-            
-            menuData = await getMenuData('sms');
-            
-            let floatingModal = document.getElementById('sms-template-hover');
-            if (!floatingModal) {
-              floatingModal = createFloatingModal({
-                id: 'sms-template-hover',
-                styles: {
-                  position: 'fixed',
-                  backgroundColor: '#f9f9f9',
-                  border: '1px solid #ccc',
-                  minWidth: '20rem',
-                  maxWidth: '20rem',
-                  zIndex: '1000005',
-                  pointerEvents: 'none'
-                }
-              });
-            } else {
-              floatingModal.style.position = 'fixed';
-              floatingModal.style.zIndex = '1000005';
-              floatingModal.style.pointerEvents = 'none';
-            }
-      
-            for (const [group, templates] of Object.entries(menuData)) {
-              const groupWrapper = document.createElement('div');
-              groupWrapper.className = 'relative group submenu-wrapper';
-              groupWrapper.innerHTML = `
-                <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
-                  <span>${group}</span>
-                  <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
-                </button>
-                <div class="hidden template-panel"></div>
-              `;
-      
-              const panel = groupWrapper.querySelector('.template-panel');
-      
-              for (const [label, { message }] of Object.entries(templates)) {
-                const buttonItem = document.createElement('div');
-                buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-                buttonItem.textContent = label;
-      
-                const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-      
-                function selectTemplate() {
-                  const input = document.querySelector('#sms-body');
-                  const sendButton = document.querySelector('#sms-send');
-                  if (!input) return;
-      
-                  setInputValue(input, cleanedMessage, 'smsMsg');
-                  if (checkbox?.checked && sendButton) setTimeout(() => sendButton.click(), 100);
-      
-                  closeDropdown(); // hide all menus including menu-l1 dropdown
-                }
-      
-                buttonItem.addEventListener('click', (ev) => {
-                  ev.preventDefault();
-                  ev.stopPropagation();
-                  if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-                  selectTemplate();
-                });
-      
-                if (floatingModal && typeof floatingModal.attachHover === 'function') {
-                  const preview = String(cleanedMessage).replace(/\n/g, '<br>');
-                  floatingModal.attachHover(buttonItem, preview, selectTemplate);
-                } else {
-                  buttonItem.title = cleanedMessage.replace(/\s+/g, ' ').slice(0, 200);
-                }
-      
-                panel.appendChild(buttonItem);
-              }
-      
-              wrapper.appendChild(groupWrapper);
-            }
-      
-            wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
-              const button = wrap.querySelector('button');
-              const panel = wrap.querySelector('.template-panel');
-      
-              Object.assign(panel.style, {
-                fontFamily: 'inherit',
-                fontSize: '0.875rem',
-                lineHeight: '1.25rem',
-                padding: '0.5rem',
-                maxWidth: '500px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.375rem',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-                zIndex: '1000004',
-                position: 'fixed',
-                display: 'none',
-                whiteSpace: 'normal',
-                color: '#374151'
-              });
-      
-              wrap.addEventListener('mouseenter', () => {
-                const rect = button.getBoundingClientRect();
-                panel.style.top = `${rect.top + window.scrollY}px`;
-                panel.style.left = `${rect.right + window.scrollX}px`;
-                panel.style.display = 'block';
-              });
-      
-              wrap.addEventListener('mouseleave', () => {
-                panel.style.display = 'none';
-              });
-            });
-          } finally {}
-        });
-      } catch (err) {
-        cErr(`Error in tb_template_menu: ${err}`);
-      }
-  }
-  
-    addTemplateMenu();
-  
-    const hide = () => { overlay.style.display = "none"; };
-    qs("#sms-close", overlay).onclick = hide;
-    qs("#sms-cancel", overlay).onclick = hide;
-  
-    qs("#sms-send", overlay).onclick = async () => {
-      let fromNumber = qs("#sms-from", overlay).value.trim();
-      let toNumber   = qs("#sms-to", overlay).value.trim();
-      const message  = qs("#sms-body", overlay).value.trim();
-      const contactId  = overlay.dataset.contactId || "";
-      const err = qs("#sms-error", overlay);
-      err.style.display = "none"; err.textContent = "";
-  
-      if (toNumber && !toNumber.startsWith("+")) {
-        toNumber = `+1${toNumber.replace(/\D/g, "")}`;
-        qs("#sms-to", overlay).value = toNumber;
-      } else if (toNumber && !toNumber.startsWith("+1")) {
-        toNumber = `+1${toNumber.replace(/^\+?/, "").replace(/\D/g, "")}`;
-        qs("#sms-to", overlay).value = toNumber;
-      }
-  
-      if (!fromNumber || !toNumber || !message || !contactId) {
-        err.textContent = !contactId
-          ? "Missing contact id for this row."
-          : "From, To, and Message are required.";
-        err.style.display = "block";
-        return;
-      }
-  
-      qs("#sms-send", overlay).disabled = true;
-      qs("#sms-send", overlay).textContent = "Sending…";
-      try {
-        await sendSmsRequest({ contactId, message, fromNumber, toNumber });
-        qs("#sms-body", overlay).value = "";
-        await loadSmsHistoryFromModalHeader(overlay);
-      } catch (e) {
-        err.textContent = String(e.message || e);
-        err.style.display = "block";
-      } finally {
-        qs("#sms-send", overlay).disabled = false;
-        qs("#sms-send", overlay).textContent = "Send";
-      }
-    };
-  
-    return overlay;
-  }
-  
-  const overlay = buildSmsModal();
-  
-  document.querySelectorAll('td[data-title="Phone"]').forEach((cell) => {
-    const phoneDiv = cell.querySelector(".phone.copy-me.clipboard-holder");
-    if (!phoneDiv) return;
-  
-    let actions = cell.querySelector(".call-actions");
-    if (!actions) {
-      actions = document.createElement("div");
-      actions.className = "call-actions";
-      actions.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px;";
-      cell.appendChild(actions);
+  msgIcon.style.color = "rgba(59,130,246,.7)";
+  msgIcon.style.cursor = "pointer";
+
+  if (msgIcon.parentElement !== actions) actions.appendChild(msgIcon);
+  if (msgIcon.dataset.msgListenerAttached === "1") return;
+
+  msgIcon.addEventListener("click", (e) => {
+    block(e);
+
+    const tr = cell.closest("tr");
+    const rowId = tr && tr.id ? tr.id.trim() : "";
+
+   let nameCell =
+    (tr && tr.querySelector('td[data-title="Name"]')) ||
+    (tr && tr.querySelector('td[data-title="Client"]')) ||
+    (tr && tr.querySelector("td .name")) ||
+    (tr && tr.querySelector("td a"));
+
+    const clientName = nameCell ? nameCell.textContent.trim() : "";
+
+    const rawPhone = phoneDiv.innerText.trim();
+    let toNumber = rawPhone.replace(/[^\d+]/g, "");
+    if (!toNumber.startsWith("+1")) {
+      toNumber = `+1${toNumber.replace(/^1/, "")}`;
     }
-  
-    let msgIcon = cell.querySelector(".fa-solid.fa-message");
-    if (!msgIcon) {
-      msgIcon = document.createElement("i");
-      msgIcon.className = "fa-solid fa-message";
-    }
-    msgIcon.style.color = "rgba(59,130,246,.7)";
-    msgIcon.style.cursor = "pointer";
-  
-    if (msgIcon.parentElement !== actions) actions.appendChild(msgIcon);
-    if (msgIcon.dataset.msgListenerAttached === "1") return;
-  
-    msgIcon.addEventListener("click", (e) => {
-      block(e);
-  
-      const tr = cell.closest("tr");
-      const rowId = tr && tr.id ? tr.id.trim() : "";
-  
-     let nameCell =
-      (tr && tr.querySelector('td[data-title="Name"]')) ||
-      (tr && tr.querySelector('td[data-title="Client"]')) ||
-      (tr && tr.querySelector("td .name")) ||
-      (tr && tr.querySelector("td a"));
-  
-      const clientName = nameCell ? nameCell.textContent.trim() : "";
-  
-      const rawPhone = phoneDiv.innerText.trim();
-      let toNumber = rawPhone.replace(/[^\d+]/g, "");
-      if (!toNumber.startsWith("+1")) {
-        toNumber = `+1${toNumber.replace(/^1/, "")}`;
-      }
-  
-      qs("#sms-to", overlay).value = toNumber;
-      qs("#sms-from", overlay).value = fromMyNumber;
-      qs("#sms-body", overlay).value = "";
-      qs("#sms-error", overlay).style.display = "none";
-  
-      overlay.dataset.contactId = rowId || "";
-  
-      const metaEl = qs("#sms-title-meta", overlay);
-      if (metaEl) {
-      const nameSource =
-        (nameCell && nameCell.querySelector('a[title]')) ||
-        (nameCell && nameCell.querySelector('a')) ||
-        nameCell;
-      
-      const rawName =
-        (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
-      
-      function escapeHtml(s) {
-        return String(s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-      
-      const cleaned = rawName.replace(/\s+/g, " ").trim();
-      const parts = cleaned.split(" ").filter(Boolean);
-      const first = parts[0] || "";
-      const last = parts.slice(1).join(" ") || "";
-      
-      const nameHtml =
-        (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
-        (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
-      
-      const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
-      metaEl.innerHTML = `${nameHtml}${idHtml}`;
-      }  
-  
-      const histLoading = qs("#sms-history-loading", overlay);
-      const histErr = qs("#sms-history-error", overlay);
-      const histEmpty = qs("#sms-history-empty", overlay);
-      const histList = qs("#sms-history-list", overlay);
-      histLoading.style.display = "block";
-      histErr.style.display = "none";
-      histEmpty.style.display = "none";
-      histList.innerHTML = "";
-  
-      overlay.style.display = "block";
-      loadSmsHistoryFromModalHeader(overlay);
-    }, true);
-  
-    msgIcon.dataset.msgListenerAttached = "1";
-  });
+
+    qs("#sms-to", overlay).value = toNumber;
+    qs("#sms-from", overlay).value = fromMyNumber;
+    qs("#sms-body", overlay).value = "";
+    qs("#sms-error", overlay).style.display = "none";
+
+    overlay.dataset.contactId = rowId || "";
+
+const metaEl = qs("#sms-title-meta", overlay);
+if (metaEl) {
+const nameSource =
+  (nameCell && nameCell.querySelector('a[title]')) ||
+  (nameCell && nameCell.querySelector('a')) ||
+  nameCell;
+
+const rawName =
+  (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const cleaned = rawName.replace(/\s+/g, " ").trim();
+const parts = cleaned.split(" ").filter(Boolean);
+const first = parts[0] || "";
+const last = parts.slice(1).join(" ") || "";
+
+const nameHtml =
+  (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
+  (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
+
+const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
+metaEl.innerHTML = `${nameHtml}${idHtml}`;
+}
+
+
+    const histLoading = qs("#sms-history-loading", overlay);
+    const histErr = qs("#sms-history-error", overlay);
+    const histEmpty = qs("#sms-history-empty", overlay);
+    const histList = qs("#sms-history-list", overlay);
+    histLoading.style.display = "block";
+    histErr.style.display = "none";
+    histEmpty.style.display = "none";
+    histList.innerHTML = "";
+
+    overlay.style.display = "block";
+    loadSmsHistoryFromModalHeader(overlay);
+  }, true);
+
+  msgIcon.dataset.msgListenerAttached = "1";
+});
 }
 
 function attachContactDataHandlers() {
@@ -7700,646 +7509,6 @@ function pinPopoverTo(popoverEl, anchorEl, opts = {}) {
   scanAllRows();
 }
 
-function attachEmailHandlers() {
-  // Avoid double-injection
-  if (window.__emailHandlersAttached) return;
-  window.__emailHandlersAttached = true;
-
-  if (!location.href.includes("/contacts/smart_list/")) return;
-
-  const qs = (s, r = document) => r.querySelector(s);
-
-  // -------------------- Auth / API --------------------
-  async function getAuthTokenAndLocationId() {
-    const idb = await new Promise((res, rej) => {
-      const r = indexedDB.open("firebaseLocalStorageDb");
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    const rows = await new Promise((res, rej) => {
-      const tx = idb.transaction("firebaseLocalStorage", "readonly");
-      const os = tx.objectStore("firebaseLocalStorage");
-      const rq = os.getAll();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error);
-    });
-    const row = rows.find(r => /authUser/.test(r.fbase_key));
-    const val = typeof row?.value === "string" ? JSON.parse(row.value) : row?.value;
-    const idToken = val?.stsTokenManager?.accessToken || "";
-    const parts = location.pathname.split("/");
-    const locationId = parts[parts.indexOf("location") + 1];
-    return { idToken, locationId };
-  }
-
-  async function fetchConversationId({ contactId }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const params = new URLSearchParams({ locationId, contactId, limit: "1" }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    const conv = Array.isArray(data?.conversations) ? data.conversations[0] : data?.items?.[0] || data?.[0];
-    return conv?.id || conv?._id || "";
-  }
-
-  async function fetchConversationsByContact({ contactId, limit = 50 }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    const params = new URLSearchParams({ locationId, contactId, limit: String(limit) }).toString();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/search?${params}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    return Array.isArray(data?.conversations) ? data.conversations : (data?.items || []);
-  }
-
-  async function fetchMessages({ conversationId, limit = 100 }) {
-    const { idToken } = await getAuthTokenAndLocationId();
-    const r = await fetch(`https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`, {
-      method: "GET",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      }
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-    return Array.isArray(data?.messages) ? data.messages : (data?.items || data || []);
-  }
-
-  // -------------------- Utils --------------------
-function toEmailHtml(input, contentType) {
-  const s = String(input ?? "");
-  const isHtml = (contentType && /html/i.test(contentType)) || /<[a-z][\s\S]*>/i.test(s);
-  if (isHtml) return s;
-
-  const esc = s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const withSpaces = esc.replace(/ {2,}/g, m => "&nbsp;".repeat(m.length - 1) + " ");
-
-  // Replace ONLY single \n with <br>, keep double \n\n as <br><br>
-  const normalized = withSpaces.replace(/\r\n/g, "\n");
-  return normalized
-    .split(/\n\n/)                 // preserve blank lines as paragraph breaks
-    .map(chunk => chunk.replace(/\n/g, "<br>")) // single \n → <br>
-    .join("<br><br>");
-}
-  function escapeHtml(s) {
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  }
-  function isBlankHtml(html) {
-    if (html == null) return true;
-    const s = String(html)
-      .replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/<[^>]+>/g, "")
-      .trim();
-    return s.length === 0;
-  }
-  function wrapEmailHtml(inner) {
-    // keep it minimal; no borders/styles that could leak into recipients
-    return `<html><head><meta charset="utf-8"></head><body>${inner}</body></html>`;
-  }
-
-  // -------------------- Modal (bigger) --------------------
-  function buildEmailModal() {
-    let overlay = qs("#email-modal-overlay");
-    if (overlay) return overlay;
-
-    overlay = document.createElement("div");
-    overlay.id = "email-modal-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:999999;";
-
-    const modal = document.createElement("div");
-    modal.style.cssText = "width:90%;max-width:1200px;max-height:90vh;overflow:auto;background:#fff;border-radius:10px;margin:5vh auto;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.2);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;";
-
-    modal.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <h3 style="margin:0;font-size:18px;">
-          <span id="email-title-prefix">Email</span>
-          <span id="email-title-meta" style="font-weight:400;color:#667085;margin-left:8px;"></span>
-        </h3>
-        <button id="email-close" style="border:0;background:transparent;font-size:20px;cursor:pointer;">×</button>
-      </div>
-
-      <div id="email-history" style="border:1px solid #e5e7eb;border-radius:10px;height:380px;overflow:auto;padding:10px;margin-bottom:12px;background:#f8fafc;">
-        <div id="email-history-loading" style="font-size:12px;color:#667085;">Loading…</div>
-        <div id="email-history-error" style="display:none;font-size:12px;color:#b42318;"></div>
-        <div id="email-history-empty" style="display:none;font-size:12px;color:#667085;">No emails yet.</div>
-        <div id="email-history-list"></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
-        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
-          From
-          <input id="email-from" type="text" placeholder="Your Name <you@example.com>" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
-        </label>
-        <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;">
-          To
-          <input id="email-to" type="email" placeholder="recipient@example.com" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
-        </label>
-      </div>
-
-      <label style="display:flex;flex-direction:column;font-size:12px;color:#344054;margin-bottom:8px;">
-        Subject
-        <input id="email-subject" type="text" placeholder="Subject" style="margin-top:6px;border:1px solid #d0d5dd;border-radius:6px;padding:8px 10px;font-size:14px;">
-      </label>
-
-      <div id="email-toolbar" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;">
-        <button type="button" data-cmd="bold" class="tb">B</button>
-        <button type="button" data-cmd="italic" class="tb">I</button>
-        <button type="button" data-cmd="underline" class="tb">U</button>
-        <button type="button" data-cmd="insertUnorderedList" class="tb">• List</button>
-        <button type="button" data-cmd="insertOrderedList" class="tb">1. List</button>
-        <button type="button" id="tb-link" class="tb">Link</button>
-        <button type="button" id="tb-clear" class="tb">Clear</button>
-        <button type="button" id="tb-signature" class="tb">Add signature</button>
-      </div>
-      <style>
-        #email-toolbar .tb { padding:6px 10px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer }
-        #email-editor:empty:before { content: attr(data-placeholder); color:#98a2b3; }
-      </style>
-
-      <div id="email-editor" contenteditable="true"
-           style="min-height:220px;border:1px solid #d0d5dd;border-radius:6px;padding:12px;font-size:14px;line-height:1.5;background:#fff;outline:none;"
-           data-placeholder="Type your email…"></div>
-
-      <div id="email-error" style="color:#b42318;font-size:12px;margin-top:8px;display:none;"></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
-        <button id="email-cancel" style="border:1px solid #d0d5dd;background:#fff;border-radius:6px;padding:8px 12px;cursor:pointer;">Cancel</button>
-        <button id="email-send" style="border:1px solid #155EEF;background:#155EEF;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;">Send</button>
-      </div>
-    `;
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    // Toolbar wiring
-    const editor = qs("#email-editor", overlay);
-    const tb = qs("#email-toolbar", overlay);
-
-    // execCommand is still the simplest way for a lightweight inline WYSIWYG
-    function exec(cmd, val = null) { document.execCommand(cmd, false, val); }
-
-    tb.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const cmd = btn.getAttribute("data-cmd");
-      if (!cmd) return;
-      editor.focus();
-      exec(cmd);
-    });
-
-    qs("#tb-link", overlay).addEventListener("click", () => {
-      editor.focus();
-      let url = prompt("Enter URL:");
-      if (!url) return;
-      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-      exec("createLink", url);
-    });
-
-    qs("#tb-clear", overlay).addEventListener("click", () => {
-      // fully clear editor
-      editor.innerHTML = "";
-      editor.focus();
-    });
-
-    qs("#tb-signature", overlay).addEventListener("click", () => {
-      editor.focus();
-      const sigHtml = [
-        '<div style="margin-top:16px;">',
-        'Kind regards,<br>',
-        '<strong>Mike Levy</strong> | Property Acquisition Officer<br>',
-        'Cash Land Buyer USA<br>',
-        '📧 <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a><br>',
-        '📞 <a href="tel:+13025877490">(302) 587-7490</a><br>',
-        '<a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener">www.cashlandbuyerusa.com</a>',
-        '</div>'
-      ].join("");
-      // insert at caret
-      document.execCommand("insertHTML", false, sigHtml);
-    });
-
-    // paste as plain text (so you control formatting)
-    editor.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData("text/plain");
-      document.execCommand("insertText", false, text);
-    });
-
-    const hide = () => { overlay.style.display = "none"; };
-    qs("#email-close", overlay).onclick = hide;
-    qs("#email-cancel", overlay).onclick = hide;
-
-    // Send with validation (subject + body required)
-    qs("#email-send", overlay).onclick = async () => {
-      const fromVal  = qs("#email-from", overlay).value.trim();
-      const toVal    = qs("#email-to", overlay).value.trim();
-      const subject  = qs("#email-subject", overlay).value.trim();
-      const htmlBody = editor.innerHTML; // WYSIWYG HTML
-      const contactId = overlay.dataset.contactId || "";
-      const err = qs("#email-error", overlay);
-      err.style.display = "none"; err.textContent = "";
-
-      if (!contactId) {
-        err.textContent = "Missing contact id for this row.";
-        err.style.display = "block";
-        return;
-      }
-      if (!fromVal) {
-        err.textContent = "From is required.";
-        err.style.display = "block";
-        qs("#email-from", overlay).focus();
-        return;
-      }
-      if (!toVal) {
-        err.textContent = "To is required.";
-        err.style.display = "block";
-        qs("#email-to", overlay).focus();
-        return;
-      }
-      if (!subject) {
-        err.textContent = "Subject is required.";
-        err.style.display = "block";
-        qs("#email-subject", overlay).focus();
-        return;
-      }
-      if (isBlankHtml(htmlBody)) {
-        err.textContent = "Message body is required.";
-        err.style.display = "block";
-        editor.focus();
-        return;
-      }
-
-      qs("#email-send", overlay).disabled = true;
-      qs("#email-send", overlay).textContent = "Sending…";
-      try {
-        await sendEmailRequest({
-          contactId,
-          subject,
-          html: wrapEmailHtml(htmlBody),
-          emailFrom: fromVal
-        });
-        editor.innerHTML = "";
-        await loadEmailHistory(overlay);
-      } catch (e) {
-        err.textContent = String(e.message || e);
-        err.style.display = "block";
-      } finally {
-        qs("#email-send", overlay).disabled = false;
-        qs("#email-send", overlay).textContent = "Send";
-      }
-    };
-
-    return overlay;
-  }
-
-  // -------------------- Send --------------------
-  async function sendEmailRequest({ contactId, subject, html, emailFrom, attachments = [], emailReplyMode = "reply_all", fromOneToOneConversation = true }) {
-    const { idToken, locationId } = await getAuthTokenAndLocationId();
-    let userId = "";
-    try {
-      const u = typeof getUserData === "function" ? await getUserData() : null;
-      userId = u?.myUserId || u?.userId || "";
-    } catch {}
-    const payload = {
-      contactId,
-      subject,
-      html,
-      emailFrom,
-      userId,
-      attachments,
-      type: "Email",
-      channel: "email",
-      locationId,
-      emailReplyMode,
-      fromOneToOneConversation
-    };
-    const r = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "token-id": idToken,
-        "version": "2021-07-28",
-        "channel": "APP",
-        "source": "WEB_USER"
-      },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    return r.json();
-  }
-
-  // -------------------- History (meta.email authoritative) --------------------
-  function isEmailFromMeta(m) {
-    // accept when meta.email present and either subject exists or it's an email type/content
-    return !!(m?.meta?.email && (m.meta.email.subject || m.contentType === "text/html" || m.type === 3));
-  }
-
-  function normalizeEmailMessage(m) {
-    const me = (m && m.meta && m.meta.email) || {};
-    const str = v => (typeof v === "string" ? v : "");
-
-    return {
-      subject: str(me.subject) || "(no subject)",
-      direction: String(me.direction || m.direction || m.messageDirection || "").toLowerCase(), // inbound|outbound
-      html: toEmailHtml(m.body || "", m.contentType),
-      createdAt: me.lastMessageTimestamp || me.firstMessageTimestamp || m.userMessageTime || m.dateAdded || m.dateUpdated || null,
-      fromName: str(me.name),
-      fromEmail: str(me.email)
-    };
-  }
-
-  function renderEmailCards(overlay, emails) {
-    const list = overlay.querySelector("#email-history-list");
-    const box  = overlay.querySelector("#email-history");
-    list.innerHTML = "";
-
-    const frag = document.createDocumentFragment();
-
-    emails
-      .slice()
-      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
-      .forEach(m => {
-        const outbound = (m.direction === "outbound");
-
-        const cardWrap = document.createElement("div");
-        cardWrap.style.cssText = `
-          display:flex;
-          margin:10px 0;
-          ${outbound ? "justify-content:flex-end;" : "justify-content:flex-start;"}
-        `;
-
-        const card = document.createElement("article");
-        card.style.cssText = `
-          width:80%;
-          border:1px solid #e5e7eb;
-          border-radius:10px;
-          background:#fff;
-          overflow:hidden;
-          box-shadow:0 1px 2px rgba(0,0,0,.04);
-        `;
-
-        // Subject header (blue)
-        const header = document.createElement("div");
-        header.style.cssText = `
-          background:#155EEF;
-          color:#fff;
-          padding:10px 12px;
-          font-weight:600;
-          font-size:14px;
-        `;
-        header.textContent = m.subject || "(no subject)";
-
-        // Meta line: from (left) | date (right)
-        const meta = document.createElement("div");
-        meta.style.cssText = `
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          padding:8px 12px;
-          background:#f7f7fb;
-          color:#475467;
-          font-size:12px;
-        `;
-        const fromSpan = document.createElement("span");
-        fromSpan.textContent = [m.fromName, m.fromEmail].filter(Boolean).join(" · ") || "Unknown sender";
-
-        const dateSpan = document.createElement("span");
-        dateSpan.textContent = m.createdAt ? new Date(m.createdAt).toLocaleString() : "";
-
-        meta.appendChild(fromSpan);
-        meta.appendChild(dateSpan);
-
-        // Body: preserve HTML or convert \n → <br>
-        const body = document.createElement("div");
-        body.style.cssText = `
-          padding:12px;
-          font-size:14px;
-          line-height:1.55;
-          color:#111827;
-          background:#fff;
-        `;
-        if (m.html && String(m.html).trim()) {
-          body.innerHTML = m.html;
-        } else {
-          const missing = document.createElement("div");
-          missing.textContent = "Email content not found";
-          missing.style.cssText = "font-style:italic;color:#9CA3AF;";
-          body.appendChild(missing);
-        }
-
-        card.appendChild(header);
-        card.appendChild(meta);
-        card.appendChild(body);
-
-        // Align card
-        if (outbound) card.style.marginLeft = "auto";
-        else card.style.marginRight = "auto";
-
-        cardWrap.appendChild(card);
-        frag.appendChild(cardWrap);
-      });
-
-    list.appendChild(frag);
-    if (box) box.scrollTop = box.scrollHeight;
-  }
-
-  async function loadEmailHistory(overlay) {
-    const loading = overlay.querySelector("#email-history-loading");
-    const err = overlay.querySelector("#email-history-error");
-    const empty = overlay.querySelector("#email-history-empty");
-    const list = overlay.querySelector("#email-history-list");
-
-    loading.style.display = "block";
-    err.style.display = "none";
-    empty.style.display = "none";
-    list.innerHTML = "";
-
-    const contactId = overlay.dataset.contactId || "";
-    if (!contactId) {
-      loading.style.display = "none";
-      err.textContent = "Missing contact id.";
-      err.style.display = "block";
-      return;
-    }
-
-    try {
-      let ids = [];
-      const convs = await fetchConversationsByContact({ contactId, limit: 50 });
-      ids = Array.isArray(convs) ? convs.map(c => c && c.id).filter(Boolean) : [];
-      if (!ids.length) {
-        const singleId = await fetchConversationId({ contactId });
-        if (!singleId) {
-          loading.style.display = "none";
-          empty.style.display = "block";
-          return;
-        }
-        ids = [singleId];
-      }
-
-      const settled = await Promise.allSettled(ids.map(id => fetchMessages({ conversationId: id, limit: 100 })));
-      const all = settled.flatMap(res => {
-        if (res.status !== "fulfilled") return [];
-        const raw = res.value;
-        if (Array.isArray(raw)) return raw;
-        if (Array.isArray(raw?.messages?.messages)) return raw.messages.messages;
-        if (Array.isArray(raw?.messages)) return raw.messages;
-        if (Array.isArray(raw?.items)) return raw.items;
-        if (Array.isArray(raw?.data)) return raw.data;
-        if (raw && typeof raw === "object") {
-          const k = Object.keys(raw).find(key => Array.isArray(raw[key]));
-          return k ? raw[k] : [];
-        }
-        return [];
-      });
-
-      const emailOnly = all.filter(isEmailFromMeta).map(normalizeEmailMessage);
-
-      loading.style.display = "none";
-      if (!emailOnly.length) {
-        empty.style.display = "block";
-        return;
-      }
-
-      renderEmailCards(overlay, emailOnly);
-    } catch (e) {
-      loading.style.display = "none";
-      err.textContent = String(e?.message || e);
-      err.style.display = "block";
-    }
-  }
-
-  // -------------------- Wire up buttons in table --------------------
-  function hasEmailInRow(tr) {
-    // try Email column first
-    const emailCell = tr.querySelector('td[data-title="Email"]');
-    const text = (emailCell?.textContent || "").trim();
-    const mailto = emailCell?.querySelector('a[href^="mailto:"]')?.getAttribute("href");
-    const emailRegex = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
-    return emailRegex.test(text) || (mailto && emailRegex.test(mailto));
-  }
-
-  function getEmailFromRow(tr) {
-    const emailCell = tr.querySelector('td[data-title="Email"]');
-    const link = emailCell?.querySelector('a[href^="mailto:"]');
-    if (link) {
-      const href = link.getAttribute("href") || "";
-      const m = href.match(/mailto:([^?]+)/i);
-      if (m) return m[1];
-    }
-    const text = (emailCell?.textContent || "").trim();
-    const m2 = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
-    return m2 ? m2[0] : "";
-  }
-
-  function ensureRowButton(tr) {
-    if (tr.querySelector('.email-envelope-action')) return; // one already exists - skip adding a second
-
-    // Only add if row has an email address
-    if (!hasEmailInRow(tr)) return;
-
-    const msgIcon = tr.querySelector('.fa-solid.fa-message');
-    if (!msgIcon) return;
-
-    const emailIcon = document.createElement("i");
-    emailIcon.className = "fa-solid fa-envelope email-envelope-action";
-    emailIcon.style.cssText = "color: rgba(21, 94, 239, 0.9); cursor: pointer; margin-left: 8px;";
-    msgIcon.insertAdjacentElement("afterend", emailIcon);
-
-    emailIcon.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-
-      const rowId = tr.id ? tr.id.trim() : "";
-
-      // name
-      let nameCell =
-        tr.querySelector('td[data-title="Name"]') ||
-        tr.querySelector('td[data-title="Client"]') ||
-        tr.querySelector("td .name") ||
-        tr.querySelector("td a");
-      const nameSource = nameCell?.querySelector('a[title]') || nameCell?.querySelector('a') || nameCell;
-      const rawName = (nameSource && (nameSource.getAttribute('title') || nameSource.textContent)) || "";
-      const cleaned = rawName.replace(/\s+/g, " ").trim();
-      const parts = cleaned.split(" ").filter(Boolean);
-      const first = parts[0] || "";
-      const last = parts.slice(1).join(" ") || "";
-
-      const overlay = buildEmailModal();
-      // title meta
-      const metaEl = qs("#email-title-meta", overlay);
-      if (metaEl) {
-        const nameHtml =
-          (first ? `<span id="prospectFirstName">${escapeHtml(first)}</span>` : "") +
-          (last ? ` <span id="prospectLastName">${escapeHtml(last)}</span>` : "");
-        const idHtml = rowId ? ` (${escapeHtml(rowId)})` : "";
-        metaEl.innerHTML = `${nameHtml}${idHtml}`;
-      }
-
-      overlay.dataset.contactId = rowId || "";
-      const emailVal = getEmailFromRow(tr);
-      qs("#email-to", overlay).value = emailVal;
-
-      try {
-        const u = typeof getUserData === "function" ? await getUserData() : null;
-        const myName = u?.myFirstName && u?.myLastName ? `${u.myFirstName} ${u.myLastName}` : (u?.myFirstName || u?.myName || "");
-        const myEmail = u?.myEmail || "";
-        if (myEmail) qs("#email-from", overlay).value = myName ? `${myName} <${myEmail}>` : myEmail;
-      } catch {}
-
-      qs("#email-subject", overlay).value = "";
-      qs("#email-editor", overlay).innerHTML = "";
-
-      const histLoading = qs("#email-history-loading", overlay);
-      const histErr = qs("#email-history-error", overlay);
-      const histEmpty = qs("#email-history-empty", overlay);
-      const histList = qs("#email-history-list", overlay);
-      histLoading.style.display = "block";
-      histErr.style.display = "none";
-      histEmpty.style.display = "none";
-      histList.innerHTML = "";
-
-      overlay.style.display = "block";
-      loadEmailHistory(overlay);
-    }, true);
-  }
-
-  // Attach to existing rows
-  document.querySelectorAll('tr[id]').forEach(ensureRowButton);
-
-  // If table updates dynamically, you can observe mutations:
-  const tbl = document.querySelector('table') || document.body;
-  const mo = new MutationObserver(muts => {
-    for (const m of muts) {
-      m.addedNodes && m.addedNodes.forEach(n => {
-        if (n.nodeType === 1 && n.matches && n.matches('tr[id]')) ensureRowButton(n);
-        if (n.nodeType === 1) n.querySelectorAll && n.querySelectorAll('tr[id]').forEach(ensureRowButton);
-      });
-    }
-  });
-  mo.observe(tbl, { childList: true, subtree: true });
-}
 
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
@@ -8488,7 +7657,6 @@ async function autoDispoCall() {
             attachPhoneDialHandlers();
             attachMessageHandlers();
             attachContactDataHandlers();
-            attachEmailHandlers();
           
             populateCallQueue();
             moveCallBtn();
