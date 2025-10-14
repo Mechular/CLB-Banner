@@ -431,125 +431,135 @@ Property Acquisition Officer  |  Cash Land Buyer USA
 
   if (commType === 'voicemail') {
     menuData = {
-      'Day #1": {
-        'Day #1, VM #1': makeItem(
+      'Day #1': {
+        'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}this is ${CALLER_NAME}. I saw your info come through about selling your property${street}.
-I’d love to talk about what you’re looking for and see if I can make you an offer that works.
-Please call me at ${CALLBACK_NUMBER} when you get a moment. Looking forward to hearing from you.`;
+  I’d love to talk about what you’re looking for and see if I can make you an offer that works.
+  Please call me at ${CALLBACK_NUMBER} when you get a moment. Looking forward to hearing from you.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'Day #1, VM #2': makeItem(
+        'VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}it’s ${CALLER_NAME}. Following up since you mentioned being interested in selling your place${street}.
-I’ve got flexibility with timing and price, and I think we can make something work.
-Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soon.`;
+  I’ve got flexibility with timing and price, and I think we can make something work.
+  Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soon.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
       },
-      'Day #2": {
-        'Day #2, VM #1': makeItem(
+      'Day #2': {
+        'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}it’s ${CALLER_NAME} checking back in about your property${street}.
-I can give you a straightforward cash offer with no repairs or showings.
-Call me at ${CALLBACK_NUMBER} and we can go over your options. Thank you.`;
+  I can give you a straightforward cash offer with no repairs or showings.
+  Call me at ${CALLBACK_NUMBER} and we can go over your options. Thank you.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'Day #2, VM #2': makeItem(
+        'VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${hiName}it’s ${CALLER_NAME}. I haven’t heard back yet and I’m still ready to move forward on your property${street}.
-We can close whenever works best for you.
-Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forward to connecting.`;
+  We can close whenever works best for you.
+  Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forward to connecting.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
       },
-      'Day #3": {
-        'Day #3, VM #1': makeItem(
+      'Day #3': {
+        'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}${CALLER_NAME} here. I’m still very interested in buying your property${street}.
-If you’re weighing options, I can make an all-cash offer and handle everything for you.
-Give me a quick call at ${CALLBACK_NUMBER} and we’ll see if we're a fit. Talk to you soon!`;
+  If you’re weighing options, I can make an all-cash offer and handle everything for you.
+  Give me a quick call at ${CALLBACK_NUMBER} and we’ll see if we're a fit. Talk to you soon!`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'Day #3, VM #2': makeItem(
+        'VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${hiName}it’s ${CALLER_NAME} again. I’m finalizing offers on a few properties this week and I'd like yours to be one of them.
-If you’re ready, we can get started right away with a simple process.
-You can reach me at ${CALLBACK_NUMBER}. Talk soon.`;
+  If you’re ready, we can get started right away with a simple process.
+  You can reach me at ${CALLBACK_NUMBER}. Talk soon.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
       },
-      'Day #4": {
-        'Day #4, VM #1': makeItem(
+      'Day #4': {
+        'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}${CALLER_NAME} here. Reaching out before I move forward with a couple of other sellers.
-If selling your property${street} is still on your mind, this is a good time to connect.
-Please call me today at ${CALLBACK_NUMBER}. Thank you.`;
+  If selling your property${street} is still on your mind, this is a good time to connect.
+  Please call me today at ${CALLBACK_NUMBER}. Thank you.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'Day #4, VM #2': makeItem(
+        'VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${hiName}it’s ${CALLER_NAME}. I don’t want to keep calling if the timing isn’t right, but I’d like to make this easy for you.
-If you’re ready, we can agree on a number and start the paperwork today.
-Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`;
+  If you’re ready, we can agree on a number and start the paperwork today.
+  Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
       },
-      'Day #5": {
-        'Day #5, VM #1': makeItem(
+      'Day #5': {
+        'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${heyName}it’s ${CALLER_NAME}. Quick heads-up: I’m wrapping up my offers this week and I’d still like to include your property${street}.
-If you’re serious about selling, call me today at ${CALLBACK_NUMBER} and we can lock this in. Thanks.`;
+  If you’re serious about selling, call me today at ${CALLBACK_NUMBER} and we can lock this in. Thanks.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
-        'Day #5, VM #1': makeItem(
+        'VM #2': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const hiName = first ? `Hi ${sellerFirstName}, ` : '';
-            const street = typeof streetLabelFromAddress === 'function' && fullAddress ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
+            const street = typeof streetLabelFromAddress === 'function' && fullAddress
+              ? ` on *${streetLabelFromAddress(fullAddress)}*` : '';
             return `${hiName}${CALLER_NAME} here. You showed interest in selling your property${street} and I don’t want you to miss out before I close things out.
-If you’re still considering it, please call or text me at ${CALLBACK_NUMBER} today.
-If not, no problem. Thank you for your time.`;
+  If you’re still considering it, please call or text me at ${CALLBACK_NUMBER} today.
+  If not, no problem. Thank you for your time.`;
           },
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
-        )
-      }
+        ),
+      },
     };
   }
 
