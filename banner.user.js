@@ -4167,284 +4167,252 @@ async function addTextMessageMenu() {
     }
 }
 
-
 async function addTemplateMenu() {
-  if (!ENABLE_MENU_BUTTONS) return;
-
-  try {
-    const cancelBtn = document.querySelector('#sms-cancel');
-    const sendBtn = document.querySelector('#sms-send');
-    if (!cancelBtn || !sendBtn) return;
-
-    const actionRow = sendBtn.closest('div');
-    if (!actionRow) return;
-
-    const oldMenu = document.getElementById('tb_template_menu');
-    if (oldMenu) oldMenu.remove();
-    const oldSpacer = document.getElementById('tb_template_spacer');
-    if (oldSpacer) oldSpacer.remove();
-
-    const menuLink = document.createElement('a');
-    menuLink.id = 'tb_template_menu';
-    menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
-    menuLink.setAttribute('aria-label', 'SMS Templates');
-    menuLink.style.display = 'inline-flex';
-    menuLink.style.alignItems = 'center';
-    menuLink.style.lineHeight = '1.6rem';
-    menuLink.innerHTML = `
-      <span class="flex items-center select-none" id="menu-l1">
-        SMS Templates
-        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
-        </svg>
-      </span>
-    `;
-
-    const spacer = document.createElement('div');
-    spacer.id = 'tb_template_spacer';
-    spacer.style.flex = '1 1 auto';
-
-    actionRow.insertBefore(menuLink, actionRow.firstChild);
-    actionRow.insertBefore(spacer, cancelBtn);
-
-    if (!document.getElementById('menu-disabled-style')) {
-      const style = document.createElement('style');
-      style.id = 'menu-disabled-style';
-      style.textContent = `
-        .menu-item[aria-disabled="true"]{cursor:not-allowed;opacity:.55;pointer-events:auto}
-        .menu-item[aria-disabled="true"]:hover{background:inherit}
-        .submenu-button{outline:none}
+    if (!ENABLE_MENU_BUTTONS) return;
+    
+    try {
+      const cancelBtn = document.querySelector('#sms-cancel');
+      const sendBtn = document.querySelector('#sms-send');
+      if (!cancelBtn || !sendBtn) return;
+    
+      const actionRow = sendBtn.closest('div');
+      if (!actionRow) return;
+    
+      const oldMenu = document.getElementById('tb_template_menu');
+      if (oldMenu) oldMenu.remove();
+      const oldSpacer = document.getElementById('tb_template_spacer');
+      if (oldSpacer) oldSpacer.remove();
+    
+      const menuLink = document.createElement('a');
+      menuLink.id = 'tb_template_menu';
+      menuLink.className = 'group text-left text-sm font-medium topmenu-navitem cursor-pointer relative';
+      menuLink.setAttribute('aria-label', 'SMS Templates');
+      menuLink.style.display = 'inline-flex';
+      menuLink.style.alignItems = 'center';
+      menuLink.style.lineHeight = '1.6rem';
+    
+      menuLink.innerHTML = `
+        <span class="flex items-center select-none" id="menu-l1">
+          SMS Templates
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </span>
       `;
-      document.head.appendChild(style);
-    }
-
-    let wrapper = null;
-    function createDropdown() {
-      const div = document.createElement('div');
-      div.setAttribute('role', 'menu');
-      div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
-      div.style.width = '13rem';
-      div.style.left = '0';
-      div.style.zIndex = '1000003';
-      menuLink.appendChild(div);
-      return div;
-    }
-
-    function hideAllPanels() {
-      if (!wrapper) return;
-      wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
-      const modal = document.getElementById('sms-template-hover');
-      if (modal) modal.style.display = 'none';
-    }
-
-    function closeDropdown() {
-      hideAllPanels();
-      if (!wrapper) return;
-      wrapper.classList.add('hidden');
-      wrapper.setAttribute('hidden', '');
-      wrapper.style.display = 'none';
-      menuLink.setAttribute('aria-expanded', 'false');
-      menuLink.blur();
-      teardownGlobalClosers();
-    }
-
-    function openDropdown() {
-      wrapper.classList.remove('hidden');
-      wrapper.removeAttribute('hidden');
-      wrapper.style.display = '';
-      menuLink.setAttribute('aria-expanded', 'true');
-
-      outsideHandler = (ev) => {
-        if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
-      };
-      escHandler = (ev) => { if (ev.key === 'Escape') closeDropdown(); };
-      document.addEventListener('mousedown', outsideHandler, true);
-      document.addEventListener('keydown', escHandler, true);
-    }
-
-    wrapper = createDropdown();
-
-    let outsideHandler = null;
-    let escHandler = null;
-    function teardownGlobalClosers() {
-      if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
-      if (escHandler) document.removeEventListener('keydown', escHandler, true);
-      outsideHandler = null;
-      escHandler = null;
-    }
-
-    function normalizeTemplateValue(val) {
-      if (typeof val === 'string') return { message: val, disabled: false };
-      if (val && typeof val === 'object') {
-        const message = val.message ?? val.body ?? '';
-        const disabled = !!val.disabled;
-        return { message, disabled };
+    
+      const spacer = document.createElement('div');
+      spacer.id = 'tb_template_spacer';
+      spacer.style.flex = '1 1 auto';
+    
+      actionRow.insertBefore(menuLink, actionRow.firstChild);
+      actionRow.insertBefore(spacer, cancelBtn);
+    
+      let wrapper = null;
+    
+      function createDropdown() {
+        const div = document.createElement('div');
+        div.setAttribute('role', 'menu');
+        div.className = 'hidden template-dropdown origin-top-right absolute mt-2 min-w-[18rem] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40';
+        div.style.width = '13rem';
+        div.style.left = '0';
+        div.style.zIndex = '1000003';
+        menuLink.appendChild(div);
+        return div;
       }
-      return { message: '', disabled: true };
-    }
-
-    function positionPanel(button, panel) {
-      const rect = button.getBoundingClientRect();
-      const top = rect.top + window.scrollY;
-      let left = rect.right + 8 + window.scrollX;
-      panel.style.display = 'block';
-      const panelWidth = panel.offsetWidth || 240;
-      if (left + panelWidth > window.innerWidth + window.scrollX) {
-        left = rect.left - panelWidth - 8 + window.scrollX;
+    
+      function hideAllPanels() {
+        if (!wrapper) return;
+        wrapper.querySelectorAll('.template-panel').forEach(p => { p.style.display = 'none'; });
+        const modal = document.getElementById('sms-template-hover');
+        if (modal) modal.style.display = 'none';
       }
-      panel.style.top = `${top}px`;
-      panel.style.left = `${left}px`;
-    }
-
-    menuLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-
-      const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
-      if (!isHidden) { closeDropdown(); return; }
-
-      openDropdown();
-      wrapper.innerHTML = '';
-
-      // 1) Auto-send toggle (always shown)
-      const autoSendCheckboxWrapper = document.createElement('div');
-      autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
-      const checkboxLabel = document.createElement('label');
-      checkboxLabel.textContent = 'Auto-send Text Message';
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'mr-2';
-      checkboxLabel.prepend(checkbox);
-      autoSendCheckboxWrapper.appendChild(checkboxLabel);
-      wrapper.appendChild(autoSendCheckboxWrapper);
-      autoSendCheckboxWrapper.addEventListener('click', ev => ev.stopPropagation());
-      const storedAutoSendState = localStorage.getItem('autoSendChecked');
-      checkbox.checked = storedAutoSendState === 'true';
-      checkbox.addEventListener('change', () => {
-        localStorage.setItem('autoSendChecked', checkbox.checked);
-      });
-
-      // 2) Do NOT early-return if user data is missing
-      try { await getUserData(); } catch {}
-
-      // 3) Fetch templates safely
-      let menuObj = await getMenuData('sms');
-      if (!menuObj || typeof menuObj !== 'object') menuObj = {};
-
-      // Optional empty-state row so it’s obvious why nothing else showed
-      if (Object.keys(menuObj).length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'px-4 py-2 text-sm text-gray-500';
-        empty.textContent = 'No SMS templates available.';
-        wrapper.appendChild(empty);
-        return;
+    
+      function closeDropdown() {
+        hideAllPanels();
+        if (!wrapper) return;
+        wrapper.classList.add('hidden');
+        wrapper.setAttribute('hidden', '');
+        wrapper.style.display = 'none';
+        menuLink.setAttribute('aria-expanded', 'false');
+        menuLink.blur();
+        teardownGlobalClosers();
       }
-
-      // 4) Floating preview modal (non-blocking)
-      let floatingModal = document.getElementById('sms-template-hover');
-      if (!floatingModal) {
-        try {
-          floatingModal = createFloatingModal({
-            id: 'sms-template-hover',
-            styles: {
-              position: 'fixed',
-              backgroundColor: '#f9f9f9',
-              border: '1px solid #ccc',
-              minWidth: '20rem',
-              maxWidth: '20rem',
-              zIndex: '1000005',
-              pointerEvents: 'none'
-            }
-          });
-        } catch { /* continue without modal */ }
-      } else {
-        floatingModal.style.position = 'fixed';
-        floatingModal.style.zIndex = '1000005';
-        floatingModal.style.pointerEvents = 'none';
+    
+      function openDropdown() {
+        wrapper.classList.remove('hidden');
+        wrapper.removeAttribute('hidden');
+        wrapper.style.display = '';
+        menuLink.setAttribute('aria-expanded', 'true');
+    
+        outsideHandler = (ev) => {
+          if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+        };
+        escHandler = (ev) => {
+          if (ev.key === 'Escape') closeDropdown();
+        };
+        document.addEventListener('mousedown', outsideHandler, true);
+        document.addEventListener('keydown', escHandler, true);
       }
-
-      // 5) Build groups and items
-      for (const [group, templates] of Object.entries(menuObj)) {
-        const groupWrapper = document.createElement('div');
-        groupWrapper.className = 'relative group submenu-wrapper';
-        groupWrapper.innerHTML = `
-          <button class="submenu-button flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            <span>${group}</span>
-            <span style="font-size:.75rem;color:#6b7280;padding-left:10px;">▶</span>
-          </button>
-          <div class="hidden template-panel"></div>
-        `;
-
-        const button = groupWrapper.querySelector('.submenu-button');
-        const panel = groupWrapper.querySelector('.template-panel');
-
-        Object.assign(panel.style, {
-          fontFamily: 'inherit',
-          fontSize: '0.875rem',
-          lineHeight: '1.25rem',
-          padding: '0.5rem',
-          maxWidth: '500px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #d1d5db',
-          borderRadius: '0.375rem',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-          zIndex: '1000004',
-          position: 'fixed',
-          display: 'none',
-          whiteSpace: 'normal',
-          color: '#374151'
-        });
-
-        for (const [label, rawVal] of Object.entries(templates || {})) {
-          const { message, disabled } = normalizeTemplateValue(rawVal);
-          const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
-
-          const item = document.createElement('div');
-          item.className = 'menu-item text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
-          item.textContent = label;
-          item.setAttribute('role', 'menuitem');
-          item.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-          if (disabled) item.classList.add('opacity-60');
-
-          function selectTemplate() {
-            if (disabled) return;
-            const input = document.querySelector('#sms-body');
-            const sendButton = document.querySelector('#sms-send');
-            if (!input) return;
-            setInputValue(input, cleanedMessage, 'smsMsg');
-            if (checkbox?.checked && sendButton) setTimeout(() => sendButton.click(), 100);
-            closeDropdown();
-          }
-
-          item.addEventListener('click', (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-            selectTemplate();
-          });
-
-          if (floatingModal && typeof floatingModal.attachHover === 'function') {
-            const preview = String(cleanedMessage).replace(/\n/g, '<br>');
-            floatingModal.attachHover(item, preview, selectTemplate);
-          } else {
-            item.title = cleanedMessage.replace(/\s+/g, ' ').slice(0, 200);
-          }
-
-          panel.appendChild(item);
+    
+      wrapper = createDropdown();
+    
+      let outsideHandler = null;
+      let escHandler = null;
+    
+      function teardownGlobalClosers() {
+        if (outsideHandler) document.removeEventListener('mousedown', outsideHandler, true);
+        if (escHandler) document.removeEventListener('keydown', escHandler, true);
+        outsideHandler = null;
+        escHandler = null;
+      }
+    
+      menuLink.addEventListener('click', async (e) => {
+        e.preventDefault();
+    
+        const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
+        if (!isHidden) {
+          closeDropdown();
+          return;
         }
-
-        groupWrapper.addEventListener('mouseenter', () => {
-          hideAllPanels();
-          positionPanel(button, panel);
-          panel.style.display = 'block';
+    
+        openDropdown();
+        wrapper.innerHTML = '';
+    
+        const autoSendCheckboxWrapper = document.createElement('div');
+        autoSendCheckboxWrapper.className = 'block w-full px-4 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100';
+    
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.textContent = 'Auto-send Text Message';
+    
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'mr-2';
+        checkboxLabel.prepend(checkbox);
+    
+        autoSendCheckboxWrapper.appendChild(checkboxLabel);
+        wrapper.appendChild(autoSendCheckboxWrapper);
+        autoSendCheckboxWrapper.addEventListener('click', ev => ev.stopPropagation());
+    
+        const storedAutoSendState = localStorage.getItem('autoSendChecked');
+        checkbox.checked = storedAutoSendState === 'true';
+        checkbox.addEventListener('change', () => {
+          localStorage.setItem('autoSendChecked', checkbox.checked);
         });
-        groupWrapper.addEventListener('mouseleave', () => { panel.style.display = 'none'; });
-
-        wrapper.appendChild(groupWrapper);
-      }
-    });
-  } catch (err) {
-    cErr(`Error in tb_template_menu: ${err}`);
-  }
+    
+        try {
+          const userInfo = await getUserData();
+          if (!userInfo) return;
+          
+          menuData = await getMenuData('sms');
+          
+          let floatingModal = document.getElementById('sms-template-hover');
+          if (!floatingModal) {
+            floatingModal = createFloatingModal({
+              id: 'sms-template-hover',
+              styles: {
+                position: 'fixed',
+                backgroundColor: '#f9f9f9',
+                border: '1px solid #ccc',
+                minWidth: '20rem',
+                maxWidth: '20rem',
+                zIndex: '1000005',
+                pointerEvents: 'none'
+              }
+            });
+          } else {
+            floatingModal.style.position = 'fixed';
+            floatingModal.style.zIndex = '1000005';
+            floatingModal.style.pointerEvents = 'none';
+          }
+    
+          for (const [group, templates] of Object.entries(menuData)) {
+            const groupWrapper = document.createElement('div');
+            groupWrapper.className = 'relative group submenu-wrapper';
+            groupWrapper.innerHTML = `
+              <button class="flex justify-between items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 submenu-button">
+                <span>${group}</span>
+                <span style="font-size: 0.75rem; color: #6b7280; padding-left: 10px;">▶</span>
+              </button>
+              <div class="hidden template-panel"></div>
+            `;
+    
+            const panel = groupWrapper.querySelector('.template-panel');
+    
+            for (const [label, { message }] of Object.entries(templates)) {
+              const buttonItem = document.createElement('div');
+              buttonItem.className = 'text-sm px-4 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer';
+              buttonItem.textContent = label;
+    
+              const cleanedMessage = typeof message === 'string' ? cleanMessageText(message) : '';
+    
+              function selectTemplate() {
+                const input = document.querySelector('#sms-body');
+                const sendButton = document.querySelector('#sms-send');
+                if (!input) return;
+    
+                setInputValue(input, cleanedMessage, 'smsMsg');
+                if (checkbox?.checked && sendButton) setTimeout(() => sendButton.click(), 100);
+    
+                closeDropdown(); // hide all menus including menu-l1 dropdown
+              }
+    
+              buttonItem.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+                selectTemplate();
+              });
+    
+              if (floatingModal && typeof floatingModal.attachHover === 'function') {
+                const preview = String(cleanedMessage).replace(/\n/g, '<br>');
+                floatingModal.attachHover(buttonItem, preview, selectTemplate);
+              } else {
+                buttonItem.title = cleanedMessage.replace(/\s+/g, ' ').slice(0, 200);
+              }
+    
+              panel.appendChild(buttonItem);
+            }
+    
+            wrapper.appendChild(groupWrapper);
+          }
+    
+          wrapper.querySelectorAll('.submenu-wrapper').forEach(wrap => {
+            const button = wrap.querySelector('button');
+            const panel = wrap.querySelector('.template-panel');
+    
+            Object.assign(panel.style, {
+              fontFamily: 'inherit',
+              fontSize: '0.875rem',
+              lineHeight: '1.25rem',
+              padding: '0.5rem',
+              maxWidth: '500px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.375rem',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+              zIndex: '1000004',
+              position: 'fixed',
+              display: 'none',
+              whiteSpace: 'normal',
+              color: '#374151'
+            });
+    
+            wrap.addEventListener('mouseenter', () => {
+              const rect = button.getBoundingClientRect();
+              panel.style.top = `${rect.top + window.scrollY}px`;
+              panel.style.left = `${rect.right + window.scrollX}px`;
+              panel.style.display = 'block';
+            });
+    
+            wrap.addEventListener('mouseleave', () => {
+              panel.style.display = 'none';
+            });
+          });
+        } finally {}
+      });
+    } catch (err) {
+      cErr(`Error in tb_template_menu: ${err}`);
+    }
 }
 
 async function addQuickNotesMenu() {
