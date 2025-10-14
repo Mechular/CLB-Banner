@@ -431,7 +431,6 @@ Property Acquisition Officer  |  Cash Land Buyer USA
 
   if (commType === 'voicemail') {
     menuData = {
-      'Voicemail Scripts': {
         'VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -541,7 +540,6 @@ If not, no problem. Thank you for your time.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         )
-      }
     };
   }
 
