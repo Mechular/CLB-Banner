@@ -7304,13 +7304,21 @@ function attachEmailHandlers() {
       menuLink.setAttribute('aria-expanded', 'true');
 
       outsideHandler = (ev) => {
-        if (!wrapper.contains(ev.target) && !menuLink.contains(ev.target)) closeDropdown();
+        const t = ev.target;
+        const inside =
+          t === menuLink ||
+          menuLink.contains(t) ||
+          t === wrapper ||
+          wrapper.contains(t);
+        if (!inside) closeDropdown();
       };
+
       escHandler = (ev) => {
         if (ev.key === 'Escape') closeDropdown();
       };
-      document.addEventListener('mousedown', outsideHandler, true);
-      document.addEventListener('keydown', escHandler, true);
+      // document.addEventListener('click', outsideHandler, false);
+      // document.addEventListener('mousedown', outsideHandler, true);
+      // document.addEventListener('keydown', escHandler, true);
     }
 
     function teardownGlobalClosers() {
@@ -7355,6 +7363,7 @@ function attachEmailHandlers() {
 
     menuLink.addEventListener('click', async (e) => {
       e.preventDefault();
+      e.stopPropagation();
 
       const isHidden = wrapper.classList.contains('hidden') || wrapper.style.display === 'none';
       if (!isHidden) {
@@ -7363,6 +7372,11 @@ function attachEmailHandlers() {
       }
 
       openDropdown();
+      setTimeout(() => {
+        document.addEventListener('click', outsideHandler, false);
+        document.addEventListener('keydown', escHandler, true);
+      }, 0);
+
       wrapper.innerHTML = '';
 
       let data;
