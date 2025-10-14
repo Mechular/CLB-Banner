@@ -431,6 +431,7 @@ Property Acquisition Officer  |  Cash Land Buyer USA
 
   if (commType === 'voicemail') {
     menuData = {
+      'Day #1": {
         'Day #1, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -453,6 +454,8 @@ Call me back at ${CALLBACK_NUMBER} when you’re free. Hope to hear from you soo
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
+      },
+      'Day #2": {
         'Day #2, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -475,6 +478,8 @@ Please call me at ${CALLBACK_NUMBER} today if you’d like to chat. Looking forw
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
+      },
+      'Day #3": {
         'Day #3, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -497,6 +502,8 @@ You can reach me at ${CALLBACK_NUMBER}. Talk soon.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
+      },
+      'Day #4": {
         'Day #4, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -519,6 +526,8 @@ Call or text me at ${CALLBACK_NUMBER}. Looking forward to hearing from you.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         ),
+      },
+      'Day #5": {
         'Day #5, VM #1': makeItem(
           ({ first, sellerFirstName, CALLER_NAME, streetLabelFromAddress, fullAddress, CALLBACK_NUMBER }) => {
             const heyName = first ? `Hey ${sellerFirstName}, ` : '';
@@ -540,6 +549,7 @@ If not, no problem. Thank you for your time.`;
           ['sellerFirstName', 'CALLER_NAME', 'CALLBACK_NUMBER'],
           ctx
         )
+      }
     };
   }
 
