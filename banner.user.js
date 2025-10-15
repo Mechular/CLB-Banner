@@ -8182,7 +8182,7 @@ async function autoDispoCall() {
                 addQuickNotesMenu();
 
                 removePostDialModal();
-                shrinkCenterPanelHeight();
+                // shrinkCenterPanelHeight();
 
                 timeRestriction();
                 hideWhatsAppTab();
