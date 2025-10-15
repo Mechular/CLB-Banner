@@ -4582,7 +4582,7 @@ async function addQuickNotesMenu() {
                 },
                 {
                     name: 'Rental Questions',
-                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilites: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
+                    text: `Rent Collected: \nTaxes: \nInsurance: \nUtilities: \nMaintenance Manager: \nMaintenance Costs: \n\nVacancy in the past 12 months: \n`,
                     autoSave: false
                 },
                 sellerEmail ? {
