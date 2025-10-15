@@ -5131,46 +5131,6 @@ function cleanupSidebarAndWidgets() {
     }
 }
 
-
-// decrease height to make Send button visible without scrolling
-function shrinkCenterPanelHeight() {
-    if (!ENABLE_SHRINK_SMS_HEIGHT) return;
-
-    const panel = document.querySelector('.central-panel-messages');
-    const activeTab = document.querySelector('.nav-link.active');
-
-    if (panel && activeTab) {
-        const tabText = activeTab.innerText.trim();
-
-        if (panel.style.height !== 'unset') {
-            panel.style.height = 'unset';
-            panel.style.maxHeight = '48vh';
-        }
-
-        if (tabText === 'Email' && panel.style.maxHeight !== '38vh') {
-            panel.style.maxHeight = '38vh';
-        } else if (tabText === 'SMS' && panel.style.maxHeight !== '48vh') {
-            panel.style.maxHeight = '48vh';
-        }
-    }
-
-
-
-    const toolbar = document.querySelector("#toolbar-contact-buttons");
-    const contactWrap = document.querySelector(".hl_contact-details-new--wrap");
-
-    if (toolbar) toolbar.style.height = '4%';
-    if (contactWrap) contactWrap.style.height = '96%';
-
-    //  panel = document.querySelector(".hl_contact-details-left");
-
-    //  if (panel && panel.style.maxHeight !== '93%') {
-    //  panel.style.maxHeight = '93%';
-    //  }
-
-}
-
-
 function autoDispositionCall(disposition, tagName) {
     if (!ENABLE_AUTO_DISPOSITION) return;
 
@@ -8182,7 +8142,6 @@ async function autoDispoCall() {
                 addQuickNotesMenu();
 
                 removePostDialModal();
-                // shrinkCenterPanelHeight();
 
                 timeRestriction();
                 hideWhatsAppTab();
