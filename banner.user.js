@@ -3462,7 +3462,7 @@ propertyCity?.trim(),
     }
 
     const counts = await extractContactData();
-    console.log('counts ::: ', counts);
+    // console.log('counts ::: ', counts);
     let dispo = await getDisposition();
 
     // Check if dispo is empty or "Move to Contacted"
