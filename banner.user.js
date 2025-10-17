@@ -8035,6 +8035,10 @@ function pinPopoverTo(popoverEl, anchorEl, opts = {}) {
   scanAllRows();
 }
 
+function removeGeniusBtn() {
+  const el = document.querySelector('#geniusProfileCriteriaNow');
+  if (el) el.remove();
+}
 
 async function autoDispoCall() {
   if (!location.href.includes('/contacts/detail/')) return;
@@ -8165,6 +8169,7 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
+              removeGeniusBtn();
               autoDispoCall();
               setSecondaryDisposition();
               
