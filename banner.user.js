@@ -5107,7 +5107,7 @@ function cleanupSidebarAndWidgets() {
     if (!sideBarEl) return;
 
     // Array of target text values to remove
-    const targetTexts = ['Sites', 'Summer of AI', 'Memberships', 'Mobile App', 'Support', 'Marketing'];
+    const targetTexts = ['Sites', 'Summer of AI', 'Memberships', 'Mobile App', 'Support', 'Marketing', 'Genius Studio'];
 
     // Remove spans with matching text content
     const spans = document.querySelectorAll('span');
