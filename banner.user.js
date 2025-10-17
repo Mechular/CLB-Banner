@@ -8038,6 +8038,8 @@ function pinPopoverTo(popoverEl, anchorEl, opts = {}) {
 function removeGeniusBtn() {
   const el = document.querySelector('#geniusProfileCriteriaNow');
   if (el) el.remove();
+  const el1 = document.querySelector('#tb_contacts-divider_btn');
+  if (el1) el1.remove();
 }
 
 async function autoDispoCall() {
