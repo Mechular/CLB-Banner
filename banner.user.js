@@ -8169,7 +8169,6 @@ async function autoDispoCall() {
                     iterationCount = 0;
                 }
 
-              removeGeniusBtn();
               autoDispoCall();
               setSecondaryDisposition();
               
@@ -8182,6 +8181,7 @@ async function autoDispoCall() {
             } else {
             }
 
+            removeGeniusBtn();
             modalBanner();
             avatarHref();
             attachPhoneDialHandlers();
