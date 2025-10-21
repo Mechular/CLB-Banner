@@ -7242,10 +7242,10 @@ function attachEmailHandlers() {
   function getSignatureHtml() {
     return `
 <div style="margin-top:10px;">
-  <div><strong>Mike Levy</strong> | Property Acquisition Officer</div>
+  <div><strong>Tyler Schofield</strong> | Property Acquisition Officer</div>
   <div>Cash Land Buyer USA</div>
   <div>
-    <a href="mailto:mike@cashlandbuyerusa.com">mike@cashlandbuyerusa.com</a> ·
+    <a href="mailto:tyler@cashlandbuyerusa.com">tyler@cashlandbuyerusa.com</a> ·
     <a href="https://www.cashlandbuyerusa.com" target="_blank" rel="noopener noreferrer">www.cashlandbuyerusa.com</a> ·
     (302) 587-7490
   </div>
